@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@google/jules": "^0.1.37",
     "@types/node": "^24.9.1",
     "msw": "^2.11.6",
     "typescript": "^5.9.3",
