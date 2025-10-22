@@ -14,7 +14,9 @@ import {
   Activity,
 } from './types.js';
 import { SourceNotFoundError, RunFailedError } from './errors.js';
-import { streamActivities } from './streaming.js';
+import { pollUntilCompletion, streamActivities } from './streaming.js';
+import { mapSessionResourceToOutcome } from './mappers.js';
+import { SessionClientImpl } from './session.js';
 
 export class JulesClientImpl implements JulesClient {
   public sources: SourceManager;
@@ -31,67 +33,52 @@ export class JulesClientImpl implements JulesClient {
     this.sources = createSourceManager(this.apiClient);
   }
 
-  private async _createSessionAndGetId(config: SessionConfig): Promise<string> {
+  private async _prepareSessionCreation(
+    config: SessionConfig,
+  ): Promise<object> {
     const source = await this.sources.get({ github: config.source.github });
     if (!source) {
       throw new SourceNotFoundError(config.source.github);
     }
 
-    const session = await this.apiClient.request<SessionResource>('sessions', {
-      method: 'POST',
-      body: {
-        prompt: config.prompt,
-        title: config.title,
-        sourceContext: {
-          source: source.name,
-          githubRepoContext: {
-            startingBranch: config.source.branch,
-          },
+    return {
+      prompt: config.prompt,
+      title: config.title,
+      sourceContext: {
+        source: source.name,
+        githubRepoContext: {
+          startingBranch: config.source.branch,
         },
-        automationMode: (config.autoPr === false) ? 'AUTOMATION_MODE_UNSPECIFIED' : 'AUTO_CREATE_PR',
-        requirePlanApproval: config.requireApproval ?? false,
-      }
-    });
-
-    return session.id;
+      },
+    };
   }
 
   run(config: SessionConfig): Run {
-    const sessionIdPromise = this._createSessionAndGetId(config);
+    const sessionIdPromise = (async () => {
+      const body = await this._prepareSessionCreation(config);
+      const session = await this.apiClient.request<SessionResource>('sessions', {
+        method: 'POST',
+        body: {
+          ...body,
+          automationMode:
+            config.autoPr === false
+              ? 'AUTOMATION_MODE_UNSPECIFIED'
+              : 'AUTO_CREATE_PR',
+          requirePlanApproval: config.requireApproval ?? false,
+        },
+      });
+      return session.id;
+    })();
 
     const outcomePromise = new Promise<Outcome>(async (resolve, reject) => {
       try {
         const sessionId = await sessionIdPromise;
-
-        let finalActivity: Activity | undefined;
-        for await (const activity of streamActivities(sessionId, this.apiClient, this.pollingInterval)) {
-          if (activity.type === 'sessionCompleted' || activity.type === 'sessionFailed') {
-            finalActivity = activity;
-            break;
-          }
-        }
-
-        if (!finalActivity) {
-          throw new RunFailedError('Stream ended without a terminal activity.');
-        }
-
-        const updatedSession = await this.apiClient.request<SessionResource>(`sessions/${sessionId}`);
-
-        if (updatedSession.state === 'completed') {
-          const prOutput = updatedSession.outputs.find(o => 'pullRequest' in o);
-          const pullRequest = prOutput ? (prOutput as { pullRequest: PullRequest }).pullRequest : undefined;
-
-          resolve({
-            sessionId: updatedSession.id,
-            title: updatedSession.title,
-            state: 'completed',
-            pullRequest,
-            outputs: updatedSession.outputs,
-          });
-        } else {
-          const reason = (finalActivity as any)?.reason || 'Run failed';
-          reject(new RunFailedError(reason));
-        }
+        const finalSession = await pollUntilCompletion(
+          sessionId,
+          this.apiClient,
+          this.pollingInterval,
+        );
+        resolve(mapSessionResourceToOutcome(finalSession));
       } catch (error) {
         reject(error);
       }
@@ -112,14 +99,26 @@ export class JulesClientImpl implements JulesClient {
 
   session(config: SessionConfig): Promise<SessionClient>;
   session(sessionId: string): SessionClient;
-  session(configOrId: SessionConfig | string): Promise<SessionClient> | SessionClient {
-    // This is the core implementation that handles both overloads.
+  session(
+    configOrId: SessionConfig | string,
+  ): Promise<SessionClient> | SessionClient {
     if (typeof configOrId === 'string') {
-      // Logic for session(sessionId: string): SessionClient
-      throw new Error('Hydrating a session by ID is not yet implemented.');
-    } else {
-      // Logic for session(config: SessionConfig): Promise<SessionClient>
-      throw new Error('Creating a new interactive session is not yet implemented.');
+      return new SessionClientImpl(configOrId, this.apiClient, this);
     }
+
+    const config = configOrId;
+    const sessionPromise = (async () => {
+      const body = await this._prepareSessionCreation(config);
+      const session = await this.apiClient.request<SessionResource>('sessions', {
+        method: 'POST',
+        body: {
+          ...body,
+          automationMode: 'AUTOMATION_MODE_UNSPECIFIED',
+          requirePlanApproval: config.requireApproval ?? true,
+        },
+      });
+      return new SessionClientImpl(session.id, this.apiClient, this);
+    })();
+    return sessionPromise;
   }
 }

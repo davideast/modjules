@@ -13,6 +13,33 @@ type ListActivitiesResponse = {
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
+ * Polls the `GET /sessions/{id}` endpoint until the session reaches a terminal state.
+ *
+ * @param sessionId The ID of the session to poll.
+ * @param apiClient The API client for making requests.
+ * @param pollingInterval The interval in milliseconds between poll attempts.
+ * @returns The final SessionResource.
+ * @internal
+ */
+export async function pollUntilCompletion(
+  sessionId: string,
+  apiClient: ApiClient,
+  pollingInterval: number,
+): Promise<SessionResource> {
+  while (true) {
+    const session = await apiClient.request<SessionResource>(
+      `sessions/${sessionId}`,
+    );
+
+    if (session.state === 'completed' || session.state === 'failed') {
+      return session;
+    }
+
+    await sleep(pollingInterval);
+  }
+}
+
+/**
  * An async generator that implements a hybrid pagination/polling strategy
  * to stream activities for a given session.
  *
