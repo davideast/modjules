@@ -73,7 +73,7 @@ export class ApiClient {
     } catch (error) {
       // This catches fetch failures (e.g., network error, DNS resolution failure)
       // and timeouts from the AbortController.
-      throw new JulesNetworkError(`API request failed: ${(error as Error).message}`, {
+      throw new JulesNetworkError(url.toString(), {
         cause: error as Error,
       });
     } finally {
@@ -81,20 +81,32 @@ export class ApiClient {
     }
 
     if (!response.ok) {
-      const errorBody = await response.text().catch(() => 'Could not read error body');
-      const message = `API request failed with status ${response.status}: ${errorBody}`;
-
       switch (response.status) {
         case 401:
         case 403:
-          throw new JulesAuthenticationError(response.status, response.statusText);
-        case 429:
-          throw new JulesRateLimitError(response.status, response.statusText);
-        default:
-          throw new JulesApiError(
-            message,
+          throw new JulesAuthenticationError(
+            url.toString(),
             response.status,
             response.statusText,
+          );
+        case 429:
+          throw new JulesRateLimitError(
+            url.toString(),
+            response.status,
+            response.statusText,
+          );
+        default:
+          const errorBody = await response
+            .text()
+            .catch(() => 'Could not read error body');
+          const message = `[${
+            response.status
+          } ${response.statusText}] ${method} ${url.toString()} - ${errorBody}`;
+          throw new JulesApiError(
+            url.toString(),
+            response.status,
+            response.statusText,
+            message,
           );
       }
     }

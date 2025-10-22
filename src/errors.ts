@@ -18,22 +18,33 @@ export class JulesError extends Error {
 /**
  * Thrown for fundamental network issues like fetch failures or timeouts.
  */
-export class JulesNetworkError extends JulesError {}
+export class JulesNetworkError extends JulesError {
+  public readonly url: string;
+  constructor(url: string, options?: { cause?: Error }) {
+    super(`Network request to ${url} failed`, options);
+    this.url = url;
+  }
+}
 
 /**
  * A generic wrapper for non-2xx API responses that don't match other specific errors.
  */
 export class JulesApiError extends JulesError {
+  public readonly url: string;
   public readonly status: number;
   public readonly statusText: string;
 
   constructor(
-    message: string,
+    url: string,
     status: number,
     statusText: string,
+    message?: string, // optional override
     options?: { cause?: Error },
   ) {
-    super(message, options);
+    const finalMessage =
+      message ?? `[${status} ${statusText}] Request to ${url} failed`;
+    super(finalMessage, options);
+    this.url = url;
     this.status = status;
     this.statusText = statusText;
   }
@@ -43,11 +54,12 @@ export class JulesApiError extends JulesError {
  * Thrown for 401 Unauthorized or 403 Forbidden API responses.
  */
 export class JulesAuthenticationError extends JulesApiError {
-  constructor(status: number, statusText: string) {
+  constructor(url: string, status: number, statusText: string) {
     super(
-      `Authentication failed with status ${status}. Ensure your API key is correct.`,
+      url,
       status,
       statusText,
+      `[${status} ${statusText}] Authentication to ${url} failed. Ensure your API key is correct.`,
     );
   }
 }
@@ -56,11 +68,12 @@ export class JulesAuthenticationError extends JulesApiError {
  * Thrown for 429 Too Many Requests API responses.
  */
 export class JulesRateLimitError extends JulesApiError {
-  constructor(status: number, statusText: string) {
+  constructor(url: string, status: number, statusText: string) {
     super(
-      `API rate limit exceeded with status ${status}.`,
+      url,
       status,
       statusText,
+      `[${status} ${statusText}] API rate limit exceeded for ${url}.`,
     );
   }
 }

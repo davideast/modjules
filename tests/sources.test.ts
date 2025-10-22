@@ -3,7 +3,7 @@ import { beforeAll, afterAll, afterEach, describe, it, expect } from 'vitest';
 import { server } from './mocks/server.js';
 import { Jules, Source } from '../src/index.js';
 import { http, HttpResponse } from 'msw';
-import { JulesApiError } from '../src/api.js';
+import { JulesApiError } from '../src/errors.js';
 
 // Set up the mock server before all tests and clean up after
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
@@ -49,11 +49,13 @@ describe('SourceManager', () => {
         jules.sources.get({ github: 'server/error' })
       ).rejects.toThrow(JulesApiError);
 
-      await expect(
-        jules.sources.get({ github: 'server/error' })
-      ).rejects.toMatchObject({
+      const promise = jules.sources.get({ github: 'server/error' });
+      await expect(promise).rejects.toMatchObject({
         status: 500,
-        message: 'API request failed with status 500: Internal Server Error'
+        url: `${BASE_URL}/sources/github/server/error`,
+      });
+      await expect(promise).rejects.toSatisfy((e: JulesApiError) => {
+        return e.message.includes('Internal Server Error');
       });
     });
   });
@@ -125,8 +127,9 @@ describe('SourceManager', () => {
         }
       }
 
-      await expect(consumeGenerator()).rejects.toThrow(JulesApiError);
-      await expect(consumeGenerator()).rejects.toMatchObject({ status: 500 });
+      const promise = consumeGenerator();
+      await expect(promise).rejects.toThrow(JulesApiError);
+      await expect(promise).rejects.toMatchObject({ status: 500 });
     });
   });
 });
