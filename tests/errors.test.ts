@@ -38,82 +38,102 @@ describe('Error Handling', () => {
   const jules = Jules({ apiKey: TEST_API_KEY, baseUrl: TEST_BASE_URL });
 
   it('should throw JulesAuthenticationError on 401 Unauthorized', async () => {
+    const expectedUrl = `${TEST_BASE_URL}/sessions`;
     server.use(
       mockSourceLookup,
-      http.post(`${TEST_BASE_URL}/sessions`, () => {
-        return new HttpResponse(null, { status: 401 });
+      http.post(expectedUrl, () => {
+        return new HttpResponse(null, { status: 401, statusText: 'Unauthorized' });
       }),
     );
 
-    await expect(
-      jules.session({
-        prompt: 'test',
-        source: { github: 'test/repo', branch: 'main' },
-      }),
-    ).rejects.toThrow(JulesAuthenticationError);
+    const promise = jules.session({
+      prompt: 'test',
+      source: { github: 'test/repo', branch: 'main' },
+    });
+
+    await expect(promise).rejects.toThrow(JulesAuthenticationError);
+    await expect(promise).rejects.toHaveProperty('url', expectedUrl);
+    await expect(promise).rejects.toHaveProperty('status', 401);
   });
 
   it('should throw JulesAuthenticationError on 403 Forbidden', async () => {
+    const expectedUrl = `${TEST_BASE_URL}/sessions`;
     server.use(
       mockSourceLookup,
-      http.post(`${TEST_BASE_URL}/sessions`, () => {
-        return new HttpResponse(null, { status: 403 });
+      http.post(expectedUrl, () => {
+        return new HttpResponse(null, { status: 403, statusText: 'Forbidden' });
       }),
     );
 
-    await expect(
-      jules.session({
-        prompt: 'test',
-        source: { github: 'test/repo', branch: 'main' },
-      }),
-    ).rejects.toThrow(JulesAuthenticationError);
+    const promise = jules.session({
+      prompt: 'test',
+      source: { github: 'test/repo', branch: 'main' },
+    });
+
+    await expect(promise).rejects.toThrow(JulesAuthenticationError);
+    await expect(promise).rejects.toHaveProperty('url', expectedUrl);
+    await expect(promise).rejects.toHaveProperty('status', 403);
   });
 
   it('should throw JulesRateLimitError on 429 Too Many Requests', async () => {
+    const expectedUrl = `${TEST_BASE_URL}/sessions`;
     server.use(
       mockSourceLookup,
-      http.post(`${TEST_BASE_URL}/sessions`, () => {
-        return new HttpResponse(null, { status: 429 });
+      http.post(expectedUrl, () => {
+        return new HttpResponse(null, { status: 429, statusText: 'Too Many Requests' });
       }),
     );
 
-    await expect(
-      jules.session({
-        prompt: 'test',
-        source: { github: 'test/repo', branch: 'main' },
-      }),
-    ).rejects.toThrow(JulesRateLimitError);
+    const promise = jules.session({
+      prompt: 'test',
+      source: { github: 'test/repo', branch: 'main' },
+    });
+
+    await expect(promise).rejects.toThrow(JulesRateLimitError);
+    await expect(promise).rejects.toHaveProperty('url', expectedUrl);
+    await expect(promise).rejects.toHaveProperty('status', 429);
   });
 
   it('should throw JulesApiError on other non-2xx responses (e.g., 500)', async () => {
+    const expectedUrl = `${TEST_BASE_URL}/sessions`;
     server.use(
       mockSourceLookup,
-      http.post(`${TEST_BASE_URL}/sessions`, () => {
-        return new HttpResponse('Internal Server Error', { status: 500 });
+      http.post(expectedUrl, () => {
+        return new HttpResponse('Internal Server Error', {
+          status: 500,
+          statusText: 'Internal Server Error',
+        });
       }),
     );
 
-    await expect(
-      jules.session({
-        prompt: 'test',
-        source: { github: 'test/repo', branch: 'main' },
-      }),
-    ).rejects.toThrow(JulesApiError);
+    const promise = jules.session({
+      prompt: 'test',
+      source: { github: 'test/repo', branch: 'main' },
+    });
+
+    await expect(promise).rejects.toThrow(JulesApiError);
+    await expect(promise).rejects.toHaveProperty('url', expectedUrl);
+    await expect(promise).rejects.toHaveProperty('status', 500);
+    await expect(promise).rejects.toSatisfy((e: JulesApiError) =>
+      e.message.includes('Internal Server Error'),
+    );
   });
 
   it('should throw JulesNetworkError on fetch failure for session creation', async () => {
+    const expectedUrl = `${TEST_BASE_URL}/sessions`;
     server.use(
       mockSourceLookup,
-      http.post(`${TEST_BASE_URL}/sessions`, () => {
+      http.post(expectedUrl, () => {
         return HttpResponse.error(); // Force a network error
       }),
     );
 
-    await expect(
-      jules.session({
-        prompt: 'test',
-        source: { github: 'test/repo', branch: 'main' },
-      }),
-    ).rejects.toThrow(JulesNetworkError);
+    const promise = jules.session({
+      prompt: 'test',
+      source: { github: 'test/repo', branch: 'main' },
+    });
+
+    await expect(promise).rejects.toThrow(JulesNetworkError);
+    await expect(promise).rejects.toHaveProperty('url', expectedUrl);
   });
 });
