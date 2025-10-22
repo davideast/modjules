@@ -24,7 +24,7 @@ export class SessionClientImpl implements SessionClient {
     apiClient: ApiClient,
     config: InternalConfig,
   ) {
-    this.id = sessionId;
+    this.id = sessionId.replace(/^sessions\//, '');
     this.apiClient = apiClient;
     this.config = config;
   }

@@ -142,7 +142,7 @@ export class JulesClientImpl implements JulesClient {
           requirePlanApproval: config.requireApproval ?? true,
         },
       });
-      return new SessionClientImpl(session.id, this.apiClient, this.config);
+      return new SessionClientImpl(session.name, this.apiClient, this.config);
     })();
     return sessionPromise;
   }

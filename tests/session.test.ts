@@ -34,7 +34,7 @@ const server = setupServer(
   }),
   http.post('https://jules.googleapis.com/v1alpha/sessions', async ({ request }) => {
     capturedRequestBody = await request.json();
-    return HttpResponse.json({ id: 'SESSION_123', ...capturedRequestBody });
+    return HttpResponse.json({ id: 'SESSION_123', name: 'sessions/SESSION_123', ...capturedRequestBody });
   }),
   // General session info endpoint
   http.get('https://jules.googleapis.com/v1alpha/sessions/SESSION_123', ({ request }) => {

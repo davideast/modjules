@@ -1,0 +1,22 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm install
+      - name: Run integration tests
+        if: secrets.JULES_API_KEY != ''
+        run: npm run test:integration
+        env:
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
