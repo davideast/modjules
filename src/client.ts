@@ -84,7 +84,7 @@ export class JulesClientImpl implements JulesClient {
           requirePlanApproval: config.requireApproval ?? false,
         },
       });
-      return session.name;
+      return session.id;
     })();
 
     const outcomePromise = new Promise<Outcome>(async (resolve, reject) => {

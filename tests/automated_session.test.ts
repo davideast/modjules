@@ -43,7 +43,7 @@ describe('jules.run()', () => {
     server.use(
       http.post(`${BASE_URL}/sessions`, async ({ request }) => {
         requestBody = await request.json();
-        return HttpResponse.json({ id: MOCK_SESSION_ID });
+        return HttpResponse.json({ id: MOCK_SESSION_ID, name: `sessions/${MOCK_SESSION_ID}` });
       }),
       // Mock dependent calls to allow the run to complete cleanly
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
@@ -69,7 +69,7 @@ describe('jules.run()', () => {
   // Test successful run: stream and final outcome
   it('should stream activities and resolve with the correct Outcome on success', async () => {
     server.use(
-      http.post(`${BASE_URL}/sessions`, () => HttpResponse.json({ id: MOCK_SESSION_ID })),
+      http.post(`${BASE_URL}/sessions`, () => HttpResponse.json({ id: MOCK_SESSION_ID, name: `sessions/${MOCK_SESSION_ID}` })),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
         return HttpResponse.json({
           activities: [{ name: 'a/1', sessionCompleted: {} }],
@@ -102,7 +102,7 @@ describe('jules.run()', () => {
   // Test failed run: stream and final outcome
   it('should stream activities and reject with AutomatedSessionFailedError on failure', async () => {
     server.use(
-      http.post(`${BASE_URL}/sessions`, () => HttpResponse.json({ id: MOCK_SESSION_ID })),
+      http.post(`${BASE_URL}/sessions`, () => HttpResponse.json({ id: MOCK_SESSION_ID, name: `sessions/${MOCK_SESSION_ID}` })),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
         return HttpResponse.json({
           activities: [{ name: 'a/1', sessionFailed: { reason: 'API Error' } }],
@@ -129,7 +129,7 @@ describe('jules.run()', () => {
     server.use(
       http.post(`${BASE_URL}/sessions`, async () => {
         await new Promise(r => setTimeout(r, 50)); // 50ms delay
-        return HttpResponse.json({ id: MOCK_SESSION_ID });
+        return HttpResponse.json({ id: MOCK_SESSION_ID, name: `sessions/${MOCK_SESSION_ID}` });
       }),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
         // Return a terminal activity to ensure the stream closes and the test doesn't time out.
