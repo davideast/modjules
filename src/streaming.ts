@@ -1,7 +1,7 @@
 // src/streaming.ts
 import { ApiClient } from './api.js';
 import { mapRestActivityToSdkActivity } from './mappers.js';
-import { Activity } from './types.js';
+import { Activity, SessionResource } from './types.js';
 
 // Define the raw REST API response type for listing activities.
 type ListActivitiesResponse = {
