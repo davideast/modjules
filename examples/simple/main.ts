@@ -2,7 +2,7 @@ import { Jules, JulesError } from 'julets';
 
 // This is the GitHub repository the agent will work on.
 // PLEASE REPLACE THIS with a repository you have connected to your Jules project.
-const GITHUB_REPO = 'jules-ai/julets-example'; // e.g., 'your-org/your-repo'
+const GITHUB_REPO = 'davideast/julets'; // e.g., 'your-org/your-repo'
 
 // =============================================================================
 // Main Application Logic
@@ -24,11 +24,17 @@ async function main() {
       return;
     }
     console.log(`✅ Found source: ${source.name}`);
+    console.log(JSON.stringify(source, null, 2))
 
     // 2. Start an interactive session.
     console.log('\n🚀 Starting a new session...');
     const session = await jules.session({
-      prompt: "Please find the primary `package.json` file and tell me its name. Do not modify any files.",
+      prompt: `Analyze this library julets, an agent SDK for the Jules REST API, 
+      consult the docs.md to understand the Jules REST API, and write an assessment of new 
+      features that this library could incorporate in a file called features.md. Each feature 
+      should be categorized, sized for complexity of implementation, sized for impact, and 
+      include a high level API example. Generate 10 features where at least 2 are big bold 
+      crazy creative ideas.`,
       source: {
         github: GITHUB_REPO,
         branch: 'main', // Make sure this branch exists in your repository
