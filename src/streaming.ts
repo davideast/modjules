@@ -43,7 +43,7 @@ export async function* streamActivities(
     let hasTerminalActivity = false;
 
     for (const rawActivity of activities) {
-      const activity = mapRestActivityToSdkActivity(rawActivity, sessionId);
+      const activity = mapRestActivityToSdkActivity(rawActivity);
       yield activity;
 
       if (activity.type === 'sessionCompleted' || activity.type === 'sessionFailed') {

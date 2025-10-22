@@ -20,8 +20,8 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "vitest",
-    "test:integration": "vitest run tests/integration/",
+    "test": "vitest --exclude tests/integration/**",
+    "test:integration": "vitest run -c vitest.integration.config.ts",
     "type-check": "tsc --noEmit",
     "verify": "tsx scripts/verify.ts"
   },

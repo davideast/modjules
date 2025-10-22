@@ -22,6 +22,5 @@ describe.skipIf(!API_KEY)('Live API Tests', () => {
     const { value: firstActivity } = await stream.next();
 
     expect(firstActivity).toBeDefined();
-    expect(firstActivity.sessionId).toBe(knownSessionId);
   }, 30000);
 });

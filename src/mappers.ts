@@ -43,10 +43,7 @@ export function mapRestArtifactToSdkArtifact(
   throw new Error(`Unknown artifact type: ${JSON.stringify(restArtifact)}`);
 }
 
-export function mapRestActivityToSdkActivity(
-  restActivity: any,
-  sessionId: string,
-): Activity {
+export function mapRestActivityToSdkActivity(restActivity: any): Activity {
   const { name, createTime, originator, artifacts: rawArtifacts } = restActivity;
 
   // First, map the artifacts since they are common to all activities.
@@ -57,7 +54,6 @@ export function mapRestActivityToSdkActivity(
   const baseActivity = {
     name,
     id: name.split('/').pop(),
-    sessionId,
     createTime,
     originator: originator || 'system',
     artifacts,
