@@ -16,7 +16,6 @@ jobs:
           cache: 'npm'
       - run: npm install
       - name: Run integration tests
-        if: secrets.JULES_API_KEY != ''
         run: npm run test:integration
         env:
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
