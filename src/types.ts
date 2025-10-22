@@ -556,7 +556,7 @@ export type Activity =
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// Run Abstraction (Automation Paradigm)
+// AutomatedSession Abstraction (Automation Paradigm)
 // -----------------------------------------------------------------------------
 
 /**
@@ -585,12 +585,12 @@ export interface Outcome {
 }
 
 /**
- * Represents an ongoing automated task initiated by `jules.run()`.
+ * Represents a Jules Session in automated mode, initiated by `jules.run()`.
  *
  * It is an enhanced Promise that resolves to the final Outcome when the task completes or fails.
  * It also provides methods for real-time observation.
  */
-export interface Run extends Promise<Outcome> {
+export interface AutomatedSession extends Promise<Outcome> {
   /**
    * Provides a real-time stream of activities as the automated run progresses.
    * This uses an Async Iterator, making it easy to consume events as they happen.
@@ -742,16 +742,16 @@ export interface JulesClient {
    * This is a high-level abstraction for "fire-and-forget" tasks.
    *
    * @param config The configuration for the run.
-   * @returns A `Run` object, which is an enhanced Promise that resolves to the final outcome.
+   * @returns A `AutomatedSession` object, which is an enhanced Promise that resolves to the final outcome.
    *
    * @example
-   * const run = jules.run({
+   * const automatedSession = jules.run({
    *   prompt: "Fix the bug described in issue #123",
    *   source: { github: 'my-org/my-project', branch: 'main' }
    * });
-   * const outcome = await run;
+   * const outcome = await automatedSession;
    */
-  run(config: SessionConfig): Run;
+  run(config: SessionConfig): AutomatedSession;
 
   /**
    * Creates a new interactive session for workflows requiring human oversight.
