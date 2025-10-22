@@ -75,4 +75,26 @@ export const handlers = [
     // For any other case, return a generic error
     return new HttpResponse('Internal Server Error', { status: 500 });
   }),
+
+  // Handler for creating a session
+  http.post(`${BASE_URL}/sessions`, () => {
+    // This default handler can be overridden in specific tests
+    return HttpResponse.json({
+      name: 'sessions/default-session-id',
+      id: 'default-session-id',
+      state: 'queued',
+    });
+  }),
+
+  // Handler for getting a session (polling)
+  http.get(`${BASE_URL}/sessions/:sessionId`, ({ params }) => {
+    const { sessionId } = params;
+    // This default handler returns a completed state, can be overridden
+    return HttpResponse.json({
+      name: `sessions/${sessionId}`,
+      id: sessionId,
+      state: 'completed',
+      outputs: [],
+    });
+  }),
 ];
