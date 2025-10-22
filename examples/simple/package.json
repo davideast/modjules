@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "julets": "file:../../",
+    "julets": "file:../../julets-0.0.1.tgz",
     "tsx": "latest",
     "typescript": "latest"
   }

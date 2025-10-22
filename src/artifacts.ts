@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import { Buffer } from 'buffer';
-import type { RestMediaArtifact, RestBashOutputArtifact } from './types';
+import type { RestMediaArtifact, RestBashOutputArtifact } from './types.js';
 
 // Helper to check if running in a Node.js environment
 const isNode =
