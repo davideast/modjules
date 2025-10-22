@@ -1,10 +1,12 @@
 // src/mappers.ts
+import { MediaArtifact, BashArtifact } from './artifacts.js';
 import { RunFailedError } from './errors.js';
 import {
   Activity,
   Artifact,
   Outcome,
   PullRequest,
+  RestArtifact,
   SessionResource,
 } from './types.js';
 
@@ -19,23 +21,26 @@ import {
  */
 /**
  * Maps a raw REST API Artifact resource to the SDK's `Artifact` type.
+ * This now instantiates rich classes for certain artifact types.
  *
  * @param restArtifact The raw artifact object from the REST API.
  * @returns A structured `Artifact` object for the SDK.
  * @internal
  */
-export function mapRestArtifactToSdkArtifact(restArtifact: any): Artifact {
-  if (restArtifact.changeSet) {
+export function mapRestArtifactToSdkArtifact(
+  restArtifact: RestArtifact,
+): Artifact {
+  if ('changeSet' in restArtifact) {
     return { type: 'changeSet', changeSet: restArtifact.changeSet };
   }
-  if (restArtifact.media) {
-    return { type: 'media', media: restArtifact.media };
+  if ('media' in restArtifact) {
+    return new MediaArtifact(restArtifact.media);
   }
-  if (restArtifact.bashOutput) {
-    return { type: 'bashOutput', bashOutput: restArtifact.bashOutput };
+  if ('bashOutput' in restArtifact) {
+    return new BashArtifact(restArtifact.bashOutput);
   }
   // This provides a fallback, though the API should always provide a known type.
-  throw new Error('Unknown artifact type');
+  throw new Error(`Unknown artifact type: ${JSON.stringify(restArtifact)}`);
 }
 
 export function mapRestActivityToSdkActivity(restActivity: any): Activity {

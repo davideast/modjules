@@ -21,11 +21,18 @@ describe('mapRestArtifactToSdkArtifact', () => {
 
   it('should map a bashOutput artifact correctly', () => {
     const restArtifact = {
-      bashOutput: { command: 'ls -l', output: 'total 0', exitCode: 0 },
+      bashOutput: {
+        command: 'ls -l',
+        stdout: 'total 0',
+        stderr: '',
+        exitCode: 0,
+      },
     };
     const sdkArtifact = mapRestArtifactToSdkArtifact(restArtifact);
     expect(sdkArtifact.type).toBe('bashOutput');
-    expect((sdkArtifact as any).bashOutput.command).toBe('ls -l');
+    // After mapping, it's a rich object, not a raw one.
+    expect((sdkArtifact as any).command).toBe('ls -l');
+    expect((sdkArtifact as any).stdout).toBe('total 0');
   });
 
   it('should throw for an unknown artifact type', () => {

@@ -284,38 +284,84 @@ export interface ChangeSet {
 }
 
 /**
- * A media output (e.g., image).
- * REST API: Media
+ * A media output (e.g., an image).
+ * This is an interactive object with a helper method to save the data.
  */
-export interface Media {
+export interface MediaArtifact {
+  readonly type: 'media';
   /**
-   * The media data (base64-encoded string).
+   * The base64-encoded media data.
    */
-  data: string;
-  mimeType: string;
+  readonly data: string;
+  /**
+   * The format of the media (e.g., 'image/png').
+   * Corresponds to `mimeType` in some API contexts.
+   */
+  readonly format: string;
+  /**
+   * Saves the media data to a file.
+   * This method is only available in Node.js environments.
+   * @param filepath The path to save the file to.
+   * @throws {Error} If called in a non-Node.js environment.
+   */
+  save(filepath: string): Promise<void>;
 }
 
 /**
  * Output from a bash command execution.
- * REST API: BashOutput
+ * This is an interactive object with a helper method to format the output.
  */
-export interface BashOutput {
-  command: string;
-  output: string;
-  exitCode: number;
+export interface BashArtifact {
+  readonly type: 'bashOutput';
+  readonly command: string;
+  readonly stdout: string;
+  readonly stderr: string;
+  readonly exitCode: number | null;
+  /**
+   * Returns a cleanly formatted string combining the command, output, and exit code.
+   */
+  toString(): string;
 }
 
 /**
  * An artifact is a single unit of data produced by an activity step.
  * REST API: Artifact (Uses a union field `content`)
+ *
+ * This discriminated union represents the rich SDK objects, which may include
+ * helper methods (e.g., `MediaArtifact.save()`).
  */
-export type Artifact = {
-  // Common fields can be added here
-} & (
+export type Artifact =
   | { type: 'changeSet'; changeSet: ChangeSet }
-  | { type: 'media'; media: Media }
-  | { type: 'bashOutput'; bashOutput: BashOutput }
-);
+  | MediaArtifact
+  | BashArtifact;
+
+// Raw REST API type definitions for artifacts, used by mappers.
+// These represent the JSON structure before being mapped to rich SDK objects.
+
+export interface RestChangeSetArtifact {
+  changeSet: ChangeSet;
+}
+
+export interface RestMediaArtifact {
+  media: {
+    data: string;
+    format: string; // Note: In some older docs this is mimeType
+  };
+}
+
+export interface RestBashOutputArtifact {
+  bashOutput: {
+    command:string;
+    stdout: string;
+    stderr: string;
+    exitCode: number | null;
+  };
+}
+
+export type RestArtifact =
+  | RestChangeSetArtifact
+  | RestMediaArtifact
+  | RestBashOutputArtifact;
 
 // --- Activity Types (Discriminated Union) ---
 
