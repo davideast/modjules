@@ -1,70 +1,65 @@
-# `julets` (Unofficial Jules SDK)
+# julets - the agent-ready SDK for Jules.**
 
-**The agent-ready SDK for Jules.**
+> **Disclaimer:** This is a 100% total, absolute, **just-for-fun** prototype.
 
-> **Disclaimer:** This is a prototype SDK and is not officially supported by Google. The API is subject to change.
+## Making Jules Agent-Ready
 
-## The "Why": Making Jules Agent-Ready
+Agents thrive on simple actions, persistent memory, and reactive updates. `julets` provides an tool and memory agent toolkit on top of the Jules REST API.
 
-Agentic loops thrive on simple actions, persistent memory, and reactive updates. Raw REST APIs, by contrast, are often stateless, complex, and require constant polling. `julets` bridges this gap, transforming the powerful Jules API into a toolkit that is truly "agent-ready."
-
-- **Tool Oriented:** Abstracts multi-step API choreographies (e.g., create session → poll for status → fetch result) into single, awaitable tool calls that an agent can easily execute.
-- **Persistent State:** The `Session` object acts as external memory, retaining conversational context across turns without burdening your agent's context window.
+- **Tool Oriented:** Abstracts multi-step API choreographies into single, awaitable tool calls that an agent can easily execute. (e.g., `create session → poll for status → fetch result`)
+- **Persistent State:** Provides external memory, retaining conversational context across turns without burdening your agent's context window.
 - **Reactive Streams:** Converts passive REST polling into push-style Async Iterators, allowing your agent to efficiently *observe* progress in real-time without managing complex polling logic.
 
-## Installation & Authentication
+## Core Usage
 
-```bash
-npm install julets
-```
-
-The SDK requires a Jules API key. It will automatically look for it in the `JULES_API_KEY` environment variable.
-
-```bash
-export JULES_API_KEY="your-api-key-here"
-```
-
-## Quickstart 1: Automation (Atomic Action)
-
-Use `jules.run()` when you need to treat a complex task as a single, atomic "Tool Call." The agent fires off the request and simply waits for the final result.
-
-```typescript
+```ts
 import { Jules } from 'julets';
 
 const jules = Jules();
+const session = jules.run({
+  prompt: 'Add a Next.js usage example to README.md',
+  source: { github: 'davideast/julets', branch: 'main' },
+});
 
-async function fixBug() {
-  console.log('Starting automated run to fix the bug...');
-  const automatedSession = jules.run({
-    prompt: 'The login button is not working on Safari. Please investigate and create a PR with the fix.',
-    source: {
-      github: 'your-org/your-repo',
-      branch: 'main',
-    },
-    // autoPr is true by default for jules.run()
-  });
-
-  // You can stream progress while waiting for the final result
-  for await (const activity of automatedSession.stream()) {
-    if (activity.type === 'progressUpdated') {
-      console.log(`[AGENT] ${activity.title}: ${activity.description}`);
-    }
-  }
-
-  // The `automatedSession` object is a Promise that resolves to the final outcome
-  const outcome = await automatedSession;
-
-  if (outcome.state === 'completed' && outcome.pullRequest) {
-    console.log(`✅ Success! PR created: ${outcome.pullRequest.url}`);
-  } else {
-    console.error(`❌ Run failed. Session ID: ${outcome.sessionId}`);
+for await (const activity of session.stream()) {
+  switch (activity.type) {
+    case 'progressUpdated':
+      console.log(`[BUSY] ${activity.title}`);
+      break;
+    case 'planGenerated':
+      console.log(`[PLAN] ${activity.plan.steps.length} steps.`);
+      break;
+    case 'sessionCompleted':
+      console.log('[DONE] Session finished successfully.');
+      break;
+    case 'sessionFailed':
+      console.error(`[FAIL] ${activity.reason}`);
+      break;
   }
 }
 
-fixBug();
+// Await the automated session to get the PR URL
+const { pullRequest } = await session;
+if (pullRequest) {
+  console.log(`PR: ${pullRequest.url}`);
+};
 ```
 
-## Quickstart 2: Interactive (Reactive State)
+## Installation
+
+```bash
+npm i julets
+# OR
+bun add julets
+```
+
+## Authentication / API Key
+
+```bash
+export JULES_API_KEY=<api-key>
+```
+
+## Interactive Usage
 
 Use `jules.session()` for interactive workflows where an agent (or human) needs to observe, provide feedback, and guide the process. The `SessionClient` object maintains state across multiple interactions.
 
@@ -72,42 +67,33 @@ Use `jules.session()` for interactive workflows where an agent (or human) needs 
 import { Jules } from 'julets';
 
 const jules = Jules();
+const session = await jules.session({
+  prompt: 'Refactor the user authentication module together. Show me your plan first.',
+  source: { github: 'your-org/your-repo', branch: 'develop' },
+});
 
-async function interactiveRefactor() {
-  const session = await jules.session({
-    prompt: 'Let\'s refactor the user authentication module together. Show me your plan first.',
-    source: {
-      github: 'your-org/your-repo',
-      branch: 'develop',
-    },
-    // requireApproval is true by default for jules.session()
-  });
+console.log(`Session created: ${session.id}`);
+console.log('Waiting for the agent to generate a plan...');
 
-  console.log(`Session created: ${session.id}`);
-  console.log('Waiting for the agent to generate a plan...');
+// Wait for the specific state where the plan is ready for review
+await session.waitFor('awaitingPlanApproval');
+console.log('Plan is ready. Approving it now.');
+await session.approve();
 
-  // Wait for the specific state where the plan is ready for review
-  await session.waitFor('awaitingPlanApproval');
-  console.log('Plan is ready. Approving it now.');
-  await session.approve();
+// Ask a follow-up question
+const reply = await session.ask('Start with the first step and let me know when it is done.');
+console.log(`[AGENT] ${reply.message}`);
 
-  // Ask a follow-up question
-  const reply = await session.ask('Great, please start with the first step and let me know when it is done.');
-  console.log(`[AGENT] ${reply.message}`);
-
-  // Wait for the final result of the session
-  const outcome = await session.result();
-  console.log(`✅ Session finished with state: ${outcome.state}`);
-}
-
-interactiveRefactor();
+// Wait for the final result of the session
+const outcome = await session.result();
+console.log(`✅ Session finished with state: ${outcome.state}`);
 ```
 
 ## Deep Dive
 
 ### Reactive Streams
 
-Both `AutomatedSession` and `SessionClient` objects provide a `.stream()` method that returns an Async Iterator. This is the primary way to observe the agent's progress in real time.
+Both `AutomatedSession` and `SessionClient` objects provide a `.stream()` method that returns an Async Iterator. This is the primary way to observe the agent's progress.
 
 ```typescript
 for await (const activity of session.stream()) {
@@ -174,7 +160,7 @@ try {
 }
 ```
 
-## API Map
+## API Overview
 
 This is a high-level overview of the main SDK components.
 
