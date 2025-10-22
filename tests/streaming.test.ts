@@ -44,13 +44,15 @@ describe('streamActivities', () => {
 
   it('should handle fast pagination with nextPageToken', async () => {
     const page1 = {
-      activities: [{ id: '1', progressUpdated: { title: 'Page 1' } }],
+      activities: [
+        { name: 'a/1', progressUpdated: { title: 'Page 1' } },
+      ],
       nextPageToken: 'tokenA',
     };
     const page2 = {
       activities: [
-        { id: '2', progressUpdated: { title: 'Page 2' } },
-        { id: '3', sessionCompleted: {} },
+        { name: 'a/2', progressUpdated: { title: 'Page 2' } },
+        { name: 'a/3', sessionCompleted: {} },
       ],
     };
 
@@ -76,11 +78,13 @@ describe('streamActivities', () => {
   it('should handle slow polling when no nextPageToken is present', async () => {
     let requestCount = 0;
     const page1 = {
-      activities: [{ id: '1', progressUpdated: { title: 'First Batch' } }],
+      activities: [
+        { name: 'a/1', progressUpdated: { title: 'First Batch' } },
+      ],
       // No nextPageToken
     };
     const page2 = {
-      activities: [{ id: '2', sessionCompleted: {} }],
+      activities: [{ name: 'a/2', sessionCompleted: {} }],
     };
 
     server.use(
@@ -122,7 +126,7 @@ describe('streamActivities', () => {
     server.use(
       http.get(`${BASE_URL}/sessions/${SESSION_ID}/activities`, () => {
         return HttpResponse.json({
-          activities: [{ id: '1', sessionFailed: { reason: 'Failed' } }],
+          activities: [{ name: 'a/1', sessionFailed: { reason: 'Failed' } }],
         });
       })
     );

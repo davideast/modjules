@@ -1,105 +1,141 @@
 // src/mappers.ts
-import { Artifact, Activity } from './types.js';
+import { RunFailedError } from './errors.js';
+import {
+  Activity,
+  Artifact,
+  Outcome,
+  PullRequest,
+  SessionResource,
+} from './types.js';
 
-// Define the raw types from the REST API.
-// This helps ensure type safety during mapping.
-
-type RestArtifact = {
-  changeSet?: object;
-  media?: object;
-  bashOutput?: object;
-};
-
-type RestActivity = {
-  name: string;
-  id: string;
-  createTime: string;
-  originator: 'user' | 'agent' | 'system';
-  artifacts?: RestArtifact[];
-  agentMessaged?: { agentMessage: string };
-  userMessaged?: { userMessage: string };
-  planGenerated?: { plan: object };
-  planApproved?: { planId: string };
-  progressUpdated?: { title: string; description: string };
-  sessionCompleted?: object;
-  sessionFailed?: { reason: string };
-};
-
-export function mapRestArtifactToSdkArtifact(artifact: RestArtifact): Artifact {
-  if (artifact.changeSet) {
-    return { type: 'changeSet', changeSet: artifact.changeSet as any };
+/**
+ * Maps a raw REST API Activity resource to the SDK's discriminated union `Activity` type.
+ * This function acts as a transformer, converting the API's structure (with union fields)
+ * into a more idiomatic TypeScript structure (with a 'type' discriminator).
+ *
+ * @param restActivity The raw activity object from the REST API.
+ * @returns A structured `Activity` object for the SDK.
+ * @internal
+ */
+/**
+ * Maps a raw REST API Artifact resource to the SDK's `Artifact` type.
+ *
+ * @param restArtifact The raw artifact object from the REST API.
+ * @returns A structured `Artifact` object for the SDK.
+ * @internal
+ */
+export function mapRestArtifactToSdkArtifact(restArtifact: any): Artifact {
+  if (restArtifact.changeSet) {
+    return { type: 'changeSet', changeSet: restArtifact.changeSet };
   }
-  if (artifact.media) {
-    return { type: 'media', media: artifact.media as any };
+  if (restArtifact.media) {
+    return { type: 'media', media: restArtifact.media };
   }
-  if (artifact.bashOutput) {
-    return { type: 'bashOutput', bashOutput: artifact.bashOutput as any };
+  if (restArtifact.bashOutput) {
+    return { type: 'bashOutput', bashOutput: restArtifact.bashOutput };
   }
+  // This provides a fallback, though the API should always provide a known type.
   throw new Error('Unknown artifact type');
 }
 
-export function mapRestActivityToSdkActivity(activity: RestActivity): Activity {
-  const { name, id, createTime, originator } = activity;
+export function mapRestActivityToSdkActivity(restActivity: any): Activity {
+  const { name, createTime, originator, artifacts: rawArtifacts } = restActivity;
 
-  const artifacts = (activity.artifacts || []).map(mapRestArtifactToSdkArtifact);
+  // First, map the artifacts since they are common to all activities.
+  const artifacts: Artifact[] = (rawArtifacts || []).map(
+    mapRestArtifactToSdkArtifact,
+  );
 
   const baseActivity = {
     name,
-    id,
+    id: name.split('/').pop(),
     createTime,
-    originator,
+    originator: originator || 'system',
     artifacts,
   };
 
-  if (activity.agentMessaged) {
+  if (restActivity.agentMessaged) {
     return {
       ...baseActivity,
       type: 'agentMessaged',
-      message: activity.agentMessaged.agentMessage,
+      message: restActivity.agentMessaged.agentMessage,
     };
   }
-  if (activity.userMessaged) {
+  if (restActivity.userMessaged) {
     return {
       ...baseActivity,
       type: 'userMessaged',
-      message: activity.userMessaged.userMessage,
+      message: restActivity.userMessaged.userMessage,
     };
   }
-  if (activity.planGenerated) {
+  if (restActivity.planGenerated) {
     return {
       ...baseActivity,
       type: 'planGenerated',
-      plan: activity.planGenerated.plan as any,
+      plan: restActivity.planGenerated.plan,
     };
   }
-  if (activity.planApproved) {
+  if (restActivity.planApproved) {
     return {
       ...baseActivity,
       type: 'planApproved',
-      planId: activity.planApproved.planId,
+      planId: restActivity.planApproved.planId,
     };
   }
-  if (activity.progressUpdated) {
+  if (restActivity.progressUpdated) {
     return {
       ...baseActivity,
       type: 'progressUpdated',
-      title: activity.progressUpdated.title,
-      description: activity.progressUpdated.description,
+      title: restActivity.progressUpdated.title,
+      description: restActivity.progressUpdated.description,
     };
   }
-  if (activity.sessionCompleted) {
+  if (restActivity.sessionCompleted) {
     return {
       ...baseActivity,
       type: 'sessionCompleted',
     };
   }
-  if (activity.sessionFailed) {
+  if (restActivity.sessionFailed) {
     return {
       ...baseActivity,
       type: 'sessionFailed',
-      reason: activity.sessionFailed.reason,
+      reason: restActivity.sessionFailed.reason,
     };
   }
 
+  // Fallback for unknown activity types.
   throw new Error('Unknown activity type');
+}
+
+/**
+ * Maps the final state of a SessionResource to a user-facing Outcome object.
+ * This includes extracting the primary pull request and handling the failed state.
+ *
+ * @param session The final SessionResource from the API.
+ * @returns The corresponding Outcome object.
+ * @throws {RunFailedError} If the session state is 'failed'.
+ */
+export function mapSessionResourceToOutcome(
+  session: SessionResource,
+): Outcome {
+  if (session.state === 'failed') {
+    // TODO: The reason is not available on the session resource directly.
+    // This will be improved when the API provides a failure reason.
+    throw new RunFailedError(`Session ${session.id} failed.`);
+  }
+
+  // Find the pull request output, if it exists.
+  const prOutput = session.outputs.find(o => 'pullRequest' in o);
+  const pullRequest = prOutput
+    ? (prOutput as { pullRequest: PullRequest }).pullRequest
+    : undefined;
+
+  return {
+    sessionId: session.id,
+    title: session.title,
+    state: 'completed', // We only call this mapper on a completed session.
+    pullRequest,
+    outputs: session.outputs,
+  };
 }

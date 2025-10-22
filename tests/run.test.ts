@@ -47,7 +47,9 @@ describe('jules.run()', () => {
       }),
       // Mock dependent calls to allow the run to complete cleanly
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
-        return HttpResponse.json({ activities: [{ sessionCompleted: {} }] });
+        return HttpResponse.json({
+          activities: [{ name: 'a/1', sessionCompleted: {} }],
+        });
       }),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}`, () => {
         return HttpResponse.json({ id: MOCK_SESSION_ID, state: 'completed', outputs: [] });
@@ -69,7 +71,9 @@ describe('jules.run()', () => {
     server.use(
       http.post(`${BASE_URL}/sessions`, () => HttpResponse.json({ id: MOCK_SESSION_ID })),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
-        return HttpResponse.json({ activities: [{ sessionCompleted: {} }] });
+        return HttpResponse.json({
+          activities: [{ name: 'a/1', sessionCompleted: {} }],
+        });
       }),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}`, () => {
         return HttpResponse.json({
@@ -100,7 +104,9 @@ describe('jules.run()', () => {
     server.use(
       http.post(`${BASE_URL}/sessions`, () => HttpResponse.json({ id: MOCK_SESSION_ID })),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
-        return HttpResponse.json({ activities: [{ sessionFailed: { reason: 'API Error' } }] });
+        return HttpResponse.json({
+          activities: [{ name: 'a/1', sessionFailed: { reason: 'API Error' } }],
+        });
       }),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}`, () => {
         return HttpResponse.json({ id: MOCK_SESSION_ID, state: 'failed' });
@@ -127,7 +133,9 @@ describe('jules.run()', () => {
       }),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
         // Return a terminal activity to ensure the stream closes and the test doesn't time out.
-        return HttpResponse.json({ activities: [{ sessionCompleted: {} }] });
+        return HttpResponse.json({
+          activities: [{ name: 'a/1', sessionCompleted: {} }],
+        });
       })
     );
 

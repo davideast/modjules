@@ -1,7 +1,7 @@
 // src/streaming.ts
 import { ApiClient } from './api.js';
 import { mapRestActivityToSdkActivity } from './mappers.js';
-import { Activity } from './types.js';
+import { Activity, SessionResource } from './types.js';
 
 // Define the raw REST API response type for listing activities.
 type ListActivitiesResponse = {
@@ -11,6 +11,33 @@ type ListActivitiesResponse = {
 
 // A helper function for delaying execution.
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Polls the `GET /sessions/{id}` endpoint until the session reaches a terminal state.
+ *
+ * @param sessionId The ID of the session to poll.
+ * @param apiClient The API client for making requests.
+ * @param pollingInterval The interval in milliseconds between poll attempts.
+ * @returns The final SessionResource.
+ * @internal
+ */
+export async function pollUntilCompletion(
+  sessionId: string,
+  apiClient: ApiClient,
+  pollingInterval: number,
+): Promise<SessionResource> {
+  while (true) {
+    const session = await apiClient.request<SessionResource>(
+      `sessions/${sessionId}`,
+    );
+
+    if (session.state === 'completed' || session.state === 'failed') {
+      return session;
+    }
+
+    await sleep(pollingInterval);
+  }
+}
 
 /**
  * An async generator that implements a hybrid pagination/polling strategy
