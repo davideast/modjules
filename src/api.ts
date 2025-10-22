@@ -1,41 +1,6 @@
 // src/api.ts
 
-/**
- * A custom error class for all SDK-specific errors.
- */
-export class JulesError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'JulesError';
-  }
-}
-
-/**
- * An error class representing a failed API response.
- */
-export class JulesApiError extends JulesError {
-    public readonly status: number;
-    public readonly statusText: string;
-
-    constructor(message: string, status: number, statusText: string) {
-        super(message);
-        this.name = 'JulesApiError';
-        this.status = status;
-        this.statusText = statusText;
-    }
-}
-
-/**
- * Thrown when an API key is required but not provided.
- */
-export class MissingApiKeyError extends JulesError {
-  constructor() {
-    super(
-      'Jules API key is missing. Pass it to the constructor or set the JULES_API_KEY environment variable.'
-    );
-    this.name = 'MissingApiKeyError';
-  }
-}
+import { JulesApiError, MissingApiKeyError } from './errors.js';
 
 export type ApiClientOptions = {
   apiKey: string | undefined;
