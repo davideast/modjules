@@ -4,7 +4,8 @@
   "description": "A TypeScript library for the Jules coding agent REST API.",
   "type": "module",
   "scripts": {
-    "test": "vitest"
+    "test": "vitest",
+    "type-check": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",

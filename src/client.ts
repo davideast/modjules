@@ -28,27 +28,13 @@ export class JulesClientImpl implements JulesClient {
   }
 
   run(config: SessionConfig): Run {
-    let resolvePromise: (outcome: Outcome) => void;
-    let rejectPromise: (reason?: any) => void;
-
-    const promise = new Promise<Outcome>((resolve, reject) => {
-      resolvePromise = resolve;
-      rejectPromise = reject;
-    });
-
-    // Attach the .stream() method to the promise
-    const run = promise as Run;
-    run.stream = () => {
-      throw new Error('Streaming is not yet implemented for jules.run()');
-    };
-
-    // Start the async operation
-    (async () => {
+    const promise = new Promise<Outcome>(async (resolve, reject) => {
       try {
         // 1. Source Resolution
         const source = await this.sources.get({ github: config.source.github });
         if (!source) {
-          throw new SourceNotFoundError(config.source.github);
+          // Explicitly reject and stop execution if source not found
+          return reject(new SourceNotFoundError(config.source.github));
         }
 
         // 2. Session Creation
@@ -70,7 +56,6 @@ export class JulesClientImpl implements JulesClient {
 
         // 3. Polling
         const POLLING_INTERVAL_MS = 5000;
-
         const poll = async () => {
           try {
             const updatedSession = await this.apiClient.request<SessionResource>(`sessions/${session.id}`);
@@ -78,11 +63,11 @@ export class JulesClientImpl implements JulesClient {
             if (updatedSession.state === 'completed' || updatedSession.state === 'failed') {
               // Terminal state reached, stop polling
               if (updatedSession.state === 'completed') {
-              // Find the output that has a 'pullRequest' key.
-              const prOutput = updatedSession.outputs.find(o => 'pullRequest' in o);
-              const pullRequest = prOutput ? (prOutput as { pullRequest: PullRequest }).pullRequest : undefined;
+                // Find the output that has a 'pullRequest' key.
+                const prOutput = updatedSession.outputs.find(o => 'pullRequest' in o);
+                const pullRequest = prOutput ? (prOutput as { pullRequest: PullRequest }).pullRequest : undefined;
 
-                resolvePromise({
+                resolve({
                   sessionId: updatedSession.id,
                   title: updatedSession.title,
                   state: 'completed',
@@ -90,14 +75,14 @@ export class JulesClientImpl implements JulesClient {
                   outputs: updatedSession.outputs,
                 });
               } else { // 'failed'
-                rejectPromise(new RunFailedError());
+                reject(new RunFailedError());
               }
             } else {
               // Continue polling
               setTimeout(poll, POLLING_INTERVAL_MS);
             }
           } catch (error) {
-            rejectPromise(error);
+            reject(error);
           }
         };
 
@@ -105,15 +90,29 @@ export class JulesClientImpl implements JulesClient {
         setTimeout(poll, POLLING_INTERVAL_MS);
 
       } catch (error) {
-        rejectPromise(error);
+        reject(error);
       }
-    })();
+    });
+
+    // Attach the .stream() method to the promise
+    const run = promise as Run;
+    run.stream = () => {
+      throw new Error('Streaming is not yet implemented for jules.run()');
+    };
 
     return run;
   }
 
+  session(config: SessionConfig): Promise<SessionClient>;
+  session(sessionId: string): SessionClient;
   session(configOrId: SessionConfig | string): Promise<SessionClient> | SessionClient {
-    // Stub implementation for now
-    throw new Error('The "session" method is not yet implemented.');
+    // This is the core implementation that handles both overloads.
+    if (typeof configOrId === 'string') {
+      // Logic for session(sessionId: string): SessionClient
+      throw new Error('Hydrating a session by ID is not yet implemented.');
+    } else {
+      // Logic for session(config: SessionConfig): Promise<SessionClient>
+      throw new Error('Creating a new interactive session is not yet implemented.');
+    }
   }
 }
