@@ -98,7 +98,7 @@ export class JulesClientImpl implements JulesClient {
     });
 
     const run = outcomePromise as Run;
-    run.stream = async function* () {
+    run.stream = async function* (this: JulesClientImpl) {
       try {
         const sessionId = await sessionIdPromise;
         yield* streamActivities(sessionId, this.apiClient, this.pollingInterval);

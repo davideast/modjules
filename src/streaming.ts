@@ -29,7 +29,7 @@ export async function* streamActivities(
   let pageToken: string | undefined = undefined;
 
   while (true) {
-    const response = await apiClient.request<ListActivitiesResponse>(
+    const response: ListActivitiesResponse = await apiClient.request<ListActivitiesResponse>(
       `sessions/${sessionId}/activities`,
       {
         params: {
