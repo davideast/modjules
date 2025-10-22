@@ -6,7 +6,7 @@ import {
   JulesOptions,
   SessionConfig,
   SourceManager,
-  Run,
+  AutomatedSession,
   SessionClient,
   Outcome,
   SessionResource,
@@ -70,7 +70,7 @@ export class JulesClientImpl implements JulesClient {
     };
   }
 
-  run(config: SessionConfig): Run {
+  run(config: SessionConfig): AutomatedSession {
     const sessionIdPromise = (async () => {
       const body = await this._prepareSessionCreation(config);
       const session = await this.apiClient.request<SessionResource>('sessions', {
@@ -101,8 +101,8 @@ export class JulesClientImpl implements JulesClient {
       }
     });
 
-    const run = outcomePromise as Run;
-    run.stream = async function* (this: JulesClientImpl) {
+    const automatedSession = outcomePromise as AutomatedSession;
+    automatedSession.stream = async function* (this: JulesClientImpl) {
       try {
         const sessionId = await sessionIdPromise;
         yield* streamActivities(
@@ -119,7 +119,7 @@ export class JulesClientImpl implements JulesClient {
     }.bind(this);
 
 
-    return run;
+    return automatedSession;
   }
 
   session(config: SessionConfig): Promise<SessionClient>;

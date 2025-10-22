@@ -18,5 +18,36 @@ export function Jules(options?: JulesOptions): JulesClient {
 }
 
 // Re-export all the types for convenience
-export * from './types.js';
 export * from './errors.js';
+export type {
+  Activity,
+  ActivityAgentMessaged,
+  ActivityPlanApproved,
+  ActivityPlanGenerated,
+  ActivityProgressUpdated,
+  ActivitySessionCompleted,
+  ActivitySessionFailed,
+  ActivityUserMessaged,
+  Artifact,
+  AutomatedSession,
+  BashArtifact,
+  ChangeSet,
+  GitHubRepo,
+  GitPatch,
+  JulesClient,
+  JulesOptions,
+  MediaArtifact,
+  Outcome,
+  Plan,
+  PlanStep,
+  PullRequest,
+  SessionClient,
+  SessionConfig,
+  SessionOutput,
+  SessionResource,
+  SessionState,
+  Source,
+  SourceContext,
+  SourceInput,
+  SourceManager,
+} from './types.js';

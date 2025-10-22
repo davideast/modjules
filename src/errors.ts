@@ -88,9 +88,9 @@ export class SourceNotFoundError extends JulesError {
 /**
  * Thrown when a jules.run() operation terminates in a FAILED state.
  */
-export class RunFailedError extends JulesError {
+export class AutomatedSessionFailedError extends JulesError {
   constructor(reason?: string) {
-    let message = 'The Jules run terminated with a FAILED state.';
+    let message = 'The Jules automated session terminated with a FAILED state.';
     if (reason) {
       message += ` Reason: ${reason}`;
     }

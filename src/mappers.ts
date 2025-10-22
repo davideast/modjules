@@ -1,6 +1,6 @@
 // src/mappers.ts
 import { MediaArtifact, BashArtifact } from './artifacts.js';
-import { RunFailedError } from './errors.js';
+import { AutomatedSessionFailedError } from './errors.js';
 import {
   Activity,
   Artifact,
@@ -119,7 +119,7 @@ export function mapRestActivityToSdkActivity(restActivity: any): Activity {
  *
  * @param session The final SessionResource from the API.
  * @returns The corresponding Outcome object.
- * @throws {RunFailedError} If the session state is 'failed'.
+ * @throws {AutomatedSessionFailedError} If the session state is 'failed'.
  */
 export function mapSessionResourceToOutcome(
   session: SessionResource,
@@ -127,7 +127,7 @@ export function mapSessionResourceToOutcome(
   if (session.state === 'failed') {
     // TODO: The reason is not available on the session resource directly.
     // This will be improved when the API provides a failure reason.
-    throw new RunFailedError(`Session ${session.id} failed.`);
+    throw new AutomatedSessionFailedError(`Session ${session.id} failed.`);
   }
 
   // Find the pull request output, if it exists.

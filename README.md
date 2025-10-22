@@ -35,7 +35,7 @@ const jules = Jules();
 
 async function fixBug() {
   console.log('Starting automated run to fix the bug...');
-  const run = jules.run({
+  const automatedSession = jules.run({
     prompt: 'The login button is not working on Safari. Please investigate and create a PR with the fix.',
     source: {
       github: 'your-org/your-repo',
@@ -45,14 +45,14 @@ async function fixBug() {
   });
 
   // You can stream progress while waiting for the final result
-  for await (const activity of run.stream()) {
+  for await (const activity of automatedSession.stream()) {
     if (activity.type === 'progressUpdated') {
       console.log(`[AGENT] ${activity.title}: ${activity.description}`);
     }
   }
 
-  // The `run` object is a Promise that resolves to the final outcome
-  const outcome = await run;
+  // The `automatedSession` object is a Promise that resolves to the final outcome
+  const outcome = await automatedSession;
 
   if (outcome.state === 'completed' && outcome.pullRequest) {
     console.log(`✅ Success! PR created: ${outcome.pullRequest.url}`);
@@ -107,7 +107,7 @@ interactiveRefactor();
 
 ### Reactive Streams
 
-Both `Run` and `SessionClient` objects provide a `.stream()` method that returns an Async Iterator. This is the primary way to observe the agent's progress in real time.
+Both `AutomatedSession` and `SessionClient` objects provide a `.stream()` method that returns an Async Iterator. This is the primary way to observe the agent's progress in real time.
 
 ```typescript
 for await (const activity of session.stream()) {
@@ -180,7 +180,7 @@ This is a high-level overview of the main SDK components.
 
 - **Core:**
   - `Jules()`: The main factory function to initialize the client.
-  - `jules.run()`: Starts an automated, fire-and-forget task. Returns a `Run` promise.
+  - `jules.run()`: Starts an automated, fire-and-forget task. Returns a `AutomatedSession` promise.
   - `jules.session()`: Creates or rehydrates an interactive session. Returns a `SessionClient`.
 - **Session Control:**
   - `session.ask()`: Sends a message and awaits the agent's reply.

@@ -1,9 +1,9 @@
-// tests/run.test.ts
+// tests/automated_session.test.ts
 import { beforeAll, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
 import { server } from './mocks/server.js';
 import { Jules } from '../src/index.js';
 import { http, HttpResponse } from 'msw';
-import { SourceNotFoundError, RunFailedError } from '../src/errors.js';
+import { AutomatedSessionFailedError, SourceNotFoundError } from '../src/errors.js';
 import { Activity } from '../src/types.js';
 
 // Set up the mock server
@@ -15,7 +15,7 @@ const API_KEY = 'test-api-key';
 const BASE_URL = 'https://jules.googleapis.com/v1alpha';
 const MOCK_SESSION_ID = 'run-session-123';
 
-const MOCK_RUN_CONFIG = {
+const MOCK_AUTOMATED_SESSION_CONFIG = {
   prompt: 'Add a dark mode toggle.',
   source: { github: 'davideast/dataprompt', branch: 'main' },
 };
@@ -33,7 +33,7 @@ describe('jules.run()', () => {
   // Test for initial session setup and validation
   it('should throw SourceNotFoundError if the source cannot be resolved', async () => {
     await expect(
-      jules.run({ ...MOCK_RUN_CONFIG, source: { github: 'non/existent', branch: 'main' } })
+      jules.run({ ...MOCK_AUTOMATED_SESSION_CONFIG, source: { github: 'non/existent', branch: 'main' } })
     ).rejects.toThrow(SourceNotFoundError);
   });
 
@@ -56,14 +56,14 @@ describe('jules.run()', () => {
       })
     );
 
-    const run = jules.run(MOCK_RUN_CONFIG);
+    const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
     await vi.advanceTimersByTimeAsync(0); // Allow session creation to complete
 
     expect(requestBody.sourceContext.source).toBe('sources/github/davideast/dataprompt');
     expect(requestBody.requirePlanApproval).toBe(false);
 
-    // Await the run to ensure all background activity completes
-    await expect(run).resolves.toBeDefined();
+    // Await the automated session to ensure all background activity completes
+    await expect(automatedSession).resolves.toBeDefined();
   });
 
   // Test successful run: stream and final outcome
@@ -84,14 +84,14 @@ describe('jules.run()', () => {
       })
     );
 
-    const run = jules.run(MOCK_RUN_CONFIG);
+    const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
 
     const streamedActivities: Activity[] = [];
-    for await (const activity of run.stream()) {
+    for await (const activity of automatedSession.stream()) {
       streamedActivities.push(activity);
     }
 
-    const outcome = await run;
+    const outcome = await automatedSession;
 
     expect(streamedActivities).toHaveLength(1);
     expect(streamedActivities[0].type).toBe('sessionCompleted');
@@ -100,7 +100,7 @@ describe('jules.run()', () => {
   });
 
   // Test failed run: stream and final outcome
-  it('should stream activities and reject with RunFailedError on failure', async () => {
+  it('should stream activities and reject with AutomatedSessionFailedError on failure', async () => {
     server.use(
       http.post(`${BASE_URL}/sessions`, () => HttpResponse.json({ id: MOCK_SESSION_ID })),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
@@ -112,11 +112,11 @@ describe('jules.run()', () => {
         return HttpResponse.json({ id: MOCK_SESSION_ID, state: 'failed' });
       })
     );
-    const run = jules.run(MOCK_RUN_CONFIG);
-    const promise = expect(run).rejects.toThrow(RunFailedError);
+    const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
+    const promise = expect(automatedSession).rejects.toThrow(AutomatedSessionFailedError);
     // Let's also check the stream
     const streamed: Activity[] = [];
-    for await (const a of run.stream()) {
+    for await (const a of automatedSession.stream()) {
       streamed.push(a);
     }
     expect(streamed[0].type).toBe('sessionFailed');
@@ -139,8 +139,8 @@ describe('jules.run()', () => {
       })
     );
 
-    const run = jules.run(MOCK_RUN_CONFIG);
-    const stream = run.stream();
+    const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
+    const stream = automatedSession.stream();
 
     const activities: Activity[] = [];
     const streamPromise = (async () => {
