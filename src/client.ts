@@ -11,94 +11,101 @@ import {
   Outcome,
   SessionResource,
   PullRequest,
+  Activity,
 } from './types.js';
 import { SourceNotFoundError, RunFailedError } from './errors.js';
+import { streamActivities } from './streaming.js';
 
 export class JulesClientImpl implements JulesClient {
   public sources: SourceManager;
   private apiClient: ApiClient;
+  private pollingInterval: number;
 
   constructor(options: JulesOptions = {}) {
     const apiKey = options.apiKey ?? process.env.JULES_API_KEY;
     const baseUrl =
       options.baseUrl ?? 'https://jules.googleapis.com/v1alpha';
 
+    this.pollingInterval = options.pollingInterval ?? 5000;
     this.apiClient = new ApiClient({ apiKey, baseUrl });
     this.sources = createSourceManager(this.apiClient);
   }
 
+  private async _createSessionAndGetId(config: SessionConfig): Promise<string> {
+    const source = await this.sources.get({ github: config.source.github });
+    if (!source) {
+      throw new SourceNotFoundError(config.source.github);
+    }
+
+    const session = await this.apiClient.request<SessionResource>('sessions', {
+      method: 'POST',
+      body: {
+        prompt: config.prompt,
+        title: config.title,
+        sourceContext: {
+          source: source.name,
+          githubRepoContext: {
+            startingBranch: config.source.branch,
+          },
+        },
+        automationMode: (config.autoPr === false) ? 'AUTOMATION_MODE_UNSPECIFIED' : 'AUTO_CREATE_PR',
+        requirePlanApproval: config.requireApproval ?? false,
+      }
+    });
+
+    return session.id;
+  }
+
   run(config: SessionConfig): Run {
-    const promise = new Promise<Outcome>(async (resolve, reject) => {
+    const sessionIdPromise = this._createSessionAndGetId(config);
+
+    const outcomePromise = new Promise<Outcome>(async (resolve, reject) => {
       try {
-        // 1. Source Resolution
-        const source = await this.sources.get({ github: config.source.github });
-        if (!source) {
-          // Explicitly reject and stop execution if source not found
-          return reject(new SourceNotFoundError(config.source.github));
+        const sessionId = await sessionIdPromise;
+
+        let finalActivity: Activity | undefined;
+        for await (const activity of streamActivities(sessionId, this.apiClient, this.pollingInterval)) {
+          if (activity.type === 'sessionCompleted' || activity.type === 'sessionFailed') {
+            finalActivity = activity;
+            break;
+          }
         }
 
-        // 2. Session Creation
-        const session = await this.apiClient.request<SessionResource>('sessions', {
-          method: 'POST',
-          body: {
-            prompt: config.prompt,
-            title: config.title,
-            sourceContext: {
-              source: source.name,
-              githubRepoContext: {
-                startingBranch: config.source.branch,
-              },
-            },
-            automationMode: (config.autoPr === false) ? 'AUTOMATION_MODE_UNSPECIFIED' : 'AUTO_CREATE_PR',
-            requirePlanApproval: config.requireApproval ?? false,
-          }
-        });
+        if (!finalActivity) {
+          throw new RunFailedError('Stream ended without a terminal activity.');
+        }
 
-        // 3. Polling
-        const POLLING_INTERVAL_MS = 5000;
-        const poll = async () => {
-          try {
-            const updatedSession = await this.apiClient.request<SessionResource>(`sessions/${session.id}`);
+        const updatedSession = await this.apiClient.request<SessionResource>(`sessions/${sessionId}`);
 
-            if (updatedSession.state === 'completed' || updatedSession.state === 'failed') {
-              // Terminal state reached, stop polling
-              if (updatedSession.state === 'completed') {
-                // Find the output that has a 'pullRequest' key.
-                const prOutput = updatedSession.outputs.find(o => 'pullRequest' in o);
-                const pullRequest = prOutput ? (prOutput as { pullRequest: PullRequest }).pullRequest : undefined;
+        if (updatedSession.state === 'completed') {
+          const prOutput = updatedSession.outputs.find(o => 'pullRequest' in o);
+          const pullRequest = prOutput ? (prOutput as { pullRequest: PullRequest }).pullRequest : undefined;
 
-                resolve({
-                  sessionId: updatedSession.id,
-                  title: updatedSession.title,
-                  state: 'completed',
-                  pullRequest: pullRequest,
-                  outputs: updatedSession.outputs,
-                });
-              } else { // 'failed'
-                reject(new RunFailedError());
-              }
-            } else {
-              // Continue polling
-              setTimeout(poll, POLLING_INTERVAL_MS);
-            }
-          } catch (error) {
-            reject(error);
-          }
-        };
-
-        // Start the first poll
-        setTimeout(poll, POLLING_INTERVAL_MS);
-
+          resolve({
+            sessionId: updatedSession.id,
+            title: updatedSession.title,
+            state: 'completed',
+            pullRequest,
+            outputs: updatedSession.outputs,
+          });
+        } else {
+          const reason = (finalActivity as any)?.reason || 'Run failed';
+          reject(new RunFailedError(reason));
+        }
       } catch (error) {
         reject(error);
       }
     });
 
-    // Attach the .stream() method to the promise
-    const run = promise as Run;
-    run.stream = () => {
-      throw new Error('Streaming is not yet implemented for jules.run()');
-    };
+    const run = outcomePromise as Run;
+    run.stream = async function* (this: JulesClientImpl) {
+      try {
+        const sessionId = await sessionIdPromise;
+        yield* streamActivities(sessionId, this.apiClient, this.pollingInterval);
+      } catch (error) {
+        throw error;
+      }
+    }.bind(this);
 
     return run;
   }

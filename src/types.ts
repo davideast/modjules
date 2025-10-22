@@ -23,6 +23,13 @@ export interface JulesOptions {
    * Defaults to 'https://jules.googleapis.com/v1alpha'.
    */
   baseUrl?: string;
+  /**
+   * The interval in milliseconds to poll for new activities when streaming.
+   * This is used when the end of the current activity stream is reached, but the
+   * session is not yet in a terminal state.
+   * Defaults to 5000 (5 seconds).
+   */
+  pollingInterval?: number;
 }
 
 /**
