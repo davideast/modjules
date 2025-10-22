@@ -24,12 +24,20 @@ export interface JulesOptions {
    */
   baseUrl?: string;
   /**
-   * The interval in milliseconds to poll for new activities when streaming.
-   * This is used when the end of the current activity stream is reached, but the
-   * session is not yet in a terminal state.
-   * Defaults to 5000 (5 seconds).
+   * Advanced operational parameters for the SDK.
    */
-  pollingInterval?: number;
+  config?: {
+    /**
+     * The interval in milliseconds to poll for session and activity updates.
+     * @default 5000
+     */
+    pollingIntervalMs?: number;
+    /**
+     * The timeout in milliseconds for individual HTTP requests to the Jules API.
+     * @default 30000
+     */
+    requestTimeoutMs?: number;
+  };
 }
 
 /**

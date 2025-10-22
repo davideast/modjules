@@ -1,6 +1,6 @@
 // src/session.ts
 import { ApiClient } from './api.js';
-import { JulesClientImpl } from './client.js';
+import { InternalConfig } from './client.js';
 import { InvalidStateError, JulesError } from './errors.js';
 import { mapSessionResourceToOutcome } from './mappers.js';
 import { pollSession, pollUntilCompletion } from './polling.js';
@@ -17,25 +17,23 @@ import {
 export class SessionClientImpl implements SessionClient {
   readonly id: string;
   private apiClient: ApiClient;
-  private julesClient: JulesClientImpl;
+  private config: InternalConfig;
 
   constructor(
     sessionId: string,
     apiClient: ApiClient,
-    julesClient: JulesClientImpl,
+    config: InternalConfig,
   ) {
     this.id = sessionId;
     this.apiClient = apiClient;
-    this.julesClient = julesClient;
+    this.config = config;
   }
 
   stream(): AsyncIterable<Activity> {
-    // Directly use the streamActivities generator.
-    // The polling interval is accessed from the parent JulesClient configuration.
     return streamActivities(
       this.id,
       this.apiClient,
-      (this.julesClient as any).pollingInterval,
+      this.config.pollingIntervalMs,
     );
   }
 
@@ -64,12 +62,9 @@ export class SessionClientImpl implements SessionClient {
     await this.send(prompt);
 
     for await (const activity of this.stream()) {
-      // Explicitly convert to Date objects to ensure robust comparison.
-      // using .getTime() is the safest way to compare time values.
       const activityTime = new Date(activity.createTime).getTime();
       const askTime = startTime.getTime();
 
-      // Ignore activities that occurred before or at the exact same ms as the prompt.
       if (activityTime <= askTime) {
         continue;
       }
@@ -79,7 +74,6 @@ export class SessionClientImpl implements SessionClient {
       }
     }
 
-    // This part is reached if the stream ends before a reply is found.
     throw new JulesError('Session ended before the agent replied.');
   }
 
@@ -87,7 +81,7 @@ export class SessionClientImpl implements SessionClient {
     const finalSession = await pollUntilCompletion(
       this.id,
       this.apiClient,
-      (this.julesClient as any).pollingInterval,
+      this.config.pollingIntervalMs,
     );
     return mapSessionResourceToOutcome(finalSession);
   }
@@ -97,14 +91,13 @@ export class SessionClientImpl implements SessionClient {
       this.id,
       this.apiClient,
       session => {
-        // Stop if we've reached the target state OR a terminal state.
         return (
           session.state === targetState ||
           session.state === 'completed' ||
           session.state === 'failed'
         );
       },
-      (this.julesClient as any).pollingInterval,
+      this.config.pollingIntervalMs,
     );
   }
 

@@ -107,12 +107,16 @@ describe('SessionClient', () => {
   let session: SessionClient;
 
   beforeEach(() => {
-    jules = Jules({ apiKey: 'test-key', pollingInterval: 10 });
+    jules = Jules({
+      apiKey: 'test-key',
+      config: { pollingIntervalMs: 10 },
+    });
     session = jules.session('SESSION_123');
   });
 
   describe('waitFor()', () => {
     it('should resolve when the target state is reached', async () => {
+      vi.useFakeTimers();
       let callCount = 0;
       server.use(
         http.get('https://jules.googleapis.com/v1alpha/sessions/SESSION_123', () => {
@@ -122,7 +126,18 @@ describe('SessionClient', () => {
         }),
       );
 
-      await session.waitFor('awaitingPlanApproval');
+      const waitForPromise = session.waitFor('awaitingPlanApproval');
+
+      // The first call happens immediately, without waiting for the timer.
+      // We need to wait for the promise to resolve to ensure the first fetch is done.
+      await vi.advanceTimersByTimeAsync(1);
+      expect(callCount).toBe(1);
+
+      // Now, advance the timer to trigger the second poll.
+      await vi.advanceTimersByTimeAsync(10);
+
+      // Wait for the polling to complete.
+      await waitForPromise;
       expect(callCount).toBe(2);
     });
 
