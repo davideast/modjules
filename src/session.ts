@@ -1,8 +1,10 @@
 // src/session.ts
 import { ApiClient } from './api.js';
 import { JulesClientImpl } from './client.js';
+import { InvalidStateError, JulesError } from './errors.js';
 import { mapSessionResourceToOutcome } from './mappers.js';
-import { pollUntilCompletion, streamActivities } from './streaming.js';
+import { pollSession, pollUntilCompletion } from './polling.js';
+import { streamActivities } from './streaming.js';
 import {
   Activity,
   ActivityAgentMessaged,
@@ -38,15 +40,47 @@ export class SessionClientImpl implements SessionClient {
   }
 
   async approve(): Promise<void> {
-    throw new Error('Not Implemented');
+    const currentState = (await this.info()).state;
+    if (currentState !== 'awaitingPlanApproval') {
+      throw new InvalidStateError(
+        `Cannot approve plan because the session is not awaiting approval. Current state: ${currentState}`,
+      );
+    }
+    await this.apiClient.request(`sessions/${this.id}:approvePlan`, {
+      method: 'POST',
+      body: {},
+    });
   }
 
   async send(prompt: string): Promise<void> {
-    throw new Error('Not Implemented');
+    await this.apiClient.request(`sessions/${this.id}:sendMessage`, {
+      method: 'POST',
+      body: { prompt },
+    });
   }
 
   async ask(prompt: string): Promise<ActivityAgentMessaged> {
-    throw new Error('Not Implemented');
+    const startTime = new Date();
+    await this.send(prompt);
+
+    for await (const activity of this.stream()) {
+      // Explicitly convert to Date objects to ensure robust comparison.
+      // using .getTime() is the safest way to compare time values.
+      const activityTime = new Date(activity.createTime).getTime();
+      const askTime = startTime.getTime();
+
+      // Ignore activities that occurred before or at the exact same ms as the prompt.
+      if (activityTime <= askTime) {
+        continue;
+      }
+
+      if (activity.type === 'agentMessaged') {
+        return activity;
+      }
+    }
+
+    // This part is reached if the stream ends before a reply is found.
+    throw new JulesError('Session ended before the agent replied.');
   }
 
   async result(): Promise<Outcome> {
@@ -58,8 +92,20 @@ export class SessionClientImpl implements SessionClient {
     return mapSessionResourceToOutcome(finalSession);
   }
 
-  async waitFor(state: SessionState): Promise<void> {
-    throw new Error('Not Implemented');
+  async waitFor(targetState: SessionState): Promise<void> {
+    await pollSession(
+      this.id,
+      this.apiClient,
+      session => {
+        // Stop if we've reached the target state OR a terminal state.
+        return (
+          session.state === targetState ||
+          session.state === 'completed' ||
+          session.state === 'failed'
+        );
+      },
+      (this.julesClient as any).pollingInterval,
+    );
   }
 
   async info(): Promise<SessionResource> {

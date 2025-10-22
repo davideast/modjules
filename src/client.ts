@@ -14,7 +14,8 @@ import {
   Activity,
 } from './types.js';
 import { SourceNotFoundError, RunFailedError } from './errors.js';
-import { pollUntilCompletion, streamActivities } from './streaming.js';
+import { streamActivities } from './streaming.js';
+import { pollUntilCompletion } from './polling.js';
 import { mapSessionResourceToOutcome } from './mappers.js';
 import { SessionClientImpl } from './session.js';
 

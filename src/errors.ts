@@ -58,3 +58,13 @@ export class RunFailedError extends JulesError {
     super(message);
   }
 }
+
+/**
+ * Thrown when an operation is attempted on a session that is not in a
+ * valid state for that operation.
+ */
+export class InvalidStateError extends JulesError {
+  constructor(message: string) {
+    super(message);
+  }
+}
