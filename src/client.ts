@@ -10,27 +10,43 @@ import {
   SessionClient,
   Outcome,
   SessionResource,
-  PullRequest,
-  Activity,
 } from './types.js';
-import { SourceNotFoundError, RunFailedError } from './errors.js';
+import { SourceNotFoundError } from './errors.js';
 import { streamActivities } from './streaming.js';
 import { pollUntilCompletion } from './polling.js';
 import { mapSessionResourceToOutcome } from './mappers.js';
 import { SessionClientImpl } from './session.js';
 
+/**
+ * The fully resolved internal configuration for the SDK.
+ * @internal
+ */
+export type InternalConfig = {
+  pollingIntervalMs: number;
+  requestTimeoutMs: number;
+};
+
 export class JulesClientImpl implements JulesClient {
   public sources: SourceManager;
   private apiClient: ApiClient;
-  private pollingInterval: number;
+  private config: InternalConfig;
 
   constructor(options: JulesOptions = {}) {
     const apiKey = options.apiKey ?? process.env.JULES_API_KEY;
     const baseUrl =
       options.baseUrl ?? 'https://jules.googleapis.com/v1alpha';
 
-    this.pollingInterval = options.pollingInterval ?? 5000;
-    this.apiClient = new ApiClient({ apiKey, baseUrl });
+    // Apply defaults to the user-provided config
+    this.config = {
+      pollingIntervalMs: options.config?.pollingIntervalMs ?? 5000,
+      requestTimeoutMs: options.config?.requestTimeoutMs ?? 30000,
+    };
+
+    this.apiClient = new ApiClient({
+      apiKey,
+      baseUrl,
+      requestTimeoutMs: this.config.requestTimeoutMs,
+    });
     this.sources = createSourceManager(this.apiClient);
   }
 
@@ -77,7 +93,7 @@ export class JulesClientImpl implements JulesClient {
         const finalSession = await pollUntilCompletion(
           sessionId,
           this.apiClient,
-          this.pollingInterval,
+          this.config.pollingIntervalMs,
         );
         resolve(mapSessionResourceToOutcome(finalSession));
       } catch (error) {
@@ -89,11 +105,19 @@ export class JulesClientImpl implements JulesClient {
     run.stream = async function* (this: JulesClientImpl) {
       try {
         const sessionId = await sessionIdPromise;
-        yield* streamActivities(sessionId, this.apiClient, this.pollingInterval);
+        yield* streamActivities(
+          sessionId,
+          this.apiClient,
+          this.config.pollingIntervalMs,
+        );
       } catch (error) {
+        // This is necessary to propagate errors from the async generator setup
+        // (e.g., if sessionIdPromise rejects). Re-throwing the original error
+        // preserves the specific error type (e.g., JulesAuthenticationError).
         throw error;
       }
     }.bind(this);
+
 
     return run;
   }
@@ -104,7 +128,7 @@ export class JulesClientImpl implements JulesClient {
     configOrId: SessionConfig | string,
   ): Promise<SessionClient> | SessionClient {
     if (typeof configOrId === 'string') {
-      return new SessionClientImpl(configOrId, this.apiClient, this);
+      return new SessionClientImpl(configOrId, this.apiClient, this.config);
     }
 
     const config = configOrId;
@@ -118,7 +142,7 @@ export class JulesClientImpl implements JulesClient {
           requirePlanApproval: config.requireApproval ?? true,
         },
       });
-      return new SessionClientImpl(session.id, this.apiClient, this);
+      return new SessionClientImpl(session.id, this.apiClient, this.config);
     })();
     return sessionPromise;
   }
