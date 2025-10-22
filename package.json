@@ -1,13 +1,27 @@
 {
   "name": "julets",
   "version": "0.0.1",
-  "description": "A TypeScript library for the Jules coding agent REST API.",
+  "description": "The agent-ready SDK for Jules.",
   "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/",
+    "README.md"
+  ],
   "scripts": {
+    "build": "tsc",
     "test": "vitest",
     "type-check": "tsc --noEmit"
   },
-  "keywords": [],
+  "keywords": [
+    "jules",
+    "ai",
+    "agent",
+    "sdk",
+    "developer-tools"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {

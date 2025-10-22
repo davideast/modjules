@@ -19,3 +19,4 @@ export function Jules(options?: JulesOptions): JulesClient {
 
 // Re-export all the types for convenience
 export * from './types.js';
+export * from './errors.js';
