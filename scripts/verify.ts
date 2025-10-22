@@ -51,14 +51,10 @@ async function main() {
     await runCommand('npx tsc --noEmit', EXAMPLE_DIR);
     console.log('Type resolution verified successfully.');
 
-    // 6. Run runtime check in the example project
-    console.log('\n--- Verifying runtime execution ---');
-    if (!process.env.JULES_API_KEY) {
-      console.warn('JULES_API_KEY is not set. Skipping runtime execution check.');
-    } else {
-      await runCommand('npx tsx main.ts', EXAMPLE_DIR);
-      console.log('Runtime execution verified successfully.');
-    }
+    // 6. Run runtime import check in the example project
+    console.log('\n--- Verifying runtime import ---');
+    await runCommand('npx tsx smoke-test.ts', EXAMPLE_DIR);
+    console.log('Runtime import verified successfully.');
 
     console.log('\n\n✅ Verification successful!');
   } catch (error) {
