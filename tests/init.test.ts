@@ -1,5 +1,5 @@
 // tests/init.test.ts
-import { beforeAll, afterAll, afterEach, describe, it, expect } from 'vitest';
+import { beforeAll, afterAll, afterEach, describe, it, expect, beforeEach } from 'vitest';
 import { server } from './mocks/server.js';
 import { Jules } from '../src/index.js';
 import { JulesClientImpl } from '../src/client.js';

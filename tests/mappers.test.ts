@@ -11,7 +11,11 @@ describe('mapRestArtifactToSdkArtifact', () => {
     const restArtifact = {
       changeSet: {
         source: 'sources/github/test/repo',
-        gitPatch: { unidiffPatch: '--- a/file.ts\n+++ b/file.ts' },
+        gitPatch: {
+          unidiffPatch: '--- a/file.ts\n+++ b/file.ts',
+          baseCommitId: 'abc',
+          suggestedCommitMessage: 'feat: add a file',
+        },
       },
     };
     const sdkArtifact = mapRestArtifactToSdkArtifact(restArtifact);
@@ -37,7 +41,7 @@ describe('mapRestArtifactToSdkArtifact', () => {
 
   it('should throw for an unknown artifact type', () => {
     const restArtifact = { unknown: {} };
-    expect(() => mapRestArtifactToSdkArtifact(restArtifact)).toThrow(
+    expect(() => mapRestArtifactToSdkArtifact(restArtifact as any)).toThrow(
       'Unknown artifact type'
     );
   });

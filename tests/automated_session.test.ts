@@ -21,7 +21,10 @@ const MOCK_AUTOMATED_SESSION_CONFIG = {
 };
 
 describe('jules.run()', () => {
-  const jules = Jules({ apiKey: API_KEY, pollingInterval: 100 });
+  const jules = Jules({
+    apiKey: API_KEY,
+    config: { pollingIntervalMs: 100 },
+  });
 
   beforeAll(() => {
     vi.useFakeTimers();

@@ -16,8 +16,13 @@ describe.skipIf(!process.env.JULES_API_KEY || !process.env.TEST_GITHUB_REPO)('Se
       },
     });
 
-    const stream = session.stream();
-    const { value: firstActivity } = await stream.next();
+    // The stream() method returns an AsyncIterable. To get the first item,
+    // we can use a `for await...of` loop and break after the first iteration.
+    let firstActivity;
+    for await (const activity of session.stream()) {
+      firstActivity = activity;
+      break; // We only need the first one for this test.
+    }
 
     expect(firstActivity).toBeDefined();
   }, 90000); // 90-second timeout to accommodate retries
