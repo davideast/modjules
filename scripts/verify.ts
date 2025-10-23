@@ -6,10 +6,10 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 const ROOT_DIR = path.resolve(import.meta.dirname, '..');
-const EXAMPLE_DIR = path.join(ROOT_DIR, 'examples', 'simple');
+const EXAMPLES_ROOT_DIR = path.join(ROOT_DIR, 'examples');
 
 async function runCommand(command: string, cwd: string) {
-  console.log(`\n$ ${command} [in ${cwd}]`);
+  console.log(`\n$ ${command} [in ${path.relative(ROOT_DIR, cwd)}]`);
   try {
     const { stdout, stderr } = await execAsync(command, { cwd });
     if (stdout) console.log(stdout);
@@ -20,48 +20,73 @@ async function runCommand(command: string, cwd: string) {
   }
 }
 
+async function verifyExample(exampleDir: string, packedFile: string) {
+  console.log(`\n--- Verifying Example: ${path.basename(exampleDir)} ---`);
+
+  // 1. Clean the example directory
+  console.log('Cleaning example directory...');
+  await rm(path.join(exampleDir, 'node_modules'), { recursive: true, force: true });
+  await rm(path.join(exampleDir, 'package-lock.json'), { force: true });
+  // Special case for Next.js caching
+  if (path.basename(exampleDir) === 'nextjs') {
+    await rm(path.join(exampleDir, '.next'), { recursive: true, force: true });
+  }
+  console.log('Clean complete.');
+
+  // 2. Install the packed file in the example project
+  console.log('Installing packed tarball...');
+  // Note: We use the relative path from the example dir to the root
+  const relativePackedPath = path.join('..', '..', packedFile);
+  await runCommand(`npm install ${relativePackedPath}`, exampleDir);
+  console.log('Installation complete.');
+
+  // 3. Run the verification script for the example
+  console.log('Running verification script...');
+  await runCommand('npm run verify', exampleDir);
+  console.log(`✅ Verification successful for ${path.basename(exampleDir)}!`);
+}
+
 async function main() {
   let packedFile: string | undefined;
 
   try {
-    // 1. Clean the example directory
-    console.log('--- Cleaning example directory ---');
-    await rm(path.join(EXAMPLE_DIR, 'node_modules'), { recursive: true, force: true });
-    await rm(path.join(EXAMPLE_DIR, 'package-lock.json'), { force: true });
-    console.log('Clean complete.');
-
-    // 2. Build the project
-    console.log('\n--- Building project ---');
+    // 1. Build the project
+    console.log('--- Building root project ---');
     await runCommand('npm run build', ROOT_DIR);
     console.log('Build complete.');
 
-    // 3. Pack the project
-    console.log('\n--- Packing project ---');
+    // 2. Pack the project
+    console.log('\n--- Packing root project ---');
     const { stdout } = await execAsync('npm pack', { cwd: ROOT_DIR });
     packedFile = stdout.trim();
     console.log(`Packed file: ${packedFile}`);
 
-    // 4. Install the packed file in the example project
-    console.log('\n--- Installing packed tarball in example project ---');
-    await runCommand(`npm install ../../${packedFile}`, EXAMPLE_DIR);
-    console.log('Installation complete.');
+    // 3. Determine which examples to verify
+    const targetArg = process.argv[2];
+    let exampleDirs: string[];
 
-    // 5. Run type-check in the example project
-    console.log('\n--- Verifying type resolution ---');
-    await runCommand('npx tsc --noEmit', EXAMPLE_DIR);
-    console.log('Type resolution verified successfully.');
+    if (targetArg) {
+      console.log(`\n--- Target specified: ${targetArg} ---`);
+      exampleDirs = [path.join(ROOT_DIR, targetArg)];
+    } else {
+      console.log('\n--- No target specified, verifying all examples ---');
+      const allExamples = await readdir(EXAMPLES_ROOT_DIR, { withFileTypes: true });
+      exampleDirs = allExamples
+        .filter((dirent) => dirent.isDirectory())
+        .map((dirent) => path.join(EXAMPLES_ROOT_DIR, dirent.name));
+    }
 
-    // 6. Run runtime import check in the example project
-    console.log('\n--- Verifying runtime import ---');
-    await runCommand('npx tsx smoke-test.ts', EXAMPLE_DIR);
-    console.log('Runtime import verified successfully.');
+    // 4. Run verification for each example
+    for (const dir of exampleDirs) {
+      await verifyExample(dir, packedFile);
+    }
 
-    console.log('\n\n✅ Verification successful!');
+    console.log('\n\n✅ All verifications successful!');
   } catch (error) {
     console.error('\n\n❌ Verification failed!');
     process.exit(1);
   } finally {
-    // 7. Clean up the packed file
+    // 5. Clean up the packed file
     if (packedFile) {
       console.log('\n--- Cleaning up tarball ---');
       await rm(path.join(ROOT_DIR, packedFile));
