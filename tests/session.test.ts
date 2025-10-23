@@ -13,10 +13,10 @@ import {
   Jules,
   JulesClient,
   SessionClient,
-  RunFailedError,
+  AutomatedSessionFailedError,
   InvalidStateError,
   JulesError,
-} from '../src/index';
+} from '../src/index.js';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 
@@ -241,6 +241,6 @@ describe('SessionClient', () => {
 
   it('result() should throw RunFailedError on failure', async () => {
     const failedSession = jules.session('SESSION_FAIL');
-    await expect(failedSession.result()).rejects.toThrow(RunFailedError);
+    await expect(failedSession.result()).rejects.toThrow(AutomatedSessionFailedError);
   });
 });

@@ -17,7 +17,11 @@ const SESSION_ID = 'stream-session-123';
 const POLLING_INTERVAL = 1000; // Use a faster interval for tests
 
 describe('streamActivities', () => {
-  const apiClient = new ApiClient({ apiKey: API_KEY, baseUrl: BASE_URL });
+  const apiClient = new ApiClient({
+    apiKey: API_KEY,
+    baseUrl: BASE_URL,
+    requestTimeoutMs: 30000,
+  });
 
   // Use fake timers to control polling
   beforeAll(() => {

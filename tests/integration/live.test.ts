@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 const API_KEY = process.env.JULES_API_KEY;
 
 describe.skipIf(!API_KEY)('Live API Tests', () => {
-  const jules = new Jules({ apiKey: API_KEY });
+  const jules = Jules({ apiKey: API_KEY });
   const knownSessionId = '14206685469638205429';
 
   it('should rehydrate a session and fetch its info', async () => {
@@ -18,8 +18,11 @@ describe.skipIf(!API_KEY)('Live API Tests', () => {
 
   it('should stream activities from a rehydrated session', async () => {
     const session = jules.session(knownSessionId);
-    const stream = session.stream();
-    const { value: firstActivity } = await stream.next();
+    let firstActivity;
+    for await (const activity of session.stream()) {
+      firstActivity = activity;
+      break;
+    }
 
     expect(firstActivity).toBeDefined();
   }, 30000);
