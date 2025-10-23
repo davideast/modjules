@@ -4,7 +4,8 @@
   "description": "A simple example demonstrating the julets SDK.",
   "main": "main.ts",
   "scripts": {
-    "start": "tsx main.ts"
+    "start": "tsx main.ts",
+    "verify": "tsx main.ts"
   },
   "keywords": [],
   "author": "",
