@@ -1,16 +1,17 @@
 // src/streaming.ts
 import { ApiClient } from './api.js';
+import { JulesApiError } from './errors.js';
 import { mapRestActivityToSdkActivity } from './mappers.js';
 import { Activity, SessionResource } from './types.js';
+
+// A helper function for delaying execution.
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Define the raw REST API response type for listing activities.
 type ListActivitiesResponse = {
   activities: any[]; // Using any for now, will be mapped.
   nextPageToken?: string;
 };
-
-// A helper function for delaying execution.
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * An async generator that implements a hybrid pagination/polling strategy
@@ -27,17 +28,60 @@ export async function* streamActivities(
   pollingInterval: number,
 ): AsyncGenerator<Activity> {
   let pageToken: string | undefined = undefined;
+  let isFirstCall = true;
 
   while (true) {
-    const response: ListActivitiesResponse = await apiClient.request<ListActivitiesResponse>(
-      `sessions/${sessionId}/activities`,
-      {
-        params: {
-          pageSize: '50', // A reasonable page size
-          ...(pageToken ? { pageToken } : {}),
+    let response: ListActivitiesResponse;
+    try {
+      response = await apiClient.request<ListActivitiesResponse>(
+        `sessions/${sessionId}/activities`,
+        {
+          params: {
+            pageSize: '50', // A reasonable page size
+            ...(pageToken ? { pageToken } : {}),
+          },
         },
-      },
-    );
+      );
+    } catch (error) {
+      if (isFirstCall && error instanceof JulesApiError && error.status === 404) {
+        let lastError: JulesApiError = error;
+        let successfulResponse: ListActivitiesResponse | undefined;
+        let delay = 1000; // Start with a 1-second delay
+
+        for (let i = 0; i < 5; i++) {
+          await sleep(delay);
+          delay *= 2; // Double the delay for the next attempt
+          try {
+            successfulResponse = await apiClient.request<ListActivitiesResponse>(
+              `sessions/${sessionId}/activities`,
+              {
+                params: {
+                  pageSize: '50',
+                  ...(pageToken ? { pageToken } : {}),
+                },
+              },
+            );
+            break; // On success, exit the retry loop.
+          } catch (retryError) {
+            if (retryError instanceof JulesApiError && retryError.status === 404) {
+              lastError = retryError;
+            } else {
+              throw retryError; // Re-throw non-404 errors immediately.
+            }
+          }
+        }
+
+        if (successfulResponse) {
+          response = successfulResponse;
+        } else {
+          throw lastError; // If all retries fail, throw the last 404 error.
+        }
+      } else {
+        throw error; // Re-throw non-retryable errors.
+      }
+    }
+
+    isFirstCall = false; // Mark the first call as done.
 
     const activities = response.activities || [];
     let hasTerminalActivity = false;
