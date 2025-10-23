@@ -1,4 +1,4 @@
-# julets - the agent-ready SDK for Jules.**
+# julets - the agent-ready SDK for Jules
 
 > **Disclaimer:** This is a 100% total, absolute, **just-for-fun** prototype.
 
