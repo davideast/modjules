@@ -1,4 +1,4 @@
-import { Jules, JulesError } from 'julets';
+import { Jules, JulesError, SessionClient } from 'julets';
 
 // This is the GitHub repository the agent will work on.
 // PLEASE REPLACE THIS with a repository you have connected to your Jules project.
@@ -77,5 +77,89 @@ async function main() {
   }
 }
 
-// Run the main function
+async function lookup() {
+  // The SDK automatically finds the API key from the JULES_API_KEY environment variable.
+  const jules = Jules();
+
+  // Check for a session ID argument from the command line
+  const existingSessionId = process.argv[2];
+
+  console.log('Welcome to the julets example!');
+  console.log('---------------------------------');
+
+  try {
+    let session: SessionClient;
+
+    if (existingSessionId) {
+      // --- Rehydrate Existing Session ---
+      console.log(`\n🔄 Rehydrating session ID: ${existingSessionId}...`);
+      session = jules.session(existingSessionId);
+      // Optional: Quick check to see if it's valid/accessible
+      const info = await session.info();
+      console.log(`✅ Session found. Current state: ${info.state}`);
+
+    } else {
+      // --- Create New Session ---
+      console.log(`\n🔍 Searching for source: ${GITHUB_REPO}...`);
+      const source = await jules.sources.get({ github: GITHUB_REPO });
+
+      if (!source) {
+        console.error(`❌ Could not find source. Please ensure '${GITHUB_REPO}' is connected.`);
+        return;
+      }
+      console.log(`✅ Found source: ${source.name}`);
+
+      console.log('\n🚀 Starting a new session...');
+      session = await jules.session({
+        prompt: `Analyze this library julets... (truncated for brevity)`,
+        source: {
+          github: GITHUB_REPO,
+          branch: 'main',
+        },
+      });
+      console.log(`✅ Session created with ID: ${session.id}`);
+    }
+
+    // --- Common Logic (Streaming & Waiting) ---
+
+    console.log('\n... Streaming activities ...');
+    // This loop will pick up from wherever the session currently is.
+    // If rehydrating a completed session, it might immediately yield nothing
+    // or just the final events, depending on API behavior for old activities.
+    for await (const activity of session.stream()) {
+      if (activity.type === 'progressUpdated') {
+        console.log(`[AGENT] ${activity.title}`);
+      }
+      if (activity.type === 'agentMessaged') {
+        console.log(`[AGENT] ${activity.message}`);
+      }
+      // Optional: Handle terminal states in stream if you want immediate feedback
+      if (activity.type === 'sessionCompleted') {
+          console.log('[STREAM] Session completed event received.');
+      }
+    }
+
+    console.log('\n... Waiting for final result ...');
+    const outcome = await session.result();
+
+    if (outcome.state === 'completed') {
+      console.log('✅ Outcome: Session completed successfully.');
+      if (outcome.pullRequest) {
+        console.log(`🔗 PR: ${outcome.pullRequest.url}`);
+      }
+    } else {
+      console.warn(`⚠️  Outcome: Session finished with state: ${outcome.state}`);
+    }
+
+  } catch (error) {
+    if (error instanceof JulesError) {
+      console.error(`\n❌ An SDK error occurred: ${error.constructor.name}`);
+      console.error(error.message);
+    } else {
+      console.error('\n❌ An unexpected error occurred:', error);
+    }
+  }
+}
+
 main();
+// lookup();
