@@ -1,12 +1,63 @@
 import { Jules } from 'julets';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-// Simple route to verify import and initialization work in Next.js runtime
-export async function GET() {
-try {
-const jules = Jules(); // Just initialize, don't need to call anything yet
-return NextResponse.json({ ok: true });
-} catch (e: any) {
-return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
-}
+/**
+ * Note: This is a simplified handler for demonstration purposes.
+ * In a real-world application, you would want to manage the Jules client
+ * instance more robustly (e.g., as a singleton) and handle sessions
+ * securely, likely associating them with authenticated user identities.
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const { action, sessionId, repo, message } = await req.json();
+
+    // For simplicity, we initialize the client on each request.
+    // In a production app, you'd likely initialize this once.
+    const jules = Jules();
+
+    switch (action) {
+      case 'start': {
+        if (!repo) {
+          return NextResponse.json(
+            { error: 'GitHub repo is required' },
+            { status: 400 },
+          );
+        }
+        console.log(`Starting session for repo: ${repo}`);
+        const session = await jules.session({
+          prompt: 'The user wants to have an interactive chat session.',
+          source: {
+            github: repo,
+            branch: 'main', // Assume a default branch for this example
+          },
+        });
+        console.log(`Session started: ${session.id}`);
+        return NextResponse.json({ sessionId: session.id });
+      }
+
+      case 'chat': {
+        if (!sessionId || !message) {
+          return NextResponse.json(
+            { error: 'Session ID and message are required' },
+            { status: 400 },
+          );
+        }
+        console.log(`Rehydrating session: ${sessionId}`);
+        // Cast sessionId to string to ensure the correct overload is chosen.
+        const session = jules.session(sessionId as string);
+        const reply = await session.ask(message);
+        console.log(`Got reply: ${reply.message}`);
+        return NextResponse.json({ reply: reply.message });
+      }
+
+      default:
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    }
+  } catch (e: any) {
+    console.error('API Error:', e);
+    return NextResponse.json(
+      { error: e.message || 'An unknown error occurred' },
+      { status: 500 },
+    );
+  }
 }
