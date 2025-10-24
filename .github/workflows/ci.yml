@@ -25,8 +25,20 @@ jobs:
       - name: Run type check
         run: npm run type-check
 
-      - name: Check formatting
-        run: npm run format:check
+      - name: Check code formatting
+        id: prettier
+        run: npm run format:check || echo "needs_formatting=true" >> $GITHUB_OUTPUT
+
+      - name: Auto-format code
+        if: steps.prettier.outputs.needs_formatting == 'true'
+        run: npm run format
+
+      - name: Commit formatted code
+        if: steps.prettier.outputs.needs_formatting == 'true'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: auto-format with prettier"
+          branch: ${{ github.head_ref }}
 
       - name: Run tests
         run: npm test
