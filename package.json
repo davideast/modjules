@@ -25,7 +25,8 @@
     "test": "vitest",
     "test:integration": "vitest run -c vitest.integration.config.ts",
     "type-check": "tsc --project tsconfig.test.json",
-    "verify": "tsx scripts/verify.ts"
+    "verify": "tsx scripts/verify.ts",
+    "prepare": "husky"
   },
   "keywords": [
     "jules",
@@ -36,9 +37,14 @@
   ],
   "author": "",
   "license": "ISC",
+  "lint-staged": {
+    "**/*.{ts,tsx,js,jsx,json,md,css}": "prettier --write"
+  },
   "devDependencies": {
     "@google/jules": "^0.1.37",
     "@types/node": "^24.9.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
     "msw": "^2.11.6",
     "prettier": "^3.6.2",
     "tsx": "^4.20.6",
