@@ -49,12 +49,14 @@ export async function POST(req: NextRequest) {
             { status: 400 },
           );
         }
-        console.log(`Rehydrating session: ${sessionId}`);
+        console.log(`Rehydrating session for chat: ${sessionId}`);
         // Cast sessionId to string to ensure the correct overload is chosen.
         const session = jules.session(sessionId as string);
-        const reply = await session.ask(message);
-        console.log(`Got reply: ${reply.message}`);
-        return NextResponse.json({ reply: reply.message });
+        // Use session.send() which is fire-and-forget. The response will
+        // be delivered via the stream.
+        await session.send(message);
+        console.log(`Sent message to session ${sessionId}`);
+        return NextResponse.json({ success: true });
       }
 
       default:

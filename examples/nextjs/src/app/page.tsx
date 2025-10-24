@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, FormEvent, useRef, useEffect } from 'react';
+import { useState, FormEvent, useRef, useEffect, useCallback } from 'react';
+import { Activity } from 'julets';
 
 // Define the structure of a chat message
 interface Message {
@@ -24,11 +25,80 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const connectToStream = useCallback((sessionId: string) => {
+    const eventSource = new EventSource(
+      `/api/jules/stream?sessionId=${sessionId}`,
+    );
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      // Handle custom error events from the stream
+      if (data.type === 'error') {
+        const errorMessage: Message = {
+          sender: 'system',
+          text: `Stream Error: ${data.error}`,
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        eventSource.close();
+        return;
+      }
+
+      // Handle standard SDK activities
+      const activity = data as Activity;
+      let message: Message | null = null;
+
+      switch (activity.type) {
+        case 'agentMessaged':
+          message = {
+            sender: 'agent',
+            text: activity.message,
+          };
+          break;
+        case 'planGenerated':
+          message = {
+            sender: 'system',
+            text: `🤖 Generated a plan with ${activity.plan.steps.length} steps.`,
+          };
+          break;
+        case 'planApproved':
+          message = {
+            sender: 'system',
+            text: `✅ Plan approved.`,
+          };
+          break;
+        case 'progressUpdated':
+          message = {
+            sender: 'system',
+            text: `⚙️ ${activity.title}`,
+          };
+          break;
+      }
+
+      if (message) {
+        setMessages((prev) => [...prev, message!]);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error('EventSource failed:', err);
+      setError('Connection to agent stream lost.');
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, []);
+
   const handleStartSession = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
     setMessages([]);
+
+    const userMessage: Message = { sender: 'user', text: prompt };
+    setMessages([userMessage]);
 
     try {
       const response = await fetch('/api/jules', {
@@ -44,14 +114,10 @@ export default function Home() {
 
       const { sessionId } = await response.json();
       setSessionId(sessionId);
-      setMessages([
-        {
-          sender: 'system',
-          text: `Session started for ${repo}. You can now ask questions.`,
-        },
-      ]);
+      connectToStream(sessionId);
     } catch (err: any) {
       setError(err.message);
+      setMessages([]);
     } finally {
       setIsLoading(false);
     }
@@ -62,14 +128,9 @@ export default function Home() {
     if (!currentMessage.trim() || !sessionId) return;
 
     const userMessage: Message = { sender: 'user', text: currentMessage };
-    const thinkingMessage: Message = {
-      sender: 'agent',
-      text: 'Jules is thinking...',
-    };
-
-    setMessages((prev) => [...prev, userMessage, thinkingMessage]);
+    setMessages((prev) => [...prev, userMessage]);
+    const messageToSend = currentMessage;
     setCurrentMessage('');
-    setIsLoading(true);
     setError(null);
 
     try {
@@ -79,7 +140,7 @@ export default function Home() {
         body: JSON.stringify({
           action: 'chat',
           sessionId,
-          message: currentMessage,
+          message: messageToSend,
         }),
       });
 
@@ -87,21 +148,12 @@ export default function Home() {
         const { error } = await response.json();
         throw new Error(error || 'Failed to send message');
       }
-
-      const { reply } = await response.json();
-      const agentReply: Message = { sender: 'agent', text: reply };
-
-      // Replace "thinking..." message with the actual reply
-      setMessages((prev) => [...prev.slice(0, -1), agentReply]);
     } catch (err: any) {
       const errorMessage: Message = {
         sender: 'system',
         text: `Error: ${err.message}`,
       };
-      // Replace "thinking..." message with the error
-      setMessages((prev) => [...prev.slice(0, -1), errorMessage]);
-    } finally {
-      setIsLoading(false);
+      setMessages((prev) => [...prev, errorMessage]);
     }
   };
 
