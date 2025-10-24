@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function POST(req: NextRequest) {
   try {
-    const { action, sessionId, repo, message } = await req.json();
+    const { action, sessionId, repo, message, prompt } = await req.json();
 
     // For simplicity, we initialize the client on each request.
     // In a production app, you'd likely initialize this once.
@@ -23,9 +23,16 @@ export async function POST(req: NextRequest) {
             { status: 400 },
           );
         }
+        if (!prompt) {
+          return NextResponse.json(
+            { error: 'Task description is required' },
+            { status: 400 },
+          );
+        }
         console.log(`Starting session for repo: ${repo}`);
+        console.log(`Starting session with prompt: ${prompt}`);
         const session = await jules.session({
-          prompt: 'The user wants to have an interactive chat session.',
+          prompt,
           source: {
             github: repo,
             branch: 'main', // Assume a default branch for this example

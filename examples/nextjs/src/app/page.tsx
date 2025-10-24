@@ -10,6 +10,7 @@ interface Message {
 
 export default function Home() {
   const [repo, setRepo] = useState<string>('davideast/julets');
+  const [prompt, setPrompt] = useState<string>('');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentMessage, setCurrentMessage] = useState<string>('');
@@ -33,7 +34,7 @@ export default function Home() {
       const response = await fetch('/api/jules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start', repo }),
+        body: JSON.stringify({ action: 'start', repo, prompt }),
       });
 
       if (!response.ok) {
@@ -140,6 +141,23 @@ export default function Home() {
                   onChange={(e) => setRepo(e.target.value)}
                   className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-zinc-100 placeholder:text-zinc-500"
                   placeholder="e.g., davideast/julets"
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="mb-4">
+                <label
+                  htmlFor="prompt"
+                  className="block text-sm font-medium text-zinc-400 mb-1"
+                >
+                  Task Description
+                </label>
+                <textarea
+                  id="prompt"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-zinc-100 placeholder:text-zinc-500"
+                  placeholder="Analyze this repository and identify 3 areas for refactoring."
+                  rows={3}
                   disabled={isLoading}
                 />
               </div>
