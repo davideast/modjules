@@ -25,10 +25,7 @@ async function verifyExample(exampleDir: string, packedFile: string) {
 
   // 1. Clean the example directory
   console.log('Cleaning example directory...');
-  await rm(path.join(exampleDir, 'node_modules'), {
-    recursive: true,
-    force: true,
-  });
+  await rm(path.join(exampleDir, 'node_modules'), { recursive: true, force: true });
   await rm(path.join(exampleDir, 'package-lock.json'), { force: true });
   // Special case for Next.js caching
   if (path.basename(exampleDir) === 'nextjs') {
@@ -73,9 +70,7 @@ async function main() {
       exampleDirs = [path.join(ROOT_DIR, targetArg)];
     } else {
       console.log('\n--- No target specified, verifying all examples ---');
-      const allExamples = await readdir(EXAMPLES_ROOT_DIR, {
-        withFileTypes: true,
-      });
+      const allExamples = await readdir(EXAMPLES_ROOT_DIR, { withFileTypes: true });
       exampleDirs = allExamples
         .filter((dirent) => dirent.isDirectory())
         .map((dirent) => path.join(EXAMPLES_ROOT_DIR, dirent.name));

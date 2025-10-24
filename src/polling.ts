@@ -3,7 +3,7 @@ import { ApiClient } from './api.js';
 import { SessionResource } from './types.js';
 
 // A helper function for delaying execution.
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * A generalized utility for polling the session resource until a specific
@@ -52,7 +52,7 @@ export async function pollUntilCompletion(
   return pollSession(
     sessionId,
     apiClient,
-    (session) => session.state === 'completed' || session.state === 'failed',
+    session => session.state === 'completed' || session.state === 'failed',
     pollingInterval,
   );
 }

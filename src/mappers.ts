@@ -44,12 +44,7 @@ export function mapRestArtifactToSdkArtifact(
 }
 
 export function mapRestActivityToSdkActivity(restActivity: any): Activity {
-  const {
-    name,
-    createTime,
-    originator,
-    artifacts: rawArtifacts,
-  } = restActivity;
+  const { name, createTime, originator, artifacts: rawArtifacts } = restActivity;
 
   // First, map the artifacts since they are common to all activities.
   const artifacts: Artifact[] = (rawArtifacts || []).map(
@@ -126,7 +121,9 @@ export function mapRestActivityToSdkActivity(restActivity: any): Activity {
  * @returns The corresponding Outcome object.
  * @throws {AutomatedSessionFailedError} If the session state is 'failed'.
  */
-export function mapSessionResourceToOutcome(session: SessionResource): Outcome {
+export function mapSessionResourceToOutcome(
+  session: SessionResource,
+): Outcome {
   if (session.state === 'failed') {
     // TODO: The reason is not available on the session resource directly.
     // This will be improved when the API provides a failure reason.
@@ -134,7 +131,7 @@ export function mapSessionResourceToOutcome(session: SessionResource): Outcome {
   }
 
   // Find the pull request output, if it exists.
-  const prOutput = session.outputs.find((o) => 'pullRequest' in o);
+  const prOutput = session.outputs.find(o => 'pullRequest' in o);
   const pullRequest = prOutput
     ? (prOutput as { pullRequest: PullRequest }).pullRequest
     : undefined;

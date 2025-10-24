@@ -19,7 +19,11 @@ export class SessionClientImpl implements SessionClient {
   private apiClient: ApiClient;
   private config: InternalConfig;
 
-  constructor(sessionId: string, apiClient: ApiClient, config: InternalConfig) {
+  constructor(
+    sessionId: string,
+    apiClient: ApiClient,
+    config: InternalConfig,
+  ) {
     this.id = sessionId.replace(/^sessions\//, '');
     this.apiClient = apiClient;
     this.config = config;
@@ -86,7 +90,7 @@ export class SessionClientImpl implements SessionClient {
     await pollSession(
       this.id,
       this.apiClient,
-      (session) => {
+      session => {
         return (
           session.state === targetState ||
           session.state === 'completed' ||

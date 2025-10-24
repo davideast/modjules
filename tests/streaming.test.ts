@@ -1,13 +1,5 @@
 // tests/streaming.test.ts
-import {
-  beforeAll,
-  afterAll,
-  afterEach,
-  describe,
-  it,
-  expect,
-  vi,
-} from 'vitest';
+import { beforeAll, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
 import { server } from './mocks/server.js';
 import { http, HttpResponse } from 'msw';
 import { ApiClient } from '../src/api.js';
@@ -40,9 +32,7 @@ describe('streamActivities', () => {
     vi.useRealTimers();
   });
 
-  async function collectStream(
-    stream: AsyncGenerator<Activity>,
-  ): Promise<Activity[]> {
+  async function collectStream(stream: AsyncGenerator<Activity>): Promise<Activity[]> {
     const items: Activity[] = [];
     // Use a Promise to handle the async iteration
     const streamPromise = (async () => {
@@ -58,7 +48,9 @@ describe('streamActivities', () => {
 
   it('should handle fast pagination with nextPageToken', async () => {
     const page1 = {
-      activities: [{ name: 'a/1', progressUpdated: { title: 'Page 1' } }],
+      activities: [
+        { name: 'a/1', progressUpdated: { title: 'Page 1' } },
+      ],
       nextPageToken: 'tokenA',
     };
     const page2 = {
@@ -69,17 +61,14 @@ describe('streamActivities', () => {
     };
 
     server.use(
-      http.get(
-        `${BASE_URL}/sessions/${SESSION_ID}/activities`,
-        ({ request }) => {
-          const url = new URL(request.url);
-          const token = url.searchParams.get('pageToken');
-          if (token === 'tokenA') {
-            return HttpResponse.json(page2);
-          }
-          return HttpResponse.json(page1);
-        },
-      ),
+      http.get(`${BASE_URL}/sessions/${SESSION_ID}/activities`, ({ request }) => {
+        const url = new URL(request.url);
+        const token = url.searchParams.get('pageToken');
+        if (token === 'tokenA') {
+          return HttpResponse.json(page2);
+        }
+        return HttpResponse.json(page1);
+      })
     );
 
     const stream = streamActivities(SESSION_ID, apiClient, POLLING_INTERVAL);
@@ -93,7 +82,9 @@ describe('streamActivities', () => {
   it('should handle slow polling when no nextPageToken is present', async () => {
     let requestCount = 0;
     const page1 = {
-      activities: [{ name: 'a/1', progressUpdated: { title: 'First Batch' } }],
+      activities: [
+        { name: 'a/1', progressUpdated: { title: 'First Batch' } },
+      ],
       // No nextPageToken
     };
     const page2 = {
@@ -107,7 +98,7 @@ describe('streamActivities', () => {
           return HttpResponse.json(page2);
         }
         return HttpResponse.json(page1);
-      }),
+      })
     );
 
     const stream = streamActivities(SESSION_ID, apiClient, POLLING_INTERVAL);
@@ -141,7 +132,7 @@ describe('streamActivities', () => {
         return HttpResponse.json({
           activities: [{ name: 'a/1', sessionFailed: { reason: 'Failed' } }],
         });
-      }),
+      })
     );
 
     const stream = streamActivities(SESSION_ID, apiClient, POLLING_INTERVAL);

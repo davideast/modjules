@@ -1,3 +1,4 @@
+
 //
 // Jules TypeScript SDK Types
 //
@@ -159,10 +160,12 @@ export type Source = {
    * The short identifier of the source (e.g., "github/owner/repo").
    */
   id: string;
-} & {
-  type: 'githubRepo';
-  githubRepo: GitHubRepo;
-};
+} & (
+  {
+    type: 'githubRepo';
+    githubRepo: GitHubRepo;
+  }
+);
 
 // -----------------------------------------------------------------------------
 // Session Types
@@ -206,10 +209,12 @@ export interface PullRequest {
  *   }
  * }
  */
-export type SessionOutput = {
-  type: 'pullRequest';
-  pullRequest: PullRequest;
-};
+export type SessionOutput =
+  {
+    type: 'pullRequest';
+    pullRequest: PullRequest;
+  }
+;
 
 /**
  * Represents the context used when the session was created.
@@ -406,7 +411,7 @@ export interface RestMediaArtifact {
 
 export interface RestBashOutputArtifact {
   bashOutput: {
-    command: string;
+    command:string;
     stdout: string;
     stderr: string;
     exitCode: number | null;
