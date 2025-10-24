@@ -10,10 +10,15 @@
     "verify": "npm run build"
   },
   "dependencies": {
+    "@genkit-ai/googleai": "^1.21.0",
+    "@genkit-ai/next": "^1.21.0",
+    "genkit": "^1.21.0",
     "julets": "file:../../julets-0.0.1.tgz",
     "next": "16.0.0",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "react-markdown": "^10.1.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

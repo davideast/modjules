@@ -1,16 +1,16 @@
 'use client';
 
 import { useState, FormEvent, useRef, useEffect } from 'react';
+import { streamFlow } from '@genkit-ai/next/client';
+import ReactMarkdown from 'react-markdown';
 
 // Define the structure of a chat message
 interface Message {
-  sender: 'user' | 'agent' | 'system';
+  sender: 'user' | 'agent';
   text: string;
 }
 
 export default function Home() {
-  const [repo, setRepo] = useState<string>('davideast/julets');
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentMessage, setCurrentMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -23,77 +23,38 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleStartSession = async (e: FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    setMessages([]);
-
-    try {
-      const response = await fetch('/api/jules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start', repo }),
-      });
-
-      if (!response.ok) {
-        const { error } = await response.json();
-        throw new Error(error || 'Failed to start session');
-      }
-
-      const { sessionId } = await response.json();
-      setSessionId(sessionId);
-      setMessages([
-        {
-          sender: 'system',
-          text: `Session started for ${repo}. You can now ask questions.`,
-        },
-      ]);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
-    if (!currentMessage.trim() || !sessionId) return;
+    if (!currentMessage.trim()) return;
 
     const userMessage: Message = { sender: 'user', text: currentMessage };
-    const thinkingMessage: Message = { sender: 'agent', text: 'Jules is thinking...' };
-
-    setMessages((prev) => [...prev, userMessage, thinkingMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setCurrentMessage('');
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/jules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'chat',
-          sessionId,
-          message: currentMessage,
-        }),
-      });
+      const { stream } = streamFlow({ url: '/api/genkit', input: { message: currentMessage } });
 
-      if (!response.ok) {
-        const { error } = await response.json();
-        throw new Error(error || 'Failed to send message');
+      let agentResponse = '';
+      for await (const chunk of stream) {
+        agentResponse += chunk;
+        // Update the last message (the agent's) in the array as it streams in
+        setMessages((prev) => {
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage?.sender === 'agent') {
+                const newMessages = [...prev];
+                newMessages[newMessages.length - 1] = { ...lastMessage, text: agentResponse };
+                return newMessages;
+            }
+            return [...prev, { sender: 'agent', text: agentResponse }];
+        });
       }
 
-      const { reply } = await response.json();
-      const agentReply: Message = { sender: 'agent', text: reply };
-
-      // Replace "thinking..." message with the actual reply
-      setMessages((prev) => [...prev.slice(0, -1), agentReply]);
-
     } catch (err: any) {
-      const errorMessage: Message = { sender: 'system', text: `Error: ${err.message}` };
-      // Replace "thinking..." message with the error
-      setMessages((prev) => [...prev.slice(0, -1), errorMessage]);
+      setError(err.message || 'An unexpected error occurred.');
+      setMessages((prev) => [...prev, { sender: 'agent', text: `Error: ${err.message}` }]);
     } finally {
       setIsLoading(false);
     }
@@ -105,8 +66,6 @@ export default function Home() {
         return 'bg-blue-500 text-white self-end';
       case 'agent':
         return 'bg-gray-200 text-gray-800 self-start';
-      case 'system':
-        return 'bg-yellow-200 text-yellow-800 self-center text-sm';
       default:
         return 'bg-gray-100';
     }
@@ -115,43 +74,11 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 font-sans">
       <header className="p-4 border-b bg-white shadow-sm">
-        <h1 className="text-2xl font-bold text-gray-800">Julets Agent Chat</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Genkit Supervisor Chat</h1>
         <p className="text-sm text-gray-500">Next.js Example</p>
       </header>
 
       <main className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
-        {!sessionId ? (
-          <div className="flex items-center justify-center h-full">
-            <form
-              onSubmit={handleStartSession}
-              className="w-full max-w-md bg-white p-8 rounded-lg shadow-md"
-            >
-              <h2 className="text-xl font-semibold mb-4 text-center">Start a New Session</h2>
-              <div className="mb-4">
-                <label htmlFor="repo" className="block text-sm font-medium text-gray-700 mb-1">
-                  GitHub Repository
-                </label>
-                <input
-                  id="repo"
-                  type="text"
-                  value={repo}
-                  onChange={(e) => setRepo(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="e.g., davideast/julets"
-                  disabled={isLoading}
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Starting...' : 'Start Session'}
-              </button>
-              {error && <p className="mt-4 text-center text-red-500">{error}</p>}
-            </form>
-          </div>
-        ) : (
           <div className="flex flex-col h-full bg-white rounded-lg shadow-md overflow-hidden">
             {/* Chat History */}
             <div className="flex-1 p-4 space-y-4 overflow-y-auto">
@@ -160,7 +87,7 @@ export default function Home() {
                   <div
                     className={`max-w-xs md:max-w-md p-3 rounded-lg ${getSenderBgColor(msg.sender)}`}
                   >
-                    <p className="whitespace-pre-wrap">{msg.text}</p>
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
                   </div>
                 </div>
               ))}
@@ -176,7 +103,7 @@ export default function Home() {
                   value={currentMessage}
                   onChange={(e) => setCurrentMessage(e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Ask a follow-up question..."
+                  placeholder="Ask the supervisor to do something..."
                   disabled={isLoading}
                 />
                 <button
@@ -189,7 +116,6 @@ export default function Home() {
               </form>
             </div>
           </div>
-        )}
       </main>
     </div>
   );
