@@ -61,7 +61,10 @@ export default function Home() {
     if (!currentMessage.trim() || !sessionId) return;
 
     const userMessage: Message = { sender: 'user', text: currentMessage };
-    const thinkingMessage: Message = { sender: 'agent', text: 'Jules is thinking...' };
+    const thinkingMessage: Message = {
+      sender: 'agent',
+      text: 'Jules is thinking...',
+    };
 
     setMessages((prev) => [...prev, userMessage, thinkingMessage]);
     setCurrentMessage('');
@@ -89,9 +92,11 @@ export default function Home() {
 
       // Replace "thinking..." message with the actual reply
       setMessages((prev) => [...prev.slice(0, -1), agentReply]);
-
     } catch (err: any) {
-      const errorMessage: Message = { sender: 'system', text: `Error: ${err.message}` };
+      const errorMessage: Message = {
+        sender: 'system',
+        text: `Error: ${err.message}`,
+      };
       // Replace "thinking..." message with the error
       setMessages((prev) => [...prev.slice(0, -1), errorMessage]);
     } finally {
@@ -126,9 +131,14 @@ export default function Home() {
               onSubmit={handleStartSession}
               className="w-full max-w-md bg-white p-8 rounded-lg shadow-md"
             >
-              <h2 className="text-xl font-semibold mb-4 text-center">Start a New Session</h2>
+              <h2 className="text-xl font-semibold mb-4 text-center">
+                Start a New Session
+              </h2>
               <div className="mb-4">
-                <label htmlFor="repo" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="repo"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   GitHub Repository
                 </label>
                 <input
@@ -148,7 +158,9 @@ export default function Home() {
               >
                 {isLoading ? 'Starting...' : 'Start Session'}
               </button>
-              {error && <p className="mt-4 text-center text-red-500">{error}</p>}
+              {error && (
+                <p className="mt-4 text-center text-red-500">{error}</p>
+              )}
             </form>
           </div>
         ) : (
@@ -169,8 +181,13 @@ export default function Home() {
 
             {/* Message Input */}
             <div className="p-4 border-t bg-gray-50">
-              {error && <p className="mb-2 text-center text-red-500 text-sm">{error}</p>}
-              <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
+              {error && (
+                <p className="mb-2 text-center text-red-500 text-sm">{error}</p>
+              )}
+              <form
+                onSubmit={handleSendMessage}
+                className="flex items-center space-x-2"
+              >
                 <input
                   type="text"
                   value={currentMessage}

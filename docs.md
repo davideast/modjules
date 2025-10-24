@@ -24,9 +24,9 @@ To authenticate your requests, pass the API key in the `X-Goog-Api-Key` header o
 
 The Jules API is built around a few core resources. Understanding these will help you use the API effectively.
 
-*   **Source**: An input source for the agent (e.g., a GitHub repository). Before using a source using the API, you must first install the Jules GitHub app through the Jules web app.
-*   **Session**: A continuous unit of work within a specific context, similar to a chat session. A session is initiated with a prompt and a source.
-*   **Activity**: A single unit of work within a Session. A Session contains multiple activities from both the user and the agent, such as generating a plan, sending a message, or updating progress.
+- **Source**: An input source for the agent (e.g., a GitHub repository). Before using a source using the API, you must first install the Jules GitHub app through the Jules web app.
+- **Session**: A continuous unit of work within a specific context, similar to a chat session. A session is initiated with a prompt and a source.
+- **Activity**: A single unit of work within a Session. A Session contains multiple activities from both the user and the agent, such as generating a plan, sending a message, or updating progress.
 
 ## Quickstart: Your first API call
 
@@ -87,16 +87,16 @@ The immediate response will look something like this:
 
 ```json
 {
-    "name": "sessions/31415926535897932384",
-    "id": "31415926535897932384",
-    "title": "Boba App",
-    "sourceContext": {
-      "source": "sources/github/bobalover/boba",
-      "githubRepoContext": {
-        "startingBranch": "main"
-      }
-    },
-    "prompt": "Create a boba app!"
+  "name": "sessions/31415926535897932384",
+  "id": "31415926535897932384",
+  "title": "Boba App",
+  "sourceContext": {
+    "source": "sources/github/bobalover/boba",
+    "githubRepoContext": {
+      "startingBranch": "main"
+    }
+  },
+  "prompt": "Create a boba app!"
 }
 ```
 
@@ -184,11 +184,30 @@ Here is an example of a ListActivities response.
         "plan": {
           "id": "5103d604240042cd9f59a4cb2355643a",
           "steps": [
-            { "id": "705a61fc8ec24a98abc9296a3956fb6b", "title": "Setup the environment. I will install the dependencies to run the app." },
-            { "id": "bb5276efad354794a4527e9ad7c0cd42", "title": "Modify `src/App.js`. I will replace the existing React boilerplate with a simple Boba-themed component. This will include a title and a list of boba options.", "index": 1 },
-            { "id": "377c9a1c91764dc794a618a06772e3d8", "title": "Modify `src/App.css`. I will update the CSS to provide a fresh, modern look for the Boba app.", "index": 2 },
-            { "id": "335802b585b449aeabb855c722cd9c40", "title": "Frontend Verification. I will use the `frontend_verification_instructions` tool to get instructions on how to write a Playwright script to verify the frontend application and generate a screenshot of the changes.", "index": 3 },
-            { "id": "3e4cc97c7b2448668d1ac75b8c7b7d69", "title": "Submit the changes. Once the app is looking good and verified, I will submit my work.", "index": 4 }
+            {
+              "id": "705a61fc8ec24a98abc9296a3956fb6b",
+              "title": "Setup the environment. I will install the dependencies to run the app."
+            },
+            {
+              "id": "bb5276efad354794a4527e9ad7c0cd42",
+              "title": "Modify `src/App.js`. I will replace the existing React boilerplate with a simple Boba-themed component. This will include a title and a list of boba options.",
+              "index": 1
+            },
+            {
+              "id": "377c9a1c91764dc794a618a06772e3d8",
+              "title": "Modify `src/App.css`. I will update the CSS to provide a fresh, modern look for the Boba app.",
+              "index": 2
+            },
+            {
+              "id": "335802b585b449aeabb855c722cd9c40",
+              "title": "Frontend Verification. I will use the `frontend_verification_instructions` tool to get instructions on how to write a Playwright script to verify the frontend application and generate a screenshot of the changes.",
+              "index": 3
+            },
+            {
+              "id": "3e4cc97c7b2448668d1ac75b8c7b7d69",
+              "title": "Submit the changes. Once the app is looking good and verified, I will submit my work.",
+              "index": 4
+            }
           ]
         }
       },
@@ -205,16 +224,31 @@ Here is an example of a ListActivities response.
       "name": "sessions/14550388554331055113/activities/5b3acd1b3ca2439f9cbaefaccf7f709a",
       "createTime": "2025-10-03T05:44:16.700231Z",
       "originator": "agent",
-      "progressUpdated": { "title": "Ran bash command", "description": "Command: \nnpm install\nOutput: added 1326 packages, and audited 1327 packages in 25s\n\n268 packages are looking for fundingExit Code: 0" },
-      "artifacts": [ { "bashOutput": { "command": "\nnpm install", "output": "added 1326 packages, and audited 1327 packages in 25s\n\n268 packages are looking for funding" } } ],
+      "progressUpdated": {
+        "title": "Ran bash command",
+        "description": "Command: \nnpm install\nOutput: added 1326 packages, and audited 1327 packages in 25s\n\n268 packages are looking for fundingExit Code: 0"
+      },
+      "artifacts": [
+        {
+          "bashOutput": {
+            "command": "\nnpm install",
+            "output": "added 1326 packages, and audited 1327 packages in 25s\n\n268 packages are looking for funding"
+          }
+        }
+      ],
       "id": "5b3acd1b3ca2439f9cbaefaccf7f709a"
     },
     {
       "name": "sessions/14550388554331055113/activities/a76b35353eda42d09b1c37aedaa56047",
       "createTime": "2025-10-03T05:47:49.628363Z",
       "originator": "agent",
-      "progressUpdated": { "title": "Frontend verification", "description": "Agent provided UI verification." },
-      "artifacts": [ { "media": { "data": "<actual_image_bytes>", "mimeType": "image/png" } } ],
+      "progressUpdated": {
+        "title": "Frontend verification",
+        "description": "Agent provided UI verification."
+      },
+      "artifacts": [
+        { "media": { "data": "<actual_image_bytes>", "mimeType": "image/png" } }
+      ],
       "id": "a76b35353eda42d09b1c37aedaa56047"
     },
     {
@@ -258,12 +292,12 @@ Here is an example of a ListActivities response.
 
 A session is a contiguous amount of work within the same context.
 
-|                                                                                                                                                                                                                                                                                                      JSON representation                                                                                                                                                                                                                                                                                                       |
-|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| ``` { "name": string, "id": string, "prompt": string, "sourceContext": { object (https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#SourceContext) }, "title": string, "requirePlanApproval": boolean, "automationMode": enum (https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#AutomationMode), "createTime": string, "updateTime": string, "state": enum (https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#State), "url": string, "outputs": [ { object (https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#SessionOutput) } ] } ``` |
+| JSON representation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `{ "name": string, "id": string, "prompt": string, "sourceContext": { object (https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#SourceContext) }, "title": string, "requirePlanApproval": boolean, "automationMode": enum (https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#AutomationMode), "createTime": string, "updateTime": string, "state": enum (https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#State), "url": string, "outputs": [ { object (https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#SessionOutput) } ] }` |
 
-|                                                                                                                                                                                                                   Fields                                                                                                                                                                                                                    ||
-|-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Fields                |                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`                | `string` Output only. Identifier. The full resource name (e.g., "sessions/{session}").                                                                                                                                                                                                                                                                                                                               |
 | `id`                  | `string` Output only. The id of the session. This is the same as the "{session}" part of the resource name (e.g., "sessions/{session}").                                                                                                                                                                                                                                                                             |
 | `prompt`              | `string` Required. The prompt to start the session with.                                                                                                                                                                                                                                                                                                                                                             |
@@ -281,34 +315,34 @@ A session is a contiguous amount of work within the same context.
 
 Context for how to use a source in a session.
 
-|                                                                                                                               JSON representation                                                                                                                                |
-|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| ``` { "source": string, // Union field `context` can be only one of the following: "githubRepoContext": { object (https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#GitHubRepoContext) } // End of list of possible types for union field `context`. } ``` |
+| JSON representation                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ``{ "source": string, // Union field `context` can be only one of the following: "githubRepoContext": { object (https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#GitHubRepoContext) } // End of list of possible types for union field `context`. }`` |
 
-|                                                                                           Fields                                                                                           ||
-|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `source`            | `string` Required. The name of the source this context is for. To get the list of sources, use the ListSources API. Format: sources/{source}                          |
-| Union field `context`. The context for how to use the source in a session. `context` can be only one of the following:                                                                     ||
-| `githubRepoContext` | `object (`[GitHubRepoContext](https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#GitHubRepoContext)`)` Context to use a GitHubRepo in a session. |
+| Fields                                                                                                                 |                                                                                                                                                                       |
+| ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `source`                                                                                                               | `string` Required. The name of the source this context is for. To get the list of sources, use the ListSources API. Format: sources/{source}                          |
+| Union field `context`. The context for how to use the source in a session. `context` can be only one of the following: |                                                                                                                                                                       |
+| `githubRepoContext`                                                                                                    | `object (`[GitHubRepoContext](https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#GitHubRepoContext)`)` Context to use a GitHubRepo in a session. |
 
 ## GitHubRepoContext
 
 Context to use a GitHubRepo in a session.
 
-|         JSON representation          |
-|--------------------------------------|
-| ``` { "startingBranch": string } ``` |
+| JSON representation            |
+| ------------------------------ |
+| `{ "startingBranch": string }` |
 
-|                                         Fields                                         ||
-|------------------|----------------------------------------------------------------------|
+| Fields           |                                                                      |
+| ---------------- | -------------------------------------------------------------------- |
 | `startingBranch` | `string` Required. The name of the branch to start the session from. |
 
 ## AutomationMode
 
 The automation mode of the session.
 
-|                                                                              Enums                                                                              ||
-|-------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| Enums                         |                                                                                                                                  |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `AUTOMATION_MODE_UNSPECIFIED` | The automation mode is unspecified. Default to no automation.                                                                    |
 | `AUTO_CREATE_PR`              | Whenever a final code patch is generated in the session, automatically create a branch and a pull request for it, if applicable. |
 
@@ -316,8 +350,8 @@ The automation mode of the session.
 
 State of a session.
 
-|                               Enums                               ||
-|--------------------------|-----------------------------------------|
+| Enums                    |                                         |
+| ------------------------ | --------------------------------------- |
 | `STATE_UNSPECIFIED`      | The state is unspecified.               |
 | `QUEUED`                 | The session is queued.                  |
 | `PLANNING`               | The agent is planning.                  |
@@ -332,31 +366,31 @@ State of a session.
 
 An output of a session.
 
-|                                                                                                               JSON representation                                                                                                                |
-|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| ``` { // Union field `output` can be only one of the following: "pullRequest": { object (https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#PullRequest) } // End of list of possible types for union field `output`. } ``` |
+| JSON representation                                                                                                                                                                                                                          |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ``{ // Union field `output` can be only one of the following: "pullRequest": { object (https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#PullRequest) } // End of list of possible types for union field `output`. }`` |
 
-|                                                                                        Fields                                                                                        ||
-|---------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Union field `output`. An output of the session. `output` can be only one of the following:                                                                                           ||
-| `pullRequest` | `object (`[PullRequest](https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#PullRequest)`)` A pull request created by the session, if applicable. |
+| Fields                                                                                     |                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Union field `output`. An output of the session. `output` can be only one of the following: |                                                                                                                                                                       |
+| `pullRequest`                                                                              | `object (`[PullRequest](https://developers.google.com/jules/api/reference/rest/v1alpha/sessions#PullRequest)`)` A pull request created by the session, if applicable. |
 
 ## PullRequest
 
 A pull request.
 
-|                        JSON representation                        |
-|-------------------------------------------------------------------|
-| ``` { "url": string, "title": string, "description": string } ``` |
+| JSON representation                                         |
+| ----------------------------------------------------------- |
+| `{ "url": string, "title": string, "description": string }` |
 
-|                            Fields                            ||
-|---------------|-----------------------------------------------|
+| Fields        |                                               |
+| ------------- | --------------------------------------------- |
 | `url`         | `string` The URL of the pull request.         |
 | `title`       | `string` The title of the pull request.       |
 | `description` | `string` The description of the pull request. |
 
-|                                                                     ## Methods                                                                      ||
-|--------------------------------------------------------------------------------------------------------|---------------------------------------------|
+| ## Methods                                                                                             |                                             |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------- |
 | ### [approvePlan](https://developers.google.com/jules/api/reference/rest/v1alpha/sessions/approvePlan) | Approves a plan in a session.               |
 | ### [create](https://developers.google.com/jules/api/reference/rest/v1alpha/sessions/create)           | Creates a new session.                      |
 | ### [get](https://developers.google.com/jules/api/reference/rest/v1alpha/sessions/get)                 | Gets a single session.                      |
@@ -366,9 +400,11 @@ A pull request.
 # REST Resource: sessions.activities
 
 ## Resource: Activity
+
 An activity is a single unit of work within a session.
 
 ### JSON Representation
+
 ```json
 {
   "name": "string",
@@ -409,29 +445,32 @@ An activity is a single unit of work within a session.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | string | Identifier. The full resource name (e.g., "sessions/{session}/activities/{activity}"). |
-| `id` | string | Output only. The id of the activity. This is the same as the "{activity}" part of the resource name (e.g., "sessions/{session}/activities/{activity}"). |
-| `description` | string | Output only. A description of this activity. |
-| `createTime` | string (Timestamp format) | Output only. The time at which this activity was created. Uses RFC 3339. |
-| `originator` | string | The entity that this activity originated from (e.g. "user", "agent", "system"). |
-| `artifacts[]` | object (Artifact) | Output only. The artifacts produced by this activity. |
-| **Union field `activity`** | | **The activity content. `activity` can be only one of the following:** |
-| `agentMessaged` | object (AgentMessaged) | The agent posted a message. |
-| `userMessaged` | object (UserMessaged) | The user posted a message. |
-| `planGenerated` | object (PlanGenerated) | A plan was generated. |
-| `planApproved` | object (PlanApproved) | A plan was approved. |
-| `progressUpdated` | object (ProgressUpdated) | There was a progress update. |
-| `sessionCompleted` | object (SessionCompleted) | The session was completed. |
-| `sessionFailed` | object (SessionFailed) | The session failed. |
+
+| Field                      | Type                      | Description                                                                                                                                             |
+| -------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                     | string                    | Identifier. The full resource name (e.g., "sessions/{session}/activities/{activity}").                                                                  |
+| `id`                       | string                    | Output only. The id of the activity. This is the same as the "{activity}" part of the resource name (e.g., "sessions/{session}/activities/{activity}"). |
+| `description`              | string                    | Output only. A description of this activity.                                                                                                            |
+| `createTime`               | string (Timestamp format) | Output only. The time at which this activity was created. Uses RFC 3339.                                                                                |
+| `originator`               | string                    | The entity that this activity originated from (e.g. "user", "agent", "system").                                                                         |
+| `artifacts[]`              | object (Artifact)         | Output only. The artifacts produced by this activity.                                                                                                   |
+| **Union field `activity`** |                           | **The activity content. `activity` can be only one of the following:**                                                                                  |
+| `agentMessaged`            | object (AgentMessaged)    | The agent posted a message.                                                                                                                             |
+| `userMessaged`             | object (UserMessaged)     | The user posted a message.                                                                                                                              |
+| `planGenerated`            | object (PlanGenerated)    | A plan was generated.                                                                                                                                   |
+| `planApproved`             | object (PlanApproved)     | A plan was approved.                                                                                                                                    |
+| `progressUpdated`          | object (ProgressUpdated)  | There was a progress update.                                                                                                                            |
+| `sessionCompleted`         | object (SessionCompleted) | The session was completed.                                                                                                                              |
+| `sessionFailed`            | object (SessionFailed)    | The session failed.                                                                                                                                     |
 
 ---
 
 ## AgentMessaged
+
 The agent posted a message.
 
 ### JSON Representation
+
 ```json
 {
   "agentMessage": "string"
@@ -439,16 +478,19 @@ The agent posted a message.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
+
+| Field          | Type   | Description                   |
+| -------------- | ------ | ----------------------------- |
 | `agentMessage` | string | The message the agent posted. |
 
 ---
 
 ## UserMessaged
+
 The user posted a message.
 
 ### JSON Representation
+
 ```json
 {
   "userMessage": "string"
@@ -456,16 +498,19 @@ The user posted a message.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
+
+| Field         | Type   | Description                  |
+| ------------- | ------ | ---------------------------- |
 | `userMessage` | string | The message the user posted. |
 
 ---
 
 ## PlanGenerated
+
 A plan was generated.
 
 ### JSON Representation
+
 ```json
 {
   "plan": {
@@ -475,16 +520,19 @@ A plan was generated.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
+
+| Field  | Type          | Description                  |
+| ------ | ------------- | ---------------------------- |
 | `plan` | object (Plan) | The plan that was generated. |
 
 ---
 
 ## Plan
+
 A plan is a sequence of steps that the agent will take to complete the task.
 
 ### JSON Representation
+
 ```json
 {
   "id": "string",
@@ -498,18 +546,21 @@ A plan is a sequence of steps that the agent will take to complete the task.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | string | Output only. ID for this plan; unique within a session. |
-| `steps[]` | object (PlanStep) | Output only. The steps in the plan. |
+
+| Field        | Type                      | Description                                                 |
+| ------------ | ------------------------- | ----------------------------------------------------------- |
+| `id`         | string                    | Output only. ID for this plan; unique within a session.     |
+| `steps[]`    | object (PlanStep)         | Output only. The steps in the plan.                         |
 | `createTime` | string (Timestamp format) | Output only. Time when the plan was created. Uses RFC 3339. |
 
 ---
 
 ## PlanStep
+
 A step in a plan.
 
 ### JSON Representation
+
 ```json
 {
   "id": "string",
@@ -520,19 +571,22 @@ A step in a plan.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | string | Output only. ID for this step; unique within a plan. |
-| `title` | string | Output only. The title of the step. |
-| `description` | string | Output only. The description of the step. |
-| `index` | integer | Output only. 0-based index into the plan.steps. |
+
+| Field         | Type    | Description                                          |
+| ------------- | ------- | ---------------------------------------------------- |
+| `id`          | string  | Output only. ID for this step; unique within a plan. |
+| `title`       | string  | Output only. The title of the step.                  |
+| `description` | string  | Output only. The description of the step.            |
+| `index`       | integer | Output only. 0-based index into the plan.steps.      |
 
 ---
 
 ## PlanApproved
+
 A plan was approved.
 
 ### JSON Representation
+
 ```json
 {
   "planId": "string"
@@ -540,16 +594,19 @@ A plan was approved.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
+
+| Field    | Type   | Description                           |
+| -------- | ------ | ------------------------------------- |
 | `planId` | string | The ID of the plan that was approved. |
 
 ---
 
 ## ProgressUpdated
+
 There was a progress update.
 
 ### JSON Representation
+
 ```json
 {
   "title": "string",
@@ -558,22 +615,26 @@ There was a progress update.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
-| `title` | string | The title of the progress update. |
+
+| Field         | Type   | Description                             |
+| ------------- | ------ | --------------------------------------- |
+| `title`       | string | The title of the progress update.       |
 | `description` | string | The description of the progress update. |
 
 ---
 
 ## SessionCompleted
+
 The session was completed. This type has no fields.
 
 ---
 
 ## SessionFailed
+
 The session failed.
 
 ### JSON Representation
+
 ```json
 {
   "reason": "string"
@@ -581,16 +642,19 @@ The session failed.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
+
+| Field    | Type   | Description                    |
+| -------- | ------ | ------------------------------ |
 | `reason` | string | The reason the session failed. |
 
 ---
 
 ## Artifact
+
 An artifact is a single unit of data produced by an activity step.
 
 ### JSON Representation
+
 ```json
 {
   // Union field `content` can be only one of the following:
@@ -608,19 +672,22 @@ An artifact is a single unit of data produced by an activity step.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
-| **Union field `content`** | | **The artifact content. `content` can be only one of the following:** |
-| `changeSet` | object (ChangeSet) | A change set was produced (e.g. code changes). |
-| `media` | object (Media) | A media file was produced (e.g. image, video). |
-| `bashOutput` | object (BashOutput) | A bash output was produced. |
+
+| Field                     | Type                | Description                                                           |
+| ------------------------- | ------------------- | --------------------------------------------------------------------- |
+| **Union field `content`** |                     | **The artifact content. `content` can be only one of the following:** |
+| `changeSet`               | object (ChangeSet)  | A change set was produced (e.g. code changes).                        |
+| `media`                   | object (Media)      | A media file was produced (e.g. image, video).                        |
+| `bashOutput`              | object (BashOutput) | A bash output was produced.                                           |
 
 ---
 
 ## ChangeSet
+
 A set of changes to be applied to a source.
 
 ### JSON Representation
+
 ```json
 {
   "source": "string",
@@ -634,18 +701,21 @@ A set of changes to be applied to a source.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
-| `source` | string | The name of the source this change set applies to. Format: sources/{source} |
-| **Union field `changes`** | | **The changes to be applied to the source. `changes` can be only one of the following:** |
-| `gitPatch` | object (GitPatch) | A patch in Git format. |
+
+| Field                     | Type              | Description                                                                              |
+| ------------------------- | ----------------- | ---------------------------------------------------------------------------------------- |
+| `source`                  | string            | The name of the source this change set applies to. Format: sources/{source}              |
+| **Union field `changes`** |                   | **The changes to be applied to the source. `changes` can be only one of the following:** |
+| `gitPatch`                | object (GitPatch) | A patch in Git format.                                                                   |
 
 ---
 
 ## GitPatch
+
 A patch in Git format.
 
 ### JSON Representation
+
 ```json
 {
   "unidiffPatch": "string",
@@ -655,18 +725,21 @@ A patch in Git format.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
-| `unidiffPatch` | string | The patch in unidiff format. |
-| `baseCommitId` | string | The base commit id of the patch. This is the id of the commit that the patch should be applied to. |
-| `suggestedCommitMessage` | string | A suggested commit message for the patch, if one is generated. |
+
+| Field                    | Type   | Description                                                                                        |
+| ------------------------ | ------ | -------------------------------------------------------------------------------------------------- |
+| `unidiffPatch`           | string | The patch in unidiff format.                                                                       |
+| `baseCommitId`           | string | The base commit id of the patch. This is the id of the commit that the patch should be applied to. |
+| `suggestedCommitMessage` | string | A suggested commit message for the patch, if one is generated.                                     |
 
 ---
 
 ## Media
+
 A media output.
 
 ### JSON Representation
+
 ```json
 {
   "data": "string",
@@ -675,17 +748,20 @@ A media output.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
-| `data` | string (bytes format) | The media data. A base64-encoded string. |
-| `mimeType` | string | The media mime type. |
+
+| Field      | Type                  | Description                              |
+| ---------- | --------------------- | ---------------------------------------- |
+| `data`     | string (bytes format) | The media data. A base64-encoded string. |
+| `mimeType` | string                | The media mime type.                     |
 
 ---
 
 ## BashOutput
+
 A bash output.
 
 ### JSON Representation
+
 ```json
 {
   "command": "string",
@@ -695,18 +771,19 @@ A bash output.
 ```
 
 ### Fields
-| Field | Type | Description |
-| --- | --- | --- |
-| `command` | string | The bash command. |
-| `output` | string | The bash output. Includes both stdout and stderr. |
-| `exitCode` | integer | The bash exit code. |
+
+| Field      | Type    | Description                                       |
+| ---------- | ------- | ------------------------------------------------- |
+| `command`  | string  | The bash command.                                 |
+| `output`   | string  | The bash output. Includes both stdout and stderr. |
+| `exitCode` | integer | The bash exit code.                               |
 
 ---
 
 # Methods
 
-*   **`get`**: Gets a single activity.
-*   **`list`**: Lists activities for a session.
+- **`get`**: Gets a single activity.
+- **`list`**: Lists activities for a session.
 
 # REST Resource: sources
 
@@ -731,12 +808,12 @@ An input source of data for a session.
 
 ### Fields
 
-| Field        | Type                          | Description                                                                                             |
-| :----------- | :---------------------------- | :------------------------------------------------------------------------------------------------------ |
-| `name`       | string                        | Identifier. The full resource name (e.g., "sources/{source}").                                          |
-| `id`         | string                        | Output only. The id of the source. This is the same as the "{source}" part of the resource name.          |
+| Field                                                                                       | Type                  | Description                                                                                      |
+| :------------------------------------------------------------------------------------------ | :-------------------- | :----------------------------------------------------------------------------------------------- |
+| `name`                                                                                      | string                | Identifier. The full resource name (e.g., "sources/{source}").                                   |
+| `id`                                                                                        | string                | Output only. The id of the source. This is the same as the "{source}" part of the resource name. |
 | **Union field `source`**: The input data source. `source` can be only one of the following: |
-| `githubRepo` | object (`GitHubRepo`)         | A GitHub repo.                                                                                          |
+| `githubRepo`                                                                                | object (`GitHubRepo`) | A GitHub repo.                                                                                   |
 
 ## GitHubRepo
 
@@ -762,13 +839,13 @@ A GitHub repo.
 
 ### Fields
 
-| Field           | Type                     | Description                                                                                             |
-| :-------------- | :----------------------- | :------------------------------------------------------------------------------------------------------ |
-| `owner`         | string                   | The owner of the repo; the `<owner>` in `https://github.com/<owner>/<repo>`.                              |
-| `repo`          | string                   | The name of the repo; the `<repo>` in `https://github.com/<owner>/<repo>`.                                |
-| `isPrivate`     | boolean                  | Whether this repo is private.                                                                           |
-| `defaultBranch` | object (`GitHubBranch`)  | The default branch for this repo.                                                                       |
-| `branches[]`    | object (`GitHubBranch`)  | The list of active branches for this repo.                                                              |
+| Field           | Type                    | Description                                                                  |
+| :-------------- | :---------------------- | :--------------------------------------------------------------------------- |
+| `owner`         | string                  | The owner of the repo; the `<owner>` in `https://github.com/<owner>/<repo>`. |
+| `repo`          | string                  | The name of the repo; the `<repo>` in `https://github.com/<owner>/<repo>`.   |
+| `isPrivate`     | boolean                 | Whether this repo is private.                                                |
+| `defaultBranch` | object (`GitHubBranch`) | The default branch for this repo.                                            |
+| `branches[]`    | object (`GitHubBranch`) | The list of active branches for this repo.                                   |
 
 ## GitHubBranch
 
@@ -784,11 +861,11 @@ A GitHub branch.
 
 ### Fields
 
-| Field         | Type   | Description                |
-| :------------ | :----- | :------------------------- |
+| Field         | Type   | Description                    |
+| :------------ | :----- | :----------------------------- |
 | `displayName` | string | The name of the GitHub branch. |
 
 ## Methods
 
-*   **`get`**: Gets a single source.
-*   **`list`**: Lists sources.
+- **`get`**: Gets a single source.
+- **`list`**: Lists sources.

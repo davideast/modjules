@@ -20,11 +20,13 @@ async function main() {
     const source = await jules.sources.get({ github: GITHUB_REPO });
 
     if (!source) {
-      console.error(`❌ Could not find source. Please ensure '${GITHUB_REPO}' is connected in your Jules project.`);
+      console.error(
+        `❌ Could not find source. Please ensure '${GITHUB_REPO}' is connected in your Jules project.`,
+      );
       return;
     }
     console.log(`✅ Found source: ${source.name}`);
-    console.log(JSON.stringify(source, null, 2))
+    console.log(JSON.stringify(source, null, 2));
 
     // 2. Start an interactive session.
     console.log('\n🚀 Starting a new session...');
@@ -60,9 +62,10 @@ async function main() {
     if (outcome.state === 'completed') {
       console.log('✅ Outcome: Session completed successfully.');
     } else {
-      console.warn(`⚠️  Outcome: Session finished with state: ${outcome.state}`);
+      console.warn(
+        `⚠️  Outcome: Session finished with state: ${outcome.state}`,
+      );
     }
-
   } catch (error) {
     // 5. Handle potential errors from the SDK.
     if (error instanceof JulesError) {
@@ -97,14 +100,15 @@ async function lookup() {
       // Optional: Quick check to see if it's valid/accessible
       const info = await session.info();
       console.log(`✅ Session found. Current state: ${info.state}`);
-
     } else {
       // --- Create New Session ---
       console.log(`\n🔍 Searching for source: ${GITHUB_REPO}...`);
       const source = await jules.sources.get({ github: GITHUB_REPO });
 
       if (!source) {
-        console.error(`❌ Could not find source. Please ensure '${GITHUB_REPO}' is connected.`);
+        console.error(
+          `❌ Could not find source. Please ensure '${GITHUB_REPO}' is connected.`,
+        );
         return;
       }
       console.log(`✅ Found source: ${source.name}`);
@@ -135,7 +139,7 @@ async function lookup() {
       }
       // Optional: Handle terminal states in stream if you want immediate feedback
       if (activity.type === 'sessionCompleted') {
-          console.log('[STREAM] Session completed event received.');
+        console.log('[STREAM] Session completed event received.');
       }
     }
 
@@ -148,9 +152,10 @@ async function lookup() {
         console.log(`🔗 PR: ${outcome.pullRequest.url}`);
       }
     } else {
-      console.warn(`⚠️  Outcome: Session finished with state: ${outcome.state}`);
+      console.warn(
+        `⚠️  Outcome: Session finished with state: ${outcome.state}`,
+      );
     }
-
   } catch (error) {
     if (error instanceof JulesError) {
       console.error(`\n❌ An SDK error occurred: ${error.constructor.name}`);

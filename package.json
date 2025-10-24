@@ -20,6 +20,8 @@
   ],
   "scripts": {
     "build": "tsc",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest",
     "test:integration": "vitest run -c vitest.integration.config.ts",
     "type-check": "tsc --project tsconfig.test.json",
@@ -38,6 +40,7 @@
     "@google/jules": "^0.1.37",
     "@types/node": "^24.9.1",
     "msw": "^2.11.6",
+    "prettier": "^3.6.2",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

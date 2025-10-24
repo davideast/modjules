@@ -26,41 +26,76 @@ let sendMessageBody: any;
 let approvePlanCalled = false;
 
 const server = setupServer(
-  http.get('https://jules.googleapis.com/v1alpha/sources/github/bobalover/boba-auth', () => {
-    return HttpResponse.json({
-      name: 'sources/github/bobalover/boba-auth',
-      githubRepo: {},
-    });
-  }),
-  http.post('https://jules.googleapis.com/v1alpha/sessions', async ({ request }) => {
-    capturedRequestBody = await request.json();
-    return HttpResponse.json({ id: 'SESSION_123', name: 'sessions/SESSION_123', ...capturedRequestBody });
-  }),
+  http.get(
+    'https://jules.googleapis.com/v1alpha/sources/github/bobalover/boba-auth',
+    () => {
+      return HttpResponse.json({
+        name: 'sources/github/bobalover/boba-auth',
+        githubRepo: {},
+      });
+    },
+  ),
+  http.post(
+    'https://jules.googleapis.com/v1alpha/sessions',
+    async ({ request }) => {
+      capturedRequestBody = await request.json();
+      return HttpResponse.json({
+        id: 'SESSION_123',
+        name: 'sessions/SESSION_123',
+        ...capturedRequestBody,
+      });
+    },
+  ),
   // General session info endpoint
-  http.get('https://jules.googleapis.com/v1alpha/sessions/SESSION_123', ({ request }) => {
-    return HttpResponse.json({
-      id: 'SESSION_123',
-      state: 'completed',
-      outputs: [{ pullRequest: { url: 'http://pr.url' } }],
-    });
-  }),
+  http.get(
+    'https://jules.googleapis.com/v1alpha/sessions/SESSION_123',
+    ({ request }) => {
+      return HttpResponse.json({
+        id: 'SESSION_123',
+        state: 'completed',
+        outputs: [{ pullRequest: { url: 'http://pr.url' } }],
+      });
+    },
+  ),
   // Specific endpoint for approve() state check
-  http.get('https://jules.googleapis.com/v1alpha/sessions/SESSION_APPROVE', () => {
-    return HttpResponse.json({ id: 'SESSION_APPROVE', state: 'awaitingPlanApproval' });
-  }),
-  http.get('https://jules.googleapis.com/v1alpha/sessions/SESSION_INVALID_STATE', () => {
-    return HttpResponse.json({ id: 'SESSION_INVALID_STATE', state: 'inProgress' });
-  }),
-  http.post('https://jules.googleapis.com/v1alpha/sessions/SESSION_APPROVE:approvePlan', async () => {
-    approvePlanCalled = true;
-    return HttpResponse.json({});
-  }),
-  http.post('https://jules.googleapis.com/v1alpha/sessions/SESSION_123:sendMessage', async ({ request }) => {
-    sendMessageBody = await request.json();
-    return HttpResponse.json({});
-  }),
+  http.get(
+    'https://jules.googleapis.com/v1alpha/sessions/SESSION_APPROVE',
+    () => {
+      return HttpResponse.json({
+        id: 'SESSION_APPROVE',
+        state: 'awaitingPlanApproval',
+      });
+    },
+  ),
+  http.get(
+    'https://jules.googleapis.com/v1alpha/sessions/SESSION_INVALID_STATE',
+    () => {
+      return HttpResponse.json({
+        id: 'SESSION_INVALID_STATE',
+        state: 'inProgress',
+      });
+    },
+  ),
+  http.post(
+    'https://jules.googleapis.com/v1alpha/sessions/SESSION_APPROVE:approvePlan',
+    async () => {
+      approvePlanCalled = true;
+      return HttpResponse.json({});
+    },
+  ),
+  http.post(
+    'https://jules.googleapis.com/v1alpha/sessions/SESSION_123:sendMessage',
+    async ({ request }) => {
+      sendMessageBody = await request.json();
+      return HttpResponse.json({});
+    },
+  ),
   http.get('https://jules.googleapis.com/v1alpha/sessions/SESSION_FAIL', () => {
-    return HttpResponse.json({ id: 'SESSION_FAIL', state: 'failed', outputs: [] });
+    return HttpResponse.json({
+      id: 'SESSION_FAIL',
+      state: 'failed',
+      outputs: [],
+    });
   }),
 );
 
@@ -119,11 +154,14 @@ describe('SessionClient', () => {
       vi.useFakeTimers();
       let callCount = 0;
       server.use(
-        http.get('https://jules.googleapis.com/v1alpha/sessions/SESSION_123', () => {
-          callCount++;
-          const state = callCount > 1 ? 'awaitingPlanApproval' : 'inProgress';
-          return HttpResponse.json({ id: 'SESSION_123', state });
-        }),
+        http.get(
+          'https://jules.googleapis.com/v1alpha/sessions/SESSION_123',
+          () => {
+            callCount++;
+            const state = callCount > 1 ? 'awaitingPlanApproval' : 'inProgress';
+            return HttpResponse.json({ id: 'SESSION_123', state });
+          },
+        ),
       );
 
       const waitForPromise = session.waitFor('awaitingPlanApproval');
@@ -143,9 +181,12 @@ describe('SessionClient', () => {
 
     it('should resolve gracefully if the session terminates before the target state', async () => {
       server.use(
-        http.get('https://jules.googleapis.com/v1alpha/sessions/SESSION_123', () => {
-          return HttpResponse.json({ id: 'SESSION_123', state: 'completed' });
-        }),
+        http.get(
+          'https://jules.googleapis.com/v1alpha/sessions/SESSION_123',
+          () => {
+            return HttpResponse.json({ id: 'SESSION_123', state: 'completed' });
+          },
+        ),
       );
       // This should not hang or throw
       await session.waitFor('awaitingPlanApproval');
@@ -161,7 +202,9 @@ describe('SessionClient', () => {
 
     it('should throw InvalidStateError if state is not awaitingPlanApproval', async () => {
       const invalidStateSession = jules.session('SESSION_INVALID_STATE');
-      await expect(invalidStateSession.approve()).rejects.toThrow(InvalidStateError);
+      await expect(invalidStateSession.approve()).rejects.toThrow(
+        InvalidStateError,
+      );
       expect(approvePlanCalled).toBe(false);
     });
   });
@@ -180,14 +223,25 @@ describe('SessionClient', () => {
       const startTime = new Date();
 
       server.use(
-        http.get('https://jules.googleapis.com/v1alpha/sessions/SESSION_123/activities', () => {
-          return HttpResponse.json({
-            activities: [
-              { name: 'a/1', createTime: new Date(startTime.getTime() + 100).toISOString(), agentMessaged: { agentMessage: 'Okay, I did it.' } },
-              { name: 'a/2', createTime: new Date(startTime.getTime() + 200).toISOString(), sessionCompleted: {} },
-            ],
-          });
-        }),
+        http.get(
+          'https://jules.googleapis.com/v1alpha/sessions/SESSION_123/activities',
+          () => {
+            return HttpResponse.json({
+              activities: [
+                {
+                  name: 'a/1',
+                  createTime: new Date(startTime.getTime() + 100).toISOString(),
+                  agentMessaged: { agentMessage: 'Okay, I did it.' },
+                },
+                {
+                  name: 'a/2',
+                  createTime: new Date(startTime.getTime() + 200).toISOString(),
+                  sessionCompleted: {},
+                },
+              ],
+            });
+          },
+        ),
       );
 
       const reply = await session.ask('Did you update the CSS?');
@@ -203,16 +257,33 @@ describe('SessionClient', () => {
 
       // Set up the mock handler BEFORE calling ask().
       server.use(
-        http.get('https://jules.googleapis.com/v1alpha/sessions/SESSION_123/activities', () => {
-          const replyTime = new Date(testStartTime.getTime() + 1); // Ensure this is after the ask() call
-          return HttpResponse.json({
-            activities: [
-              { name: 'a/0', createTime: new Date(testStartTime.getTime() - 1000).toISOString(), agentMessaged: { agentMessage: 'This is an old message.' } },
-              { name: 'a/1', createTime: replyTime.toISOString(), agentMessaged: { agentMessage: 'This is the new reply.' } },
-              { name: 'a/2', createTime: new Date(replyTime.getTime() + 1).toISOString(), sessionCompleted: {} },
-            ],
-          });
-        }),
+        http.get(
+          'https://jules.googleapis.com/v1alpha/sessions/SESSION_123/activities',
+          () => {
+            const replyTime = new Date(testStartTime.getTime() + 1); // Ensure this is after the ask() call
+            return HttpResponse.json({
+              activities: [
+                {
+                  name: 'a/0',
+                  createTime: new Date(
+                    testStartTime.getTime() - 1000,
+                  ).toISOString(),
+                  agentMessaged: { agentMessage: 'This is an old message.' },
+                },
+                {
+                  name: 'a/1',
+                  createTime: replyTime.toISOString(),
+                  agentMessaged: { agentMessage: 'This is the new reply.' },
+                },
+                {
+                  name: 'a/2',
+                  createTime: new Date(replyTime.getTime() + 1).toISOString(),
+                  sessionCompleted: {},
+                },
+              ],
+            });
+          },
+        ),
       );
 
       const reply = await session.ask('Is this a new question?');
@@ -221,12 +292,15 @@ describe('SessionClient', () => {
     });
 
     it('should throw an error if the session ends before a reply is received', async () => {
-       server.use(
-        http.get('https://jules.googleapis.com/v1alpha/sessions/SESSION_123/activities', () => {
-          return HttpResponse.json({
-            activities: [{ name: 'a/1', sessionCompleted: {} }],
-          });
-        }),
+      server.use(
+        http.get(
+          'https://jules.googleapis.com/v1alpha/sessions/SESSION_123/activities',
+          () => {
+            return HttpResponse.json({
+              activities: [{ name: 'a/1', sessionCompleted: {} }],
+            });
+          },
+        ),
       );
 
       await expect(session.ask('Will you reply?')).rejects.toThrow(JulesError);
@@ -241,6 +315,8 @@ describe('SessionClient', () => {
 
   it('result() should throw RunFailedError on failure', async () => {
     const failedSession = jules.session('SESSION_FAIL');
-    await expect(failedSession.result()).rejects.toThrow(AutomatedSessionFailedError);
+    await expect(failedSession.result()).rejects.toThrow(
+      AutomatedSessionFailedError,
+    );
   });
 });
