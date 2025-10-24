@@ -10,6 +10,7 @@ interface Message {
 
 export default function Home() {
   const [repo, setRepo] = useState<string>('davideast/julets');
+  const [prompt, setPrompt] = useState<string>('');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentMessage, setCurrentMessage] = useState<string>('');
@@ -33,7 +34,7 @@ export default function Home() {
       const response = await fetch('/api/jules', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start', repo }),
+        body: JSON.stringify({ action: 'start', repo, prompt }),
       });
 
       if (!response.ok) {
@@ -61,7 +62,10 @@ export default function Home() {
     if (!currentMessage.trim() || !sessionId) return;
 
     const userMessage: Message = { sender: 'user', text: currentMessage };
-    const thinkingMessage: Message = { sender: 'agent', text: 'Jules is thinking...' };
+    const thinkingMessage: Message = {
+      sender: 'agent',
+      text: 'Jules is thinking...',
+    };
 
     setMessages((prev) => [...prev, userMessage, thinkingMessage]);
     setCurrentMessage('');
@@ -89,9 +93,11 @@ export default function Home() {
 
       // Replace "thinking..." message with the actual reply
       setMessages((prev) => [...prev.slice(0, -1), agentReply]);
-
     } catch (err: any) {
-      const errorMessage: Message = { sender: 'system', text: `Error: ${err.message}` };
+      const errorMessage: Message = {
+        sender: 'system',
+        text: `Error: ${err.message}`,
+      };
       // Replace "thinking..." message with the error
       setMessages((prev) => [...prev.slice(0, -1), errorMessage]);
     } finally {
@@ -130,7 +136,10 @@ export default function Home() {
                 Start a New Session
               </h2>
               <div className="mb-4">
-                <label htmlFor="repo" className="block text-sm font-medium text-zinc-400 mb-1">
+                <label
+                  htmlFor="repo"
+                  className="block text-sm font-medium text-zinc-400 mb-1"
+                >
                   GitHub Repository
                 </label>
                 <input
@@ -143,6 +152,23 @@ export default function Home() {
                   disabled={isLoading}
                 />
               </div>
+              <div className="mb-4">
+                <label
+                  htmlFor="prompt"
+                  className="block text-sm font-medium text-zinc-400 mb-1"
+                >
+                  Task Description
+                </label>
+                <textarea
+                  id="prompt"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-zinc-100 placeholder:text-zinc-500"
+                  placeholder="Analyze this repository and identify 3 areas for refactoring."
+                  rows={3}
+                  disabled={isLoading}
+                />
+              </div>
               <button
                 type="submit"
                 className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300"
@@ -150,7 +176,9 @@ export default function Home() {
               >
                 {isLoading ? 'Starting...' : 'Start Session'}
               </button>
-              {error && <p className="mt-4 text-center text-red-500">{error}</p>}
+              {error && (
+                <p className="mt-4 text-center text-red-500">{error}</p>
+              )}
             </form>
           </div>
         ) : (
@@ -161,7 +189,7 @@ export default function Home() {
                 <div key={index} className="flex flex-col">
                   <div
                     className={`max-w-xs md:max-w-md p-3 rounded-lg ${getSenderBgColor(
-                      msg.sender
+                      msg.sender,
                     )}`}
                   >
                     <p className="whitespace-pre-wrap">{msg.text}</p>
@@ -173,8 +201,13 @@ export default function Home() {
 
             {/* Message Input */}
             <div className="p-4 border-t border-zinc-800 bg-zinc-950">
-              {error && <p className="mb-2 text-center text-red-500 text-sm">{error}</p>}
-              <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
+              {error && (
+                <p className="mb-2 text-center text-red-500 text-sm">{error}</p>
+              )}
+              <form
+                onSubmit={handleSendMessage}
+                className="flex items-center space-x-2"
+              >
                 <input
                   type="text"
                   value={currentMessage}
