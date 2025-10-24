@@ -14,8 +14,12 @@ async function runCommand(command: string, cwd: string) {
     const { stdout, stderr } = await execAsync(command, { cwd });
     if (stdout) console.log(stdout);
     if (stderr) console.error(stderr);
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error executing command: ${command}`);
+    console.error('--- STDERR ---');
+    console.error(error.stderr);
+    console.error('--- STDOUT ---');
+    console.error(error.stdout);
     throw error;
   }
 }
@@ -40,7 +44,10 @@ async function verifyExample(exampleDir: string, packedFile: string) {
   console.log('Installing packed tarball...');
   // Note: We use the relative path from the example dir to the root
   const relativePackedPath = path.join('..', '..', packedFile);
-  await runCommand(`npm install ${relativePackedPath}`, exampleDir);
+  // The --legacy-peer-deps flag is required for the Next.js example.
+  // We'll run the command from within the example directory.
+  const installCommand = `npm install --legacy-peer-deps ${relativePackedPath}`;
+  await runCommand(installCommand, exampleDir);
   console.log('Installation complete.');
 
   // 3. Run the verification script for the example
@@ -61,7 +68,11 @@ async function main() {
     // 2. Pack the project
     console.log('\n--- Packing root project ---');
     const { stdout } = await execAsync('npm pack', { cwd: ROOT_DIR });
-    packedFile = stdout.trim();
+    // Get the last non-empty line from stdout, which is the tarball filename.
+    packedFile = stdout.trim().split('\n').filter(Boolean).pop();
+    if (!packedFile) {
+      throw new Error('Could not determine packed file name from npm pack.');
+    }
     console.log(`Packed file: ${packedFile}`);
 
     // 3. Determine which examples to verify
