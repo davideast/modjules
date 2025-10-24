@@ -5,7 +5,7 @@ import { mapRestActivityToSdkActivity } from './mappers.js';
 import { Activity, SessionResource } from './types.js';
 
 // A helper function for delaying execution.
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Define the raw REST API response type for listing activities.
 type ListActivitiesResponse = {
@@ -29,6 +29,7 @@ export async function* streamActivities(
 ): AsyncGenerator<Activity> {
   let pageToken: string | undefined = undefined;
   let isFirstCall = true;
+  const yieldedActivityNames = new Set<string>();
 
   while (true) {
     let response: ListActivitiesResponse;
@@ -43,7 +44,11 @@ export async function* streamActivities(
         },
       );
     } catch (error) {
-      if (isFirstCall && error instanceof JulesApiError && error.status === 404) {
+      if (
+        isFirstCall &&
+        error instanceof JulesApiError &&
+        error.status === 404
+      ) {
         let lastError: JulesApiError = error;
         let successfulResponse: ListActivitiesResponse | undefined;
         let delay = 1000; // Start with a 1-second delay
@@ -52,18 +57,22 @@ export async function* streamActivities(
           await sleep(delay);
           delay *= 2; // Double the delay for the next attempt
           try {
-            successfulResponse = await apiClient.request<ListActivitiesResponse>(
-              `sessions/${sessionId}/activities`,
-              {
-                params: {
-                  pageSize: '50',
-                  ...(pageToken ? { pageToken } : {}),
+            successfulResponse =
+              await apiClient.request<ListActivitiesResponse>(
+                `sessions/${sessionId}/activities`,
+                {
+                  params: {
+                    pageSize: '50',
+                    ...(pageToken ? { pageToken } : {}),
+                  },
                 },
-              },
-            );
+              );
             break; // On success, exit the retry loop.
           } catch (retryError) {
-            if (retryError instanceof JulesApiError && retryError.status === 404) {
+            if (
+              retryError instanceof JulesApiError &&
+              retryError.status === 404
+            ) {
               lastError = retryError;
             } else {
               throw retryError; // Re-throw non-404 errors immediately.
@@ -87,10 +96,19 @@ export async function* streamActivities(
     let hasTerminalActivity = false;
 
     for (const rawActivity of activities) {
+      // Duplication check
+      if (yieldedActivityNames.has(rawActivity.name)) {
+        continue;
+      }
+
       const activity = mapRestActivityToSdkActivity(rawActivity);
+      yieldedActivityNames.add(rawActivity.name);
       yield activity;
 
-      if (activity.type === 'sessionCompleted' || activity.type === 'sessionFailed') {
+      if (
+        activity.type === 'sessionCompleted' ||
+        activity.type === 'sessionFailed'
+      ) {
         hasTerminalActivity = true;
       }
     }

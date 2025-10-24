@@ -7,6 +7,7 @@ import { Activity } from 'julets';
 interface Message {
   sender: 'user' | 'agent' | 'system';
   text: string;
+  activity?: Activity; // Optional: Store the original activity for rich rendering
 }
 
 export default function Home() {
@@ -58,7 +59,8 @@ export default function Home() {
         case 'planGenerated':
           message = {
             sender: 'system',
-            text: `🤖 Generated a plan with ${activity.plan.steps.length} steps.`,
+            text: '', // Text can be empty as we'll use the activity object for rendering
+            activity: activity,
           };
           break;
         case 'planApproved':
@@ -244,7 +246,18 @@ export default function Home() {
                       msg.sender,
                     )}`}
                   >
-                    <p className="whitespace-pre-wrap">{msg.text}</p>
+                    {msg.activity?.type === 'planGenerated' ? (
+                      <div className="text-zinc-100">
+                        <p className="font-bold mb-2">📋 Plan Generated:</p>
+                        <ol className="list-decimal list-inside space-y-1">
+                          {msg.activity.plan.steps.map((step) => (
+                            <li key={step.id}>{step.title}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{msg.text}</p>
+                    )}
                   </div>
                 </div>
               ))}
