@@ -102,21 +102,21 @@ export default function Home() {
   const getSenderBgColor = (sender: Message['sender']) => {
     switch (sender) {
       case 'user':
-        return 'bg-blue-500 text-white self-end';
+        return 'bg-blue-600 text-white self-end';
       case 'agent':
-        return 'bg-gray-200 text-gray-800 self-start';
+        return 'bg-zinc-800 text-zinc-100 self-start';
       case 'system':
-        return 'bg-yellow-200 text-yellow-800 self-center text-sm';
+        return 'bg-zinc-800 text-yellow-400 self-center text-sm';
       default:
-        return 'bg-gray-100';
+        return 'bg-zinc-800';
     }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 font-sans">
-      <header className="p-4 border-b bg-white shadow-sm">
-        <h1 className="text-2xl font-bold text-gray-800">Julets Agent Chat</h1>
-        <p className="text-sm text-gray-500">Next.js Example</p>
+    <div className="flex flex-col h-screen font-sans">
+      <header className="p-4 border-b border-zinc-800 bg-zinc-950 shadow-sm">
+        <h1 className="text-2xl font-bold text-zinc-100">Julets Agent Chat</h1>
+        <p className="text-sm text-zinc-400">Next.js Example</p>
       </header>
 
       <main className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
@@ -124,11 +124,13 @@ export default function Home() {
           <div className="flex items-center justify-center h-full">
             <form
               onSubmit={handleStartSession}
-              className="w-full max-w-md bg-white p-8 rounded-lg shadow-md"
+              className="w-full max-w-md bg-zinc-900 border border-zinc-800 p-8 rounded-lg shadow-md"
             >
-              <h2 className="text-xl font-semibold mb-4 text-center">Start a New Session</h2>
+              <h2 className="text-xl font-semibold mb-4 text-center text-zinc-100">
+                Start a New Session
+              </h2>
               <div className="mb-4">
-                <label htmlFor="repo" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="repo" className="block text-sm font-medium text-zinc-400 mb-1">
                   GitHub Repository
                 </label>
                 <input
@@ -136,7 +138,7 @@ export default function Home() {
                   type="text"
                   value={repo}
                   onChange={(e) => setRepo(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-zinc-100 placeholder:text-zinc-500"
                   placeholder="e.g., davideast/julets"
                   disabled={isLoading}
                 />
@@ -152,13 +154,15 @@ export default function Home() {
             </form>
           </div>
         ) : (
-          <div className="flex flex-col h-full bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="flex flex-col h-full bg-zinc-900 border border-zinc-800 rounded-lg shadow-md overflow-hidden">
             {/* Chat History */}
             <div className="flex-1 p-4 space-y-4 overflow-y-auto">
               {messages.map((msg, index) => (
                 <div key={index} className="flex flex-col">
                   <div
-                    className={`max-w-xs md:max-w-md p-3 rounded-lg ${getSenderBgColor(msg.sender)}`}
+                    className={`max-w-xs md:max-w-md p-3 rounded-lg ${getSenderBgColor(
+                      msg.sender
+                    )}`}
                   >
                     <p className="whitespace-pre-wrap">{msg.text}</p>
                   </div>
@@ -168,14 +172,14 @@ export default function Home() {
             </div>
 
             {/* Message Input */}
-            <div className="p-4 border-t bg-gray-50">
+            <div className="p-4 border-t border-zinc-800 bg-zinc-950">
               {error && <p className="mb-2 text-center text-red-500 text-sm">{error}</p>}
               <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
                 <input
                   type="text"
                   value={currentMessage}
                   onChange={(e) => setCurrentMessage(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  className="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-zinc-100 placeholder:text-zinc-500"
                   placeholder="Ask a follow-up question..."
                   disabled={isLoading}
                 />
