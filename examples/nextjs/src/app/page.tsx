@@ -2,7 +2,7 @@
 
 import { useState, FormEvent, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Activity, Session } from 'julets';
+import { Activity } from 'julets';
 
 // Define the structure of a chat message
 interface Message {
@@ -63,16 +63,30 @@ export default function Home() {
 
       switch (activity.type) {
         case 'agentMessaged':
-          message = { sender: 'agent', text: activity.message };
+          message = { sender: 'agent', text: activity.message, activity };
           break;
         case 'planGenerated':
           message = { sender: 'system', text: '', activity: activity };
           break;
         case 'planApproved':
-          message = { sender: 'system', text: `✅ Plan approved.` };
+          message = { sender: 'system', text: `✅ Plan approved.`, activity };
           break;
         case 'progressUpdated':
-          message = { sender: 'system', text: `⚙️ ${activity.title}` };
+          message = {
+            sender: 'system',
+            text: `⚙️ ${activity.title}`,
+            activity,
+          };
+          break;
+        case 'sessionCompleted':
+          message = {
+            sender: 'system',
+            text: `Completed ${activity.name}`,
+            activity,
+          };
+          break;
+        default:
+          message = { sender: 'system', text: 'Unknown activity', activity };
           break;
       }
 
@@ -110,7 +124,7 @@ export default function Home() {
             const { error } = await response.json();
             throw new Error(error);
           }
-          const sessionInfo: Session = await response.json();
+          const sessionInfo = await response.json();
           if (sessionInfo.prompt) {
             setMessages([{ sender: 'user', text: sessionInfo.prompt }]);
           }
@@ -269,18 +283,9 @@ export default function Home() {
                   <div
                     className={`max-w-xs md:max-w-md p-3 rounded-lg ${getSenderBgColor(msg.sender)}`}
                   >
-                    {msg.activity?.type === 'planGenerated' ? (
-                      <div className="text-zinc-100">
-                        <p className="font-bold mb-2">📋 Plan Generated:</p>
-                        <ol className="list-decimal list-inside space-y-1">
-                          {msg.activity.plan.steps.map((step) => (
-                            <li key={step.id}>{step.title}</li>
-                          ))}
-                        </ol>
-                      </div>
-                    ) : (
-                      <p className="whitespace-pre-wrap">{msg.text}</p>
-                    )}
+                    <div className="text-zinc-100">
+                      <code>{JSON.stringify(msg, null, 2)}</code>
+                    </div>
                   </div>
                 </div>
               ))}

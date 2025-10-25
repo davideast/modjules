@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   }
 
   const jules = Jules();
-  const session = jules.session(sessionId as string);
+  const session = jules.session(sessionId);
 
   const stream = new ReadableStream({
     async start(controller) {

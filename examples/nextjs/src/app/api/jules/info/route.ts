@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     }
 
     const jules = Jules();
-    const session = jules.session(sessionId as string);
+    const session = jules.session(sessionId);
     const sessionInfo = await session.info();
 
     return NextResponse.json(sessionInfo);
