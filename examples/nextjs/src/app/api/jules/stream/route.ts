@@ -25,9 +25,6 @@ export async function GET(req: NextRequest) {
           error: (e as any).message,
         })}\n\n`;
         controller.enqueue(new TextEncoder().encode(chunk));
-      } finally {
-        console.log('Closing stream');
-        controller.close();
       }
     },
   });

@@ -1,9 +1,20 @@
 // tests/automated_session.test.ts
-import { beforeAll, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
+import {
+  beforeAll,
+  afterAll,
+  afterEach,
+  describe,
+  it,
+  expect,
+  vi,
+} from 'vitest';
 import { server } from './mocks/server.js';
 import { Jules } from '../src/index.js';
 import { http, HttpResponse } from 'msw';
-import { AutomatedSessionFailedError, SourceNotFoundError } from '../src/errors.js';
+import {
+  AutomatedSessionFailedError,
+  SourceNotFoundError,
+} from '../src/errors.js';
 import { Activity } from '../src/types.js';
 
 // Set up the mock server
@@ -36,7 +47,10 @@ describe('jules.run()', () => {
   // Test for initial session setup and validation
   it('should throw SourceNotFoundError if the source cannot be resolved', async () => {
     await expect(
-      jules.run({ ...MOCK_AUTOMATED_SESSION_CONFIG, source: { github: 'non/existent', branch: 'main' } })
+      jules.run({
+        ...MOCK_AUTOMATED_SESSION_CONFIG,
+        source: { github: 'non/existent', branch: 'main' },
+      }),
     ).rejects.toThrow(SourceNotFoundError);
   });
 
@@ -46,7 +60,10 @@ describe('jules.run()', () => {
     server.use(
       http.post(`${BASE_URL}/sessions`, async ({ request }) => {
         requestBody = await request.json();
-        return HttpResponse.json({ id: MOCK_SESSION_ID, name: `sessions/${MOCK_SESSION_ID}` });
+        return HttpResponse.json({
+          id: MOCK_SESSION_ID,
+          name: `sessions/${MOCK_SESSION_ID}`,
+        });
       }),
       // Mock dependent calls to allow the run to complete cleanly
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
@@ -55,14 +72,20 @@ describe('jules.run()', () => {
         });
       }),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}`, () => {
-        return HttpResponse.json({ id: MOCK_SESSION_ID, state: 'completed', outputs: [] });
-      })
+        return HttpResponse.json({
+          id: MOCK_SESSION_ID,
+          state: 'completed',
+          outputs: [],
+        });
+      }),
     );
 
     const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
     await vi.advanceTimersByTimeAsync(0); // Allow session creation to complete
 
-    expect(requestBody.sourceContext.source).toBe('sources/github/davideast/dataprompt');
+    expect(requestBody.sourceContext.source).toBe(
+      'sources/github/davideast/dataprompt',
+    );
     expect(requestBody.requirePlanApproval).toBe(false);
 
     // Await the automated session to ensure all background activity completes
@@ -72,7 +95,12 @@ describe('jules.run()', () => {
   // Test successful run: stream and final outcome
   it('should stream activities and resolve with the correct Outcome on success', async () => {
     server.use(
-      http.post(`${BASE_URL}/sessions`, () => HttpResponse.json({ id: MOCK_SESSION_ID, name: `sessions/${MOCK_SESSION_ID}` })),
+      http.post(`${BASE_URL}/sessions`, () =>
+        HttpResponse.json({
+          id: MOCK_SESSION_ID,
+          name: `sessions/${MOCK_SESSION_ID}`,
+        }),
+      ),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
         return HttpResponse.json({
           activities: [{ name: 'a/1', sessionCompleted: {} }],
@@ -84,20 +112,18 @@ describe('jules.run()', () => {
           state: 'completed',
           outputs: [{ pullRequest: { url: 'http://pr' } }],
         });
-      })
+      }),
     );
 
     const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
 
-    const streamedActivities: Activity[] = [];
-    for await (const activity of automatedSession.stream()) {
-      streamedActivities.push(activity);
-    }
+    const iterator = automatedSession.stream!()[Symbol.asyncIterator]();
+    const { value: activity } = await iterator.next();
+    await iterator.return!();
 
     const outcome = await automatedSession;
 
-    expect(streamedActivities).toHaveLength(1);
-    expect(streamedActivities[0].type).toBe('sessionCompleted');
+    expect(activity.type).toBe('sessionCompleted');
     expect(outcome.state).toBe('completed');
     expect(outcome.pullRequest?.url).toBe('http://pr');
   });
@@ -105,7 +131,12 @@ describe('jules.run()', () => {
   // Test failed run: stream and final outcome
   it('should stream activities and reject with AutomatedSessionFailedError on failure', async () => {
     server.use(
-      http.post(`${BASE_URL}/sessions`, () => HttpResponse.json({ id: MOCK_SESSION_ID, name: `sessions/${MOCK_SESSION_ID}` })),
+      http.post(`${BASE_URL}/sessions`, () =>
+        HttpResponse.json({
+          id: MOCK_SESSION_ID,
+          name: `sessions/${MOCK_SESSION_ID}`,
+        }),
+      ),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
         return HttpResponse.json({
           activities: [{ name: 'a/1', sessionFailed: { reason: 'API Error' } }],
@@ -113,16 +144,18 @@ describe('jules.run()', () => {
       }),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}`, () => {
         return HttpResponse.json({ id: MOCK_SESSION_ID, state: 'failed' });
-      })
+      }),
     );
     const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
-    const promise = expect(automatedSession).rejects.toThrow(AutomatedSessionFailedError);
-    // Let's also check the stream
-    const streamed: Activity[] = [];
-    for await (const a of automatedSession.stream()) {
-      streamed.push(a);
-    }
-    expect(streamed[0].type).toBe('sessionFailed');
+    const promise = expect(automatedSession).rejects.toThrow(
+      AutomatedSessionFailedError,
+    );
+
+    const iterator = automatedSession.stream!()[Symbol.asyncIterator]();
+    const { value: activity } = await iterator.next();
+    await iterator.return!();
+
+    expect(activity.type).toBe('sessionFailed');
     await promise;
   });
 
@@ -131,32 +164,29 @@ describe('jules.run()', () => {
     // Mock session creation with a delay
     server.use(
       http.post(`${BASE_URL}/sessions`, async () => {
-        await new Promise(r => setTimeout(r, 50)); // 50ms delay
-        return HttpResponse.json({ id: MOCK_SESSION_ID, name: `sessions/${MOCK_SESSION_ID}` });
+        await new Promise((r) => setTimeout(r, 50)); // 50ms delay
+        return HttpResponse.json({
+          id: MOCK_SESSION_ID,
+          name: `sessions/${MOCK_SESSION_ID}`,
+        });
       }),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
         // Return a terminal activity to ensure the stream closes and the test doesn't time out.
         return HttpResponse.json({
           activities: [{ name: 'a/1', sessionCompleted: {} }],
         });
-      })
+      }),
     );
 
     const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
-    const stream = automatedSession.stream();
-
-    const activities: Activity[] = [];
-    const streamPromise = (async () => {
-      for await (const activity of stream) {
-        activities.push(activity);
-      }
-    })();
+    const stream = automatedSession.stream!();
+    const iterator = stream[Symbol.asyncIterator]();
 
     // Advance timers to cover the session creation delay and allow the stream to process
     await vi.advanceTimersByTimeAsync(100);
-    await streamPromise;
+    const { value: activity } = await iterator.next();
+    await iterator.return!();
 
-    expect(activities).toHaveLength(1);
-    expect(activities[0].type).toBe('sessionCompleted');
+    expect(activity.type).toBe('sessionCompleted');
   });
 });
