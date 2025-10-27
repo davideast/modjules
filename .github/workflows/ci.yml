@@ -9,6 +9,7 @@ on:
 
 # Grant permissions for the job to post comments on the PR
 permissions:
+  contents: read
   pull-requests: write
 
 jobs:
