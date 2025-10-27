@@ -93,7 +93,6 @@ export async function* streamActivities(
     isFirstCall = false; // Mark the first call as done.
 
     const activities = response.activities || [];
-    let hasTerminalActivity = false;
 
     for (const rawActivity of activities) {
       // Duplication check
@@ -104,17 +103,6 @@ export async function* streamActivities(
       const activity = mapRestActivityToSdkActivity(rawActivity);
       yieldedActivityNames.add(rawActivity.name);
       yield activity;
-
-      if (
-        activity.type === 'sessionCompleted' ||
-        activity.type === 'sessionFailed'
-      ) {
-        hasTerminalActivity = true;
-      }
-    }
-
-    if (hasTerminalActivity) {
-      return; // End the stream.
     }
 
     if (response.nextPageToken) {

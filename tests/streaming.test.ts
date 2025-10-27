@@ -40,22 +40,6 @@ describe('streamActivities', () => {
     vi.useRealTimers();
   });
 
-  async function collectStream(
-    stream: AsyncGenerator<Activity>,
-  ): Promise<Activity[]> {
-    const items: Activity[] = [];
-    // Use a Promise to handle the async iteration
-    const streamPromise = (async () => {
-      for await (const item of stream) {
-        items.push(item);
-      }
-    })();
-    // Advance timers to allow the stream to process
-    await vi.advanceTimersToNextTimerAsync();
-    await streamPromise;
-    return items;
-  }
-
   it('should handle fast pagination with nextPageToken', async () => {
     const page1 = {
       activities: [{ name: 'a/1', progressUpdated: { title: 'Page 1' } }],
@@ -83,7 +67,14 @@ describe('streamActivities', () => {
     );
 
     const stream = streamActivities(SESSION_ID, apiClient, POLLING_INTERVAL);
-    const activities = await collectStream(stream);
+    const iterator = stream[Symbol.asyncIterator]();
+
+    const result1 = await iterator.next();
+    const result2 = await iterator.next();
+    const result3 = await iterator.next();
+    await iterator.return(); // End the generator
+
+    const activities = [result1.value, result2.value, result3.value];
 
     expect(activities).toHaveLength(3);
     expect(activities[0].id).toBe('1');
@@ -111,44 +102,24 @@ describe('streamActivities', () => {
     );
 
     const stream = streamActivities(SESSION_ID, apiClient, POLLING_INTERVAL);
-    const items: Activity[] = [];
-
-    const streamPromise = (async () => {
-      for await (const item of stream) {
-        items.push(item);
-      }
-    })();
+    const iterator = stream[Symbol.asyncIterator]();
 
     // Process the first batch
-    await vi.advanceTimersByTimeAsync(0);
-    expect(items).toHaveLength(1);
-    expect(items[0].id).toBe('1');
+    const item1Promise = iterator.next();
+    const { value: item1 } = await item1Promise;
+
+    expect(item1.id).toBe('1');
 
     // Advance time to trigger the poll
+    const item2Promise = iterator.next();
     await vi.advanceTimersByTimeAsync(POLLING_INTERVAL);
-
-    // Wait for the stream to complete
-    await streamPromise;
+    const { value: item2 } = await item2Promise;
+    await iterator.return();
 
     expect(requestCount).toBe(2);
+    const items = [item1, item2];
     expect(items).toHaveLength(2);
     expect(items[1].type).toBe('sessionCompleted');
-  });
-
-  it('should terminate immediately if a terminal activity is in the first batch', async () => {
-    server.use(
-      http.get(`${BASE_URL}/sessions/${SESSION_ID}/activities`, () => {
-        return HttpResponse.json({
-          activities: [{ name: 'a/1', sessionFailed: { reason: 'Failed' } }],
-        });
-      }),
-    );
-
-    const stream = streamActivities(SESSION_ID, apiClient, POLLING_INTERVAL);
-    const activities = await collectStream(stream);
-
-    expect(activities).toHaveLength(1);
-    expect(activities[0].type).toBe('sessionFailed');
   });
 
   it('should not yield duplicate activities on subsequent polls', async () => {
@@ -176,19 +147,17 @@ describe('streamActivities', () => {
     );
 
     const stream = streamActivities(SESSION_ID, apiClient, POLLING_INTERVAL);
-    const activities: Activity[] = [];
+    const iterator = stream[Symbol.asyncIterator]();
 
-    // Don't await this promise yet.
-    const streamPromise = (async () => {
-      for await (const activity of stream) {
-        activities.push(activity);
-      }
-    })();
+    const { value: activity1 } = await iterator.next();
 
-    // Fast-forward through all polling cycles.
-    await vi.runAllTimersAsync();
-    // Wait for the consumer loop to finish.
-    await streamPromise;
+    // Advance time to trigger the poll
+    const item2Promise = iterator.next();
+    await vi.advanceTimersByTimeAsync(POLLING_INTERVAL);
+    const { value: activity2 } = await item2Promise;
+    await iterator.return();
+
+    const activities = [activity1, activity2];
 
     // Check the final state.
     expect(requestCount).toBe(2);
