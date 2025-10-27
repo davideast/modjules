@@ -72,7 +72,7 @@ describe('streamActivities', () => {
     const result1 = await iterator.next();
     const result2 = await iterator.next();
     const result3 = await iterator.next();
-    await iterator.return(); // End the generator
+    await iterator.return(undefined); // End the generator
 
     const activities = [result1.value, result2.value, result3.value];
 
@@ -114,7 +114,7 @@ describe('streamActivities', () => {
     const item2Promise = iterator.next();
     await vi.advanceTimersByTimeAsync(POLLING_INTERVAL);
     const { value: item2 } = await item2Promise;
-    await iterator.return();
+    await iterator.return(undefined);
 
     expect(requestCount).toBe(2);
     const items = [item1, item2];
@@ -155,7 +155,7 @@ describe('streamActivities', () => {
     const item2Promise = iterator.next();
     await vi.advanceTimersByTimeAsync(POLLING_INTERVAL);
     const { value: activity2 } = await item2Promise;
-    await iterator.return();
+    await iterator.return(undefined);
 
     const activities = [activity1, activity2];
 

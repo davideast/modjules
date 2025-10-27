@@ -117,9 +117,9 @@ describe('jules.run()', () => {
 
     const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
 
-    const iterator = automatedSession.stream()[Symbol.asyncIterator]();
+    const iterator = automatedSession.stream!()[Symbol.asyncIterator]();
     const { value: activity } = await iterator.next();
-    await iterator.return();
+    await iterator.return!();
 
     const outcome = await automatedSession;
 
@@ -151,9 +151,9 @@ describe('jules.run()', () => {
       AutomatedSessionFailedError,
     );
 
-    const iterator = automatedSession.stream()[Symbol.asyncIterator]();
+    const iterator = automatedSession.stream!()[Symbol.asyncIterator]();
     const { value: activity } = await iterator.next();
-    await iterator.return();
+    await iterator.return!();
 
     expect(activity.type).toBe('sessionFailed');
     await promise;
@@ -179,13 +179,13 @@ describe('jules.run()', () => {
     );
 
     const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
-    const stream = automatedSession.stream();
+    const stream = automatedSession.stream!();
     const iterator = stream[Symbol.asyncIterator]();
 
     // Advance timers to cover the session creation delay and allow the stream to process
     await vi.advanceTimersByTimeAsync(100);
     const { value: activity } = await iterator.next();
-    await iterator.return();
+    await iterator.return!();
 
     expect(activity.type).toBe('sessionCompleted');
   });
