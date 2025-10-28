@@ -51,3 +51,6 @@ export type {
   SourceInput,
   SourceManager,
 } from './types.js';
+
+// Intentionally introduce a type error to test CI failure reporting
+const invalidVariable: string = 123;
