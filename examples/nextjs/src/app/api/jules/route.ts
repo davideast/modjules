@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     // For simplicity, we initialize the client on each request.
     // In a production app, you'd likely initialize this once.
-    const jules = Jules();
+    const jules = Jules({ apiKey: process.env.JULES_API_KEY });
 
     switch (action) {
       case 'start': {

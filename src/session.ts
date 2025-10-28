@@ -4,7 +4,7 @@ import { InternalConfig } from './client.js';
 import { InvalidStateError, JulesError } from './errors.js';
 import { mapSessionResourceToOutcome } from './mappers.js';
 import { pollSession, pollUntilCompletion } from './polling.js';
-import { streamActivities } from './streaming.js';
+import { streamActivities, StreamActivitiesOptions } from './streaming.js';
 import {
   Activity,
   ActivityAgentMessaged,
@@ -19,21 +19,18 @@ export class SessionClientImpl implements SessionClient {
   private apiClient: ApiClient;
   private config: InternalConfig;
 
-  constructor(
-    sessionId: string,
-    apiClient: ApiClient,
-    config: InternalConfig,
-  ) {
+  constructor(sessionId: string, apiClient: ApiClient, config: InternalConfig) {
     this.id = sessionId.replace(/^sessions\//, '');
     this.apiClient = apiClient;
     this.config = config;
   }
 
-  stream(): AsyncIterable<Activity> {
+  stream(options: StreamActivitiesOptions = {}): AsyncIterable<Activity> {
     return streamActivities(
       this.id,
       this.apiClient,
       this.config.pollingIntervalMs,
+      options,
     );
   }
 
@@ -61,7 +58,10 @@ export class SessionClientImpl implements SessionClient {
     const startTime = new Date();
     await this.send(prompt);
 
-    for await (const activity of this.stream()) {
+    // Don't return our own message.
+    for await (const activity of this.stream({
+      exclude: { originator: 'user' },
+    })) {
       const activityTime = new Date(activity.createTime).getTime();
       const askTime = startTime.getTime();
 
@@ -90,7 +90,7 @@ export class SessionClientImpl implements SessionClient {
     await pollSession(
       this.id,
       this.apiClient,
-      session => {
+      (session) => {
         return (
           session.state === targetState ||
           session.state === 'completed' ||
