@@ -1,113 +1,45 @@
 'use client';
 
-import { useState, FormEvent, useRef, useEffect, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
 import { Activity } from 'julets';
-
-// Import the new components
 import AgentChat from '../components/AgentChat';
-import ExecutionPlanCard from '../components/ExecutionPlanCard';
-import BashCommandOutput from '../components/BashCommandOutput';
-import FileModifiedNotification from '../components/FileModifiedNotification';
-import FrontendVerificationCard from '../components/FrontendVerificationCard';
-import CommitSummaryCard from '../components/CommitSummaryCard';
 import ChatMessage from '../components/ChatMessage';
-
-// Define the structure of a chat message
-interface Message {
-  sender: 'user' | 'agent' | 'system';
-  text: string;
-  activity?: Activity; // Optional: Store the original activity for rich rendering
-}
+import ExecutionPlan from '../components/ExecutionPlan';
+import BashCommandOutput from '../components/BashCommandOutput';
+import FileModified from '../components/FileModified';
+import FrontendVerification from '../components/FrontendVerification';
+import CommitSummary from '../components/CommitSummary';
 
 export default function Home() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [input, setInput] = useState<string>('');
 
-  const [repo, setRepo] = useState<string>('davideast/julets');
-  const [prompt, setPrompt] = useState<string>('');
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [currentMessage, setCurrentMessage] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState<boolean>(true);
-
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-
-  // Effect to scroll to the bottom of the chat history when new messages are added
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const connectToStream = useCallback((sessionId: string) => {
-    // On reconnect, clear previous messages and errors, but keep the initial prompt.
-    setMessages((prev) =>
-      prev.length > 0 && prev[0].sender === 'user' ? [prev[0]] : [],
-    );
-    setError(null);
-    setIsConnected(true);
+  const startStream = useCallback(async (prompt: string) => {
+    setActivities([
+      { type: 'user.message', message: prompt, originator: 'user' },
+    ]);
 
     const eventSource = new EventSource(
-      `/api/jules/stream?sessionId=${sessionId}`,
+      `/api/stream?prompt=${encodeURIComponent(prompt)}`,
     );
 
     eventSource.onmessage = (event) => {
-      setError(null); // Clear any previous error on receiving data
-      setIsConnected(true);
-      const data = JSON.parse(event.data);
-
-      if (data.type === 'error') {
-        const errorMessage: Message = {
-          sender: 'system',
-          text: `Stream Error: ${data.error}`,
-        };
-        setMessages((prev) => [...prev, errorMessage]);
+      if (event.data === '[DONE]') {
         eventSource.close();
         return;
       }
-
-      const activity = data as Activity;
-      let message: Message | null = null;
-
-      switch (activity.type) {
-        case 'agentMessaged':
-          message = { sender: 'agent', text: activity.message, activity };
-          break;
-        case 'planGenerated':
-          message = { sender: 'system', text: '', activity: activity };
-          break;
-        case 'planApproved':
-          message = { sender: 'system', text: `✅ Plan approved.`, activity };
-          break;
-        case 'progressUpdated':
-          message = {
-            sender: 'system',
-            text: `⚙️ ${activity.title}`,
-            activity,
-          };
-          break;
-        case 'sessionCompleted':
-          message = {
-            sender: 'system',
-            text: `Completed ${activity.name}`,
-            activity,
-          };
-          break;
-        default:
-          message = { sender: 'system', text: 'Unknown activity', activity };
-          break;
-      }
-
-      if (message) {
-        setMessages((prev) => [...prev, message!]);
-      }
+      const activity = JSON.parse(event.data);
+      setActivities((prev) => [...prev, activity]);
     };
 
     eventSource.onerror = (err) => {
       console.error('EventSource failed:', err);
-      setError('Connection to agent stream lost.');
-      setIsConnected(false);
+      const errorMessage: Activity = {
+        type: 'agent.message',
+        message: 'An error occurred while streaming.',
+        originator: 'agent',
+      };
+      setActivities((prev) => [...prev, errorMessage]);
       eventSource.close();
     };
 
@@ -116,224 +48,71 @@ export default function Home() {
     };
   }, []);
 
-  useEffect(() => {
-    const sessionFromUrl = searchParams.get('session');
-    if (sessionFromUrl && sessionFromUrl !== sessionId) {
-      const rehydrate = async () => {
-        setIsLoading(true);
-        setError(null);
-        setMessages([]);
-        setSessionId(sessionFromUrl);
-
-        try {
-          const response = await fetch(
-            `/api/jules/info?sessionId=${sessionFromUrl}`,
-          );
-          if (!response.ok) {
-            const { error } = await response.json();
-            throw new Error(error);
-          }
-          const sessionInfo = await response.json();
-          if (sessionInfo.prompt) {
-            setMessages([{ sender: 'user', text: sessionInfo.prompt }]);
-          }
-          connectToStream(sessionFromUrl);
-        } catch (err: any) {
-          setError(`Failed to resume session: ${err.message}`);
-          setSessionId(null);
-          router.push('/');
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      rehydrate();
-    }
-  }, [searchParams, sessionId, connectToStream, router]);
-
-  const handleStartSession = async (e: FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    setMessages([{ sender: 'user', text: prompt }]);
-
-    try {
-      const response = await fetch('/api/jules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start', repo, prompt }),
-      });
-      if (!response.ok) {
-        const { error } = await response.json();
-        throw new Error(error);
-      }
-      const { sessionId } = await response.json();
-      setSessionId(sessionId);
-      router.push(`/?session=${sessionId}`);
-      connectToStream(sessionId);
-    } catch (err: any) {
-      setError(err.message);
-      setMessages([]);
-    } finally {
-      setIsLoading(false);
+    if (input.trim()) {
+      startStream(input);
+      setInput('');
     }
   };
 
-  const handleSendMessage = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!currentMessage.trim() || !sessionId) return;
-    setMessages((prev) => [...prev, { sender: 'user', text: currentMessage }]);
-    const messageToSend = currentMessage;
-    setCurrentMessage('');
-    setError(null);
-
-    try {
-      const response = await fetch('/api/jules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'chat',
-          sessionId,
-          message: messageToSend,
-        }),
-      });
-      if (!response.ok) {
-        const { error } = await response.json();
-        throw new Error(error);
-      }
-    } catch (err: any) {
-      setMessages((prev) => [
-        ...prev,
-        { sender: 'system', text: `Error: ${err.message}` },
-      ]);
+  const renderActivity = (activity: Activity) => {
+    switch (activity.type) {
+      case 'user.message':
+        return <ChatMessage originator="user" message={activity.message} />;
+      case 'agent.message':
+        return <ChatMessage originator="agent" message={activity.message} />;
+      case 'agent.plan':
+        return (
+          <ExecutionPlan
+            steps={activity.plan.steps.map((s) => s.description)}
+          />
+        );
+      case 'agent.bash':
+        return (
+          <BashCommandOutput
+            command={activity.bash.command}
+            output={activity.bash.output}
+          />
+        );
+      case 'agent.file':
+        return (
+          <FileModified
+            filePath={activity.file.path}
+            description={`Modified ${activity.file.path}`}
+            repo={activity.source?.github?.repo || ''}
+          />
+        );
+      case 'agent.frontend':
+        const imageUrl = activity.frontend?.media?.[0]?.url || '';
+        const altText =
+          activity.frontend?.media?.[0]?.alt ||
+          'Frontend Verification Screenshot';
+        return <FrontendVerification imageUrl={imageUrl} altText={altText} />;
+      case 'agent.commit':
+        return <CommitSummary commitMessage={activity.commit.message} />;
+      default:
+        return (
+          <pre className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-wrap">
+            {JSON.stringify(activity, null, 2)}
+          </pre>
+        );
     }
   };
 
   return (
-    <div className="flex flex-col h-screen font-sans">
-      <header className="p-4 border-b border-zinc-800 bg-zinc-950 shadow-sm">
-        <h1 className="text-2xl font-bold text-zinc-100">Julets Agent Chat</h1>
-        <p className="text-sm text-zinc-400">Next.js Example</p>
-      </header>
-
-      <main className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
-        {!sessionId ? (
-          <div className="flex items-center justify-center h-full">
-            <form
-              onSubmit={handleStartSession}
-              className="w-full max-w-md bg-zinc-900 border border-zinc-800 p-8 rounded-lg shadow-md"
-            >
-              <h2 className="text-xl font-semibold mb-4 text-center text-zinc-100">
-                Start a New Session
-              </h2>
-              <div className="mb-4">
-                <label
-                  htmlFor="repo"
-                  className="block text-sm font-medium text-zinc-400 mb-1"
-                >
-                  GitHub Repository
-                </label>
-                <input
-                  id="repo"
-                  type="text"
-                  value={repo}
-                  onChange={(e) => setRepo(e.target.value)}
-                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-zinc-100 placeholder:text-zinc-500"
-                  placeholder="e.g., davideast/julets"
-                  disabled={isLoading}
-                />
-              </div>
-              <div className="mb-4">
-                <label
-                  htmlFor="prompt"
-                  className="block text-sm font-medium text-zinc-400 mb-1"
-                >
-                  Task Description
-                </label>
-                <textarea
-                  id="prompt"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-zinc-100 placeholder:text-zinc-500"
-                  placeholder="Analyze this repository and identify 3 areas for refactoring."
-                  rows={3}
-                  disabled={isLoading}
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Starting...' : 'Start Session'}
-              </button>
-              {error && (
-                <p className="mt-4 text-center text-red-500">{error}</p>
-              )}
-            </form>
+    <main className="bg-background-light dark:bg-background-dark font-sans antialiased">
+      <AgentChat
+        input={input}
+        onInputChange={(e) => setInput(e.target.value)}
+        onSubmit={handleSubmit}
+      >
+        {activities.map((activity, index) => (
+          <div key={index} className="flex justify-center">
+            {renderActivity(activity)}
           </div>
-        ) : (
-          <div className="flex flex-col h-full bg-zinc-900 border border-zinc-800 rounded-lg shadow-md overflow-hidden">
-            <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-              {messages.map((msg, index) => {
-                if (msg.sender === 'user' || msg.sender === 'agent') {
-                  return <ChatMessage key={index} sender={msg.sender} text={msg.text} />;
-                }
-
-                switch (msg.activity?.type) {
-                  case 'planGenerated':
-                    return <ExecutionPlanCard key={index} plan={msg.activity.plan} />;
-                  case 'bashCommand':
-                    return <BashCommandOutput key={index} command={msg.activity.command} output={msg.activity.output} />;
-                  case 'fileModified':
-                    return <FileModifiedNotification key={index} filepath={msg.activity.filepath} description={msg.activity.description} />;
-                  case 'frontendVerification':
-                    return <FrontendVerificationCard key={index} screenshotUrl={msg.activity.screenshotUrl} />;
-                  case 'sessionCompleted':
-                    return <CommitSummaryCard key={index} commitSummary={msg.activity.commitSummary} />;
-                  default:
-                    return <AgentChat key={index} />;
-                }
-              })}
-              <div ref={messagesEndRef} />
-            </div>
-            <div className="p-4 border-t border-zinc-800 bg-zinc-950">
-              {error && (
-                <p className="mb-2 text-center text-red-500 text-sm">{error}</p>
-              )}
-              {!isConnected && sessionId && (
-                <div className="mb-2 text-center">
-                  <button
-                    onClick={() => connectToStream(sessionId)}
-                    className="bg-yellow-500 text-black py-2 px-4 rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400"
-                  >
-                    Reconnect
-                  </button>
-                </div>
-              )}
-              <form
-                onSubmit={handleSendMessage}
-                className="flex items-center space-x-2"
-              >
-                <input
-                  type="text"
-                  value={currentMessage}
-                  onChange={(e) => setCurrentMessage(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-zinc-100 placeholder:text-zinc-500"
-                  placeholder="Ask a follow-up question..."
-                  disabled={isLoading || !isConnected}
-                />
-                <button
-                  type="submit"
-                  className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300"
-                  disabled={isLoading || !isConnected || !currentMessage.trim()}
-                >
-                  {isLoading ? '...' : 'Send'}
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
+        ))}
+      </AgentChat>
+    </main>
   );
 }

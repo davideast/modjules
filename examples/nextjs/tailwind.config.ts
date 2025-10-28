@@ -13,7 +13,6 @@ const config: Config = {
         primary: '#715cd7',
         'background-light': '#f6f6f8',
         'background-dark': '#15131f',
-        'primary-green': '#2EA043', // Green for success state
         'card-light': '#FFFFFF',
         'card-dark': '#161B22',
         'text-light': '#24292F',
@@ -28,7 +27,7 @@ const config: Config = {
       fontFamily: {
         display: ['Geist Sans', 'Public Sans', 'Space Grotesk', 'sans-serif'],
         sans: ['Inter', 'sans-serif'],
-        mono: ['Roboto Mono', 'Source Code Pro', 'monospace'],
+        mono: ['Source Code Pro', 'Roboto Mono', 'monospace'],
       },
       borderRadius: {
         DEFAULT: '0.25rem',
@@ -38,10 +37,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [
-    require('@tailwindcss/forms'),
-    require('@tailwindcss/typography'),
-    require('@tailwindcss/container-queries'),
-  ],
+  plugins: [require('@tailwindcss/forms'), require('@tailwindcss/typography')],
 };
+
 export default config;

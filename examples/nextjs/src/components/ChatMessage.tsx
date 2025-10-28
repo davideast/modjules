@@ -1,28 +1,36 @@
 import React from 'react';
 
 interface ChatMessageProps {
-  sender: 'user' | 'agent';
-  text: string;
+  originator: 'user' | 'agent';
+  message: string;
 }
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ sender, text }) => {
-  const getSenderBgColor = () => {
-    switch (sender) {
-      case 'user':
-        return 'bg-blue-600 text-white self-end';
-      case 'agent':
-        return 'bg-zinc-800 text-zinc-100 self-start';
-      default:
-        return 'bg-zinc-800';
-    }
-  };
+const ChatMessage: React.FC<ChatMessageProps> = ({ originator, message }) => {
+  if (originator === 'user') {
+    return (
+      <div className="flex justify-end">
+        <p className="text-right text-base text-gray-700 dark:text-gray-300">
+          {message}
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col">
-      <div
-        className={`max-w-xs md:max-w-md p-3 rounded-lg ${getSenderBgColor()}`}
-      >
-        <p>{text}</p>
+    <div className="flex justify-center py-6">
+      <div className="w-full max-w-3xl">
+        <div className="flex items-start space-x-4">
+          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+            <span className="material-icons-outlined text-lg text-gray-300">
+              auto_awesome
+            </span>
+          </div>
+          <div className="flex-1 text-left">
+            <article className="prose prose-lg text-gray-100 dark:prose-dark max-w-none">
+              <p>{message}</p>
+            </article>
+          </div>
+        </div>
       </div>
     </div>
   );
