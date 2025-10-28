@@ -359,7 +359,9 @@ describe('SessionClient', () => {
 
       const { value: activity1 } = await iterator.next();
       const { value: activity2 } = await iterator.next();
-      await iterator.return(undefined);
+      if (iterator.return) {
+        await iterator.return(undefined);
+      }
 
       const receivedActivities = [activity1, activity2];
 
