@@ -158,8 +158,7 @@ describe('SessionClient', () => {
           'https://jules.googleapis.com/v1alpha/sessions/SESSION_123',
           () => {
             callCount++;
-            const state =
-              callCount > 1 ? 'awaitingPlanApproval' : 'inProgress';
+            const state = callCount > 1 ? 'awaitingPlanApproval' : 'inProgress';
             return HttpResponse.json({ id: 'SESSION_123', state });
           },
         ),
@@ -231,16 +230,12 @@ describe('SessionClient', () => {
               activities: [
                 {
                   name: 'a/1',
-                  createTime: new Date(
-                    startTime.getTime() + 100,
-                  ).toISOString(),
+                  createTime: new Date(startTime.getTime() + 100).toISOString(),
                   agentMessaged: { agentMessage: 'Okay, I did it.' },
                 },
                 {
                   name: 'a/2',
-                  createTime: new Date(
-                    startTime.getTime() + 200,
-                  ).toISOString(),
+                  createTime: new Date(startTime.getTime() + 200).toISOString(),
                   sessionCompleted: {},
                 },
               ],
@@ -326,5 +321,100 @@ describe('SessionClient', () => {
     await expect(failedSession.result()).rejects.toThrow(
       AutomatedSessionFailedError,
     );
+  });
+
+  describe('stream()', () => {
+    it('should filter out user messages when requested', async () => {
+      server.use(
+        http.get(
+          'https://jules.googleapis.com/v1alpha/sessions/SESSION_123/activities',
+          () => {
+            return HttpResponse.json({
+              activities: [
+                {
+                  name: 'a/1',
+                  originator: 'user',
+                  createTime: new Date().toISOString(),
+                  userMessaged: { message: 'Hello from user' },
+                },
+                {
+                  name: 'a/2',
+                  originator: 'agent',
+                  createTime: new Date().toISOString(),
+                  agentMessaged: { agentMessage: 'Hello from agent' },
+                },
+                {
+                  name: 'a/3',
+                  createTime: new Date().toISOString(),
+                  sessionCompleted: {},
+                },
+              ],
+            });
+          },
+        ),
+      );
+
+      const stream = session.stream({ exclude: { originator: 'user' } });
+      const iterator = stream[Symbol.asyncIterator]();
+
+      const { value: activity1 } = await iterator.next();
+      const { value: activity2 } = await iterator.next();
+      await iterator.return(undefined);
+
+      const receivedActivities = [activity1, activity2];
+
+      expect(receivedActivities.length).toBe(2);
+      expect(
+        receivedActivities.some((a) => a.originator === 'user'),
+      ).toBeFalsy();
+      expect(
+        receivedActivities.some((a) => a.type === 'agentMessaged'),
+      ).toBeTruthy();
+    });
+
+    it('should filter out user messages by default', async () => {
+      server.use(
+        http.get(
+          'https://jules.googleapis.com/v1alpha/sessions/SESSION_123/activities',
+          () => {
+            return HttpResponse.json({
+              activities: [
+                {
+                  name: 'a/1',
+                  originator: 'user',
+                  createTime: new Date().toISOString(),
+                  userMessaged: { message: 'Hello from user' },
+                },
+                {
+                  name: 'a/2',
+                  originator: 'agent',
+                  createTime: new Date().toISOString(),
+                  agentMessaged: { agentMessage: 'Hello from agent' },
+                },
+                {
+                  name: 'a/3',
+                  createTime: new Date().toISOString(),
+                  sessionCompleted: {},
+                },
+              ],
+            });
+          },
+        ),
+      );
+
+      const stream = session.stream(); // No options provided
+      const iterator = stream[Symbol.asyncIterator]();
+
+      const { value: activity1 } = await iterator.next();
+      const { value: activity2 } = await iterator.next();
+      await iterator.return(undefined);
+
+      const receivedActivities = [activity1, activity2];
+
+      expect(receivedActivities.length).toBe(2);
+      expect(
+        receivedActivities.some((a) => a.originator === 'user'),
+      ).toBeFalsy();
+    });
   });
 });
