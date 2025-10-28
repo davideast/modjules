@@ -26,16 +26,11 @@ export class SessionClientImpl implements SessionClient {
   }
 
   stream(options: StreamActivitiesOptions = {}): AsyncIterable<Activity> {
-    const finalOptions = { ...options };
-    if (options.exclude === undefined) {
-      finalOptions.exclude = { originator: 'user' };
-    }
-
     return streamActivities(
       this.id,
       this.apiClient,
       this.config.pollingIntervalMs,
-      finalOptions,
+      options,
     );
   }
 
@@ -63,7 +58,10 @@ export class SessionClientImpl implements SessionClient {
     const startTime = new Date();
     await this.send(prompt);
 
-    for await (const activity of this.stream()) {
+    // Don't return our own message.
+    for await (const activity of this.stream({
+      exclude: { originator: 'user' },
+    })) {
       const activityTime = new Date(activity.createTime).getTime();
       const askTime = startTime.getTime();
 
