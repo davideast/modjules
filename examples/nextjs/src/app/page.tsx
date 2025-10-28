@@ -4,6 +4,15 @@ import { useState, FormEvent, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Activity } from 'julets';
 
+// Import the new components
+import AgentChat from '../components/AgentChat';
+import ExecutionPlanCard from '../components/ExecutionPlanCard';
+import BashCommandOutput from '../components/BashCommandOutput';
+import FileModifiedNotification from '../components/FileModifiedNotification';
+import FrontendVerificationCard from '../components/FrontendVerificationCard';
+import CommitSummaryCard from '../components/CommitSummaryCard';
+import ChatMessage from '../components/ChatMessage';
+
 // Define the structure of a chat message
 interface Message {
   sender: 'user' | 'agent' | 'system';
@@ -199,19 +208,6 @@ export default function Home() {
     }
   };
 
-  const getSenderBgColor = (sender: Message['sender']) => {
-    switch (sender) {
-      case 'user':
-        return 'bg-blue-600 text-white self-end';
-      case 'agent':
-        return 'bg-zinc-800 text-zinc-100 self-start';
-      case 'system':
-        return 'bg-zinc-800 text-yellow-400 self-center text-sm';
-      default:
-        return 'bg-zinc-800';
-    }
-  };
-
   return (
     <div className="flex flex-col h-screen font-sans">
       <header className="p-4 border-b border-zinc-800 bg-zinc-950 shadow-sm">
@@ -278,30 +274,26 @@ export default function Home() {
         ) : (
           <div className="flex flex-col h-full bg-zinc-900 border border-zinc-800 rounded-lg shadow-md overflow-hidden">
             <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-              {messages.map((msg, index) => (
-                <div key={index} className="flex flex-col">
-                  <div
-                    className={`max-w-xs md:max-w-md p-3 rounded-lg ${getSenderBgColor(
-                      msg.sender,
-                    )}`}
-                  >
-                    {msg.activity?.type === 'planGenerated' ? (
-                      <div className="text-zinc-100">
-                        <p className="font-semibold mb-2">
-                          Okay, here is my plan:
-                        </p>
-                        <ul className="list-disc list-inside space-y-1">
-                          {msg.activity.plan.steps.map((step) => (
-                            <li key={step.id}>{step.title}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : (
-                      <p>{msg.text}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
+              {messages.map((msg, index) => {
+                if (msg.sender === 'user' || msg.sender === 'agent') {
+                  return <ChatMessage key={index} sender={msg.sender} text={msg.text} />;
+                }
+
+                switch (msg.activity?.type) {
+                  case 'planGenerated':
+                    return <ExecutionPlanCard key={index} plan={msg.activity.plan} />;
+                  case 'bashCommand':
+                    return <BashCommandOutput key={index} command={msg.activity.command} output={msg.activity.output} />;
+                  case 'fileModified':
+                    return <FileModifiedNotification key={index} filepath={msg.activity.filepath} description={msg.activity.description} />;
+                  case 'frontendVerification':
+                    return <FrontendVerificationCard key={index} screenshotUrl={msg.activity.screenshotUrl} />;
+                  case 'sessionCompleted':
+                    return <CommitSummaryCard key={index} commitSummary={msg.activity.commitSummary} />;
+                  default:
+                    return <AgentChat key={index} />;
+                }
+              })}
               <div ref={messagesEndRef} />
             </div>
             <div className="p-4 border-t border-zinc-800 bg-zinc-950">
