@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Activity } from 'julets';
 import AgentChat from '../components/AgentChat';
 import ChatMessage from '../components/ChatMessage';
@@ -14,37 +14,24 @@ export default function Home() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [input, setInput] = useState<string>('');
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [eventSource, setEventSource] = useState<EventSource | null>(null);
 
   const startStream = useCallback(
-    async (prompt: string) => {
-      setActivities((prev) => [
-        ...prev,
-        { type: 'user.message', message: prompt, originator: 'user' },
-      ]);
+    (currentSessionId: string) => {
+      if (eventSource) {
+        eventSource.close();
+      }
 
-      const url = sessionId
-        ? `/api/stream?prompt=${encodeURIComponent(prompt)}&sessionId=${sessionId}`
-        : `/api/stream?prompt=${encodeURIComponent(prompt)}`;
+      const newEventSource = new EventSource(
+        `/api/session/${currentSessionId}/stream`,
+      );
 
-      const eventSource = new EventSource(url);
-
-      eventSource.addEventListener('session_id', (event) => {
-        const newSessionId = (event as MessageEvent).data;
-        if (!sessionId) {
-          setSessionId(newSessionId);
-        }
-      });
-
-      eventSource.onmessage = (event) => {
-        if (event.data === '[DONE]') {
-          eventSource.close();
-          return;
-        }
+      newEventSource.onmessage = (event) => {
         const activity = JSON.parse(event.data);
         setActivities((prev) => [...prev, activity]);
       };
 
-      eventSource.onerror = (err) => {
+      newEventSource.onerror = (err) => {
         console.error('EventSource failed:', err);
         const errorMessage: Activity = {
           type: 'agent.message',
@@ -52,23 +39,93 @@ export default function Home() {
           originator: 'agent',
         };
         setActivities((prev) => [...prev, errorMessage]);
-        eventSource.close();
+        newEventSource.close();
+        setEventSource(null);
       };
 
-      return () => {
-        eventSource.close();
-      };
+      setEventSource(newEventSource);
     },
-    [sessionId],
+    [eventSource],
   );
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>)' => {
-    e.preventDefault();
-    if (input.trim()) {
-      startStream(input);
-      setInput('');
+  const createSession = async (prompt: string) => {
+    try {
+      const response = await fetch('/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          repo: 'jules-ai/jules-sdk-js-ci-cd-test', // Hardcoded for this example
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create session');
+      }
+
+      const { sessionId: newSessionId } = await response.json();
+      setSessionId(newSessionId);
+      startStream(newSessionId);
+    } catch (error) {
+      console.error('Session creation failed:', error);
+      const errorMessage: Activity = {
+        type: 'agent.message',
+        message: 'Failed to create a new session.',
+        originator: 'agent',
+      };
+      setActivities((prev) => [...prev, errorMessage]);
     }
   };
+
+  const sendMessage = async (message: string) => {
+    if (!sessionId) return;
+
+    try {
+      const response = await fetch(`/api/session/${sessionId}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      const errorMessage: Activity = {
+        type: 'agent.message',
+        message: 'Failed to send the message.',
+        originator: 'agent',
+      };
+      setActivities((prev) => [...prev, errorMessage]);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (input.trim()) {
+      const message = input;
+      setActivities((prev) => [
+        ...prev,
+        { type: 'user.message', message, originator: 'user' },
+      ]);
+      setInput('');
+
+      if (!sessionId) {
+        createSession(message);
+      } else {
+        sendMessage(message);
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
+  }, [eventSource]);
 
   const renderActivity = (activity: Activity) => {
     // ... (renderActivity function remains the same)
