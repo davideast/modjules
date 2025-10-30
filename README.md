@@ -8,7 +8,7 @@ Agents thrive on simple actions, persistent memory, and reactive updates. `julet
 
 - **Tool Oriented:** Abstracts multi-step API choreographies into single, awaitable tool calls that an agent can easily execute. (e.g., `create session → poll for status → fetch result`)
 - **Persistent State:** Provides external memory, retaining conversational context across turns without burdening your agent's context window.
-- **Reactive Streams:** Converts passive REST polling into push-style Async Iterators, allowing your agent to efficiently *observe* progress in real-time without managing complex polling logic.
+- **Reactive Streams:** Converts passive REST polling into push-style Async Iterators, allowing your agent to efficiently _observe_ progress in real-time without managing complex polling logic.
 
 ## Core Usage
 
@@ -42,7 +42,7 @@ for await (const activity of session.stream()) {
 const { pullRequest } = await session;
 if (pullRequest) {
   console.log(`PR: ${pullRequest.url}`);
-};
+}
 ```
 
 ## Installation
@@ -68,7 +68,8 @@ import { Jules } from 'julets';
 
 const jules = Jules();
 const session = await jules.session({
-  prompt: 'Refactor the user authentication module together. Show me your plan first.',
+  prompt:
+    'Refactor the user authentication module together. Show me your plan first.',
   source: { github: 'your-org/your-repo', branch: 'develop' },
 });
 
@@ -81,7 +82,9 @@ console.log('Plan is ready. Approving it now.');
 await session.approve();
 
 // Ask a follow-up question
-const reply = await session.ask('Start with the first step and let me know when it is done.');
+const reply = await session.ask(
+  'Start with the first step and let me know when it is done.',
+);
 console.log(`[AGENT] ${reply.message}`);
 
 // Wait for the final result of the session
@@ -99,7 +102,10 @@ Both `AutomatedSession` and `SessionClient` objects provide a `.stream()` method
 for await (const activity of session.stream()) {
   switch (activity.type) {
     case 'planGenerated':
-      console.log('Plan:', activity.plan.steps.map(s => s.title));
+      console.log(
+        'Plan:',
+        activity.plan.steps.map((s) => s.title),
+      );
       break;
     case 'agentMessaged':
       console.log('Agent says:', activity.message);
