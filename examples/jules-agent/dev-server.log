@@ -1,6 +1,0 @@
-
-> jules-agent@0.1.0 dev
-> NODE_OPTIONS='--inspect' next dev
-
-Debugger listening on ws://127.0.0.1:9229/7d38f0b4-27a6-4d30-aa72-8b183f018314
-For help, see: https://nodejs.org/en/docs/inspector
