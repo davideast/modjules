@@ -1,4 +1,3 @@
-
 //
 // Jules TypeScript SDK Types
 //
@@ -160,12 +159,10 @@ export type Source = {
    * The short identifier of the source (e.g., "github/owner/repo").
    */
   id: string;
-} & (
-  {
-    type: 'githubRepo';
-    githubRepo: GitHubRepo;
-  }
-);
+} & {
+  type: 'githubRepo';
+  githubRepo: GitHubRepo;
+};
 
 // -----------------------------------------------------------------------------
 // Session Types
@@ -186,6 +183,11 @@ export type SessionState =
   | 'paused'
   | 'failed'
   | 'completed';
+
+/**
+ * The entity that an activity originates from.
+ */
+export type Origin = 'user' | 'agent' | 'system';
 
 /**
  * A pull request created by the session.
@@ -209,12 +211,10 @@ export interface PullRequest {
  *   }
  * }
  */
-export type SessionOutput =
-  {
-    type: 'pullRequest';
-    pullRequest: PullRequest;
-  }
-;
+export type SessionOutput = {
+  type: 'pullRequest';
+  pullRequest: PullRequest;
+};
 
 /**
  * Represents the context used when the session was created.
@@ -411,7 +411,7 @@ export interface RestMediaArtifact {
 
 export interface RestBashOutputArtifact {
   bashOutput: {
-    command:string;
+    command: string;
     stdout: string;
     stderr: string;
     exitCode: number | null;
@@ -610,6 +610,18 @@ export interface AutomatedSession extends Promise<Outcome> {
 // -----------------------------------------------------------------------------
 
 /**
+ * Options for streaming activities, such as filtering.
+ * This is a forward declaration; the actual type is in `streaming.ts`
+ * to avoid circular dependencies.
+ * @internal
+ */
+export type StreamActivitiesOptions = {
+  exclude?: {
+    originator: Origin;
+  };
+};
+
+/**
  * Represents an active, interactive session with the Jules agent.
  * This is the primary interface for managing the lifecycle of an interactive session.
  */
@@ -623,14 +635,14 @@ export interface SessionClient {
    * Provides a real-time stream of activities for the session.
    * This uses an Async Iterator to abstract the polling of the ListActivities endpoint.
    *
+   * @param options Options to control the stream, such as filters.
    * @example
-   * for await (const activity of session.stream()) {
-   *   if (activity.type === 'agentMessaged') {
-   *     console.log('Agent:', activity.message);
-   *   }
+   * // Filter out activities originated by the user
+   * for await (const activity of session.stream({ exclude: { originator: 'user' } })) {
+   *   console.log(activity.type);
    * }
    */
-  stream(): AsyncIterable<Activity>;
+  stream(options?: StreamActivitiesOptions): AsyncIterable<Activity>;
 
   /**
    * Approves the currently pending plan.

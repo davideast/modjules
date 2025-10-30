@@ -2,7 +2,6 @@
   "name": "julets",
   "version": "0.0.1",
   "description": "The agent-ready SDK for Jules.",
-  "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -14,7 +14,9 @@ export async function GET(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        for await (const activity of session.stream()) {
+        for await (const activity of session.stream({
+          exclude: { originator: 'user' },
+        })) {
           const chunk = `data: ${JSON.stringify(activity)}\n\n`;
           controller.enqueue(new TextEncoder().encode(chunk));
         }
