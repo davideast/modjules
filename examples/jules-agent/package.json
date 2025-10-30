@@ -9,10 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@types/react-syntax-highlighter": "^15.5.13",
     "julets": "file:../../julets-0.0.1.tgz",
-    "next": "16.0.0",
-    "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "next": "14.2.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-syntax-highlighter": "^16.1.0"
   },
   "devDependencies": {
     "@tailwindcss/container-queries": "^0.1.1",
