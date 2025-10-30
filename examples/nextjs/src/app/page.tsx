@@ -281,11 +281,24 @@ export default function Home() {
               {messages.map((msg, index) => (
                 <div key={index} className="flex flex-col">
                   <div
-                    className={`max-w-xs md:max-w-md p-3 rounded-lg ${getSenderBgColor(msg.sender)}`}
+                    className={`max-w-xs md:max-w-md p-3 rounded-lg ${getSenderBgColor(
+                      msg.sender,
+                    )}`}
                   >
-                    <div className="text-zinc-100">
-                      <code>{JSON.stringify(msg, null, 2)}</code>
-                    </div>
+                    {msg.activity?.type === 'planGenerated' ? (
+                      <div className="text-zinc-100">
+                        <p className="font-semibold mb-2">
+                          Okay, here is my plan:
+                        </p>
+                        <ul className="list-disc list-inside space-y-1">
+                          {msg.activity.plan.steps.map((step) => (
+                            <li key={step.id}>{step.title}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p>{msg.text}</p>
+                    )}
                   </div>
                 </div>
               ))}

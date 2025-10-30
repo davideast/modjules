@@ -2,7 +2,7 @@
 import { ApiClient } from './api.js';
 import { JulesApiError } from './errors.js';
 import { mapRestActivityToSdkActivity } from './mappers.js';
-import { Activity, SessionResource } from './types.js';
+import { Activity, Origin, SessionResource } from './types.js';
 
 // A helper function for delaying execution.
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -14,18 +14,29 @@ type ListActivitiesResponse = {
 };
 
 /**
+ * @internal
+ */
+export type StreamActivitiesOptions = {
+  exclude?: {
+    originator: Origin;
+  };
+};
+
+/**
  * An async generator that implements a hybrid pagination/polling strategy
  * to stream activities for a given session.
  *
  * @param sessionId The ID of the session to stream activities for.
  * @param apiClient The API client to use for requests.
  * @param pollingInterval The time in milliseconds to wait before polling for new activities.
+ * @param options Streaming options, including filters.
  * @internal
  */
 export async function* streamActivities(
   sessionId: string,
   apiClient: ApiClient,
   pollingInterval: number,
+  options: StreamActivitiesOptions = {},
 ): AsyncGenerator<Activity> {
   let pageToken: string | undefined = undefined;
   let isFirstCall = true;
@@ -101,6 +112,14 @@ export async function* streamActivities(
       }
 
       const activity = mapRestActivityToSdkActivity(rawActivity);
+
+      if (
+        options.exclude?.originator &&
+        activity.originator === options.exclude.originator
+      ) {
+        continue;
+      }
+
       yieldedActivityNames.add(rawActivity.name);
       yield activity;
     }

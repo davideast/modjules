@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
     }
 
-    const jules = Jules();
+    const jules = Jules({ apiKey: process.env.JULES_API_KEY });
     const session = jules.session(sessionId);
     const sessionInfo = await session.info();
 
