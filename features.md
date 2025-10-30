@@ -387,3 +387,74 @@ const prompt = await new PromptBuilder()
 
 const session = await jules.run({ prompt });
 ```
+
+### 19. Session Dry Run
+- **Category:** Tooling
+- **Complexity:** Medium
+- **Impact:** High
+- **Description:** A client-side "dry run" mode that simulates a session creation and initial interaction without actually calling the backend API. It would validate the session configuration, check local file paths, and return a mock session object. This allows developers to test their script's setup and initial logic (e.g., prompt builders, event listeners) quickly and offline.
+- **API Example:**
+```typescript
+const jules = new JulesClient();
+
+// The `dryRun()` method validates config and returns a mock session
+// that can be used to test local setup and logic.
+const session = await jules.run(
+  {
+    source: { github: 'my/repo' },
+    prompt: 'This is my prompt',
+  },
+  { dryRun: true },
+);
+
+// The mock session can have listeners attached to test eventing logic
+session.on('plan', () => {
+  console.log('Plan listener was correctly attached.');
+});
+
+console.log(`Dry run successful. Session ID: ${session.id}`); // e.g., 'dry-run-12345'
+```
+
+### 20. Artifact-Aware Session Result
+- **Category:** Helper
+- **Complexity:** Medium
+- **Impact:** Medium
+- **Description:** Enhance the `session.result()` method to not only return the final state but also to automatically collect and organize all artifacts generated during the session. This saves the developer from having to iterate through the stream themselves for the common use case of retrieving all outputs.
+- **API Example:**
+```typescript
+const { finalState, artifacts } = await session.result({ collectArtifacts: true });
+
+console.log(`Session completed with status: ${finalState.status}`);
+
+// Artifacts are pre-filtered and organized by type.
+if (artifacts.changeSets.length > 0) {
+  console.log(`Found ${artifacts.changeSets.length} patch(es).`);
+  // await applyPatch(artifacts.changeSets[0]);
+}
+
+if (artifacts.media.length > 0) {
+  console.log(`Found ${artifacts.media.length} media file(s).`);
+  // await saveMedia(artifacts.media[0]);
+}
+```
+
+### 21. Human-in-the-Loop (`session.promptUser`)
+- **Category:** Helper
+- **Complexity:** High
+- **Impact:** High
+- **Description:** Provide a built-in helper method that pauses the session stream and prompts the human operator for input directly in the terminal. The developer could define a question, and the user's response would be sent back to the agent via `session.send()`. This simplifies creating interactive scripts where the agent might need clarification.
+- **API Example:**
+```typescript
+session.on('progress', async (activity) => {
+  // Check for a special marker in the agent's message
+  if (activity.description.includes('NEEDS_CLARIFICATION')) {
+    const response = await session.promptUser(
+      'The agent needs more information. What should I tell it?',
+    );
+    // The user's terminal input is sent back to the agent.
+    await session.send(response);
+  }
+});
+
+await session.result();
+```
