@@ -1,14 +1,12 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { exec, spawn, ChildProcess } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
-// Increased timeout for this integration test suite
-vi.setConfig({ testTimeout: 60000 });
-
 describe('MCP Client Integration Test', () => {
   let devServerProcess: ChildProcess;
+  let devServerPort: number;
 
   beforeAll(async () => {
     // Start the Next.js dev server for the jules-agent example
@@ -20,40 +18,57 @@ describe('MCP Client Integration Test', () => {
       },
     );
 
-    // Wait for the server to be ready by listening for the debugger message
-    await new Promise<void>((resolve, reject) => {
+    // Wait for the server to be ready and capture the port
+    devServerPort = await new Promise<number>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Dev server failed to start in time.'));
-      }, 30000); // 30-second timeout
+      }, 50000); // 50-second timeout for server startup
 
-      devServerProcess.stdout?.on('data', (data: Buffer) => {
-        if (data.toString().includes('Debugger listening on')) {
-          clearTimeout(timeout);
-          resolve();
+      let foundPort: number | null = null;
+
+      const onData = (data: Buffer) => {
+        const output = data.toString();
+        // First, find and store the port
+        if (output.includes('- Local:')) {
+          const portMatch = output.match(/http:\/\/localhost:(\d+)/);
+          if (portMatch) {
+            foundPort = parseInt(portMatch[1], 10);
+          }
         }
-      });
-      devServerProcess.stderr?.on('data', (data: Buffer) => {
-        if (data.toString().includes('Debugger listening on')) {
+        // Then, wait for the ready signal
+        if (output.includes('✓ Ready') && foundPort) {
           clearTimeout(timeout);
-          resolve();
+          resolve(foundPort);
         }
-      });
+      };
+
+      devServerProcess.stdout?.on('data', onData);
+      devServerProcess.stderr?.on('data', onData);
     });
-  });
+  }, 60000); // 60-second timeout for the entire beforeAll hook
 
   afterAll(() => {
     // Stop the dev server process
     if (devServerProcess && devServerProcess.pid) {
       // Kill the entire process group to ensure the Next.js server also stops
-      process.kill(-devServerProcess.pid, 'SIGKILL');
+      try {
+        process.kill(-devServerProcess.pid, 'SIGKILL');
+      } catch (e) {
+        // Ignore errors if the process is already gone
+      }
     }
-  });
+  }, 60000); // 60-second timeout for the afterAll hook
 
-  it('should successfully connect to the MCP server and list tools', async () => {
-    const { stdout, stderr } = await execAsync('npm run mcp:client');
+  it('should successfully connect to the MCP server and call a tool', async () => {
+    const { stdout } = await execAsync(
+      `npm run mcp:client -- --port=${devServerPort}`,
+    );
 
     expect(stdout).toContain('MCP client connected.');
-    expect(stdout).toContain('Available tools:');
-    expect(stdout).toContain('nextjs_runtime');
-  });
+    expect(stdout).toContain(`Using port ${devServerPort}.`);
+    expect(stdout).toContain('Calling get_errors tool via nextjs_runtime...');
+    expect(stdout).toContain('get_errors result:');
+    // The result is a JSON string inside a text property, so the quotes are escaped.
+    expect(stdout).toContain('\\"success\\":true');
+  }, 60000); // 60-second timeout for the test itself
 });
