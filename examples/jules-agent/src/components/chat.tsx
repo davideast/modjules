@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Activity } from 'julets';
 
 // Define the shape of a message for the UI
@@ -11,22 +12,18 @@ interface Message {
 }
 
 export default function Chat() {
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const sessionParam = searchParams.get('session');
+
+  if (!sessionParam) {
+    throw new Error('You need a session id');
+  }
+  const [sessionId, setSessionId] = useState<string | null>(sessionParam);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
 
   const agentMessageRef = useRef<string>('');
-
-  // Create a new session when the component mounts
-  useEffect(() => {
-    const createSession = async () => {
-      const response = await fetch('/api/session', { method: 'POST' });
-      const data = await response.json();
-      setSessionId(data.sessionId);
-    };
-    createSession();
-  }, []);
 
   // Listen for agent activities when the session ID is available
   useEffect(() => {
@@ -36,12 +33,10 @@ export default function Chat() {
 
     eventSource.onmessage = (event) => {
       const activity: Activity = JSON.parse(event.data);
-
-      if (activity.type === 'agent.thought.start') {
+      if (activity.type === 'agentMessaged') {
         setIsStreaming(true);
         agentMessageRef.current = '';
-      } else if (activity.type === 'agent.thought.chunk') {
-        agentMessageRef.current += activity.content;
+        agentMessageRef.current += activity.message;
         // Update the last message in the messages array with the streamed content
         setMessages((prev) => {
           const lastMessage = prev[prev.length - 1];
@@ -61,9 +56,7 @@ export default function Chat() {
             ];
           }
         });
-      } else if (activity.type === 'agent.thought.end') {
-        setIsStreaming(false);
-      } else if (activity.type === 'user.message.created') {
+      } else if (activity.type === 'userMessaged') {
         setMessages((prev) => [
           ...prev,
           { id: activity.id, text: activity.message, originator: 'user' },

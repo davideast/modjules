@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server';
 import { Jules } from 'julets';
 
 export async function GET(
@@ -6,20 +7,26 @@ export async function GET(
 ) {
   const { sessionId } = params;
 
-  const jules = new Jules({
+  if (!process.env.JULES_API_KEY) {
+    return new Response('JULES_API_KEY is not set', { status: 500 });
+  }
+
+  if (!sessionId) {
+    return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
+  }
+
+  const jules = Jules({
     apiKey: process.env.JULES_API_KEY,
   });
 
   const stream = new ReadableStream({
     async start(controller) {
-      const activityStream = await jules.sessions.stream(sessionId, {});
+      const session = await jules.session(sessionId);
 
-      for await (const activity of activityStream) {
+      for await (const activity of session.stream()) {
         const chunk = `data: ${JSON.stringify(activity)}\n\n`;
         controller.enqueue(new TextEncoder().encode(chunk));
       }
-      // The stream from jules.sessions.stream is non-terminating,
-      // so we don't call controller.close() here.
     },
   });
 

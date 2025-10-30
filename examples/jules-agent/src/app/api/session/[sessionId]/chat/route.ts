@@ -8,13 +8,17 @@ export async function POST(
   const { message } = await req.json();
   const { sessionId } = params;
 
-  const jules = new Jules({
-    apiKey: process.env.JULES_API_KEY,
-  });
+  if (!process.env.JULES_API_KEY) {
+    return new Response('JULES_API_KEY is not set', { status: 500 });
+  }
 
-  await jules.sessions.chat(sessionId, {
-    message: message,
-  });
+  if (!sessionId) {
+    return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
+  }
 
-  return NextResponse.json({ success: true });
+  const jules = Jules({ apiKey: process.env.JULES_API_KEY });
+  const session = jules.session(sessionId);
+  const sessionInfo = await session.info();
+
+  return NextResponse.json(sessionInfo);
 }
