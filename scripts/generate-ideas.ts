@@ -59,7 +59,7 @@ async function main() {
   console.log('Initiating a fire-and-forget Jules session...');
 
   // This creates a session that will automatically create a PR on completion
-  const session = jules.run({
+  jules.run({
     source: {
       github: `${owner}/${repo}`,
       branch: 'main',
