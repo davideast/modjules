@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Activity } from 'julets';
+import { Activity, ActivityPlanGenerated } from 'julets';
+import PlanCard from './PlanCard';
 
-// Define the shape of a message for the UI
-interface Message {
-  id: string;
-  text: string;
-  originator: 'user' | 'agent';
-}
+// Define a union type for different kinds of messages in the UI
+type UIMessage =
+  | { type: 'message'; id: string; text: string; originator: 'user' | 'agent' }
+  | { type: 'plan'; id: string; activity: ActivityPlanGenerated };
 
 export default function Chat() {
   const searchParams = useSearchParams();
@@ -18,14 +17,13 @@ export default function Chat() {
   if (!sessionParam) {
     throw new Error('You need a session id');
   }
+
   const [sessionId, setSessionId] = useState<string | null>(sessionParam);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
 
   const agentMessageRef = useRef<string>('');
 
-  // Listen for agent activities when the session ID is available
   useEffect(() => {
     if (!sessionId) return;
 
@@ -33,14 +31,16 @@ export default function Chat() {
 
     eventSource.onmessage = (event) => {
       const activity: Activity = JSON.parse(event.data);
+
       if (activity.type === 'agentMessaged') {
-        setIsStreaming(true);
         agentMessageRef.current = '';
         agentMessageRef.current += activity.message;
-        // Update the last message in the messages array with the streamed content
         setMessages((prev) => {
           const lastMessage = prev[prev.length - 1];
-          if (lastMessage && lastMessage.originator === 'agent') {
+          if (
+            lastMessage?.type === 'message' &&
+            lastMessage.originator === 'agent'
+          ) {
             return [
               ...prev.slice(0, -1),
               { ...lastMessage, text: agentMessageRef.current },
@@ -49,6 +49,7 @@ export default function Chat() {
             return [
               ...prev,
               {
+                type: 'message',
                 id: activity.id,
                 text: agentMessageRef.current,
                 originator: 'agent',
@@ -59,7 +60,17 @@ export default function Chat() {
       } else if (activity.type === 'userMessaged') {
         setMessages((prev) => [
           ...prev,
-          { id: activity.id, text: activity.message, originator: 'user' },
+          {
+            type: 'message',
+            id: activity.id,
+            text: activity.message,
+            originator: 'user',
+          },
+        ]);
+      } else if (activity.type === 'planGenerated') {
+        setMessages((prev) => [
+          ...prev,
+          { type: 'plan', id: activity.id, activity },
         ]);
       }
     };
@@ -78,16 +89,24 @@ export default function Chat() {
     setInput(e.target.value);
   };
 
-  const handleSendMessage = async () => {
-    if (input.trim() === '' || !sessionId) return;
+  const handleSendMessage = async (message: string) => {
+    if (message.trim() === '' || !sessionId) return;
 
     await fetch(`/api/session/${sessionId}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: input }),
+      body: JSON.stringify({ message }),
     });
 
     setInput('');
+  };
+
+  const handleApprovePlan = async () => {
+    if (!sessionId) return;
+    await fetch(`/api/session/${sessionId}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
   };
 
   return (
@@ -97,9 +116,18 @@ export default function Chat() {
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.originator === 'user' ? 'justify-end' : 'justify-center py-6'}`}
+              className={`flex ${
+                msg.type === 'message' && msg.originator === 'user'
+                  ? 'justify-end'
+                  : 'justify-center py-6'
+              }`}
             >
-              {msg.originator === 'user' ? (
+              {msg.type === 'plan' ? (
+                <PlanCard
+                  plan={msg.activity.plan}
+                  onApprove={handleApprovePlan}
+                />
+              ) : msg.originator === 'user' ? (
                 <p className="text-right text-base text-gray-700 dark:text-gray-300">
                   {msg.text}
                 </p>
@@ -132,7 +160,7 @@ export default function Chat() {
               type="text"
               value={input}
               onChange={handleInputChange}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage(input)}
             />
             <div className="absolute inset-y-0 right-2 flex items-center space-x-1">
               <button className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700/50">
@@ -140,7 +168,7 @@ export default function Chat() {
               </button>
               <button
                 className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center hover:opacity-90 transition-opacity"
-                onClick={handleSendMessage}
+                onClick={() => handleSendMessage(input)}
               >
                 <span className="material-icons-outlined">arrow_upward</span>
               </button>
