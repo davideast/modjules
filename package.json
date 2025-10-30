@@ -25,6 +25,7 @@
     "test:integration": "vitest run -c vitest.integration.config.ts",
     "type-check": "tsc --project tsconfig.test.json",
     "verify": "tsx scripts/verify.ts",
+    "mcp:client": "tsx scripts/mcp-client.ts",
     "prepare": "husky"
   },
   "keywords": [
@@ -49,5 +50,9 @@
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.2",
+    "express": "^5.1.0"
   }
 }
