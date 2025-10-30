@@ -20,14 +20,18 @@ describe('MCP Client Integration Test', () => {
 
     // Wait for the server to be ready and capture the port
     devServerPort = await new Promise<number>((resolve, reject) => {
-      const timeout = setTimeout(() => {
+      const timeout = setTimeout(() of => {
         reject(new Error('Dev server failed to start in time.'));
       }, 50000); // 50-second timeout for server startup
 
       let foundPort: number | null = null;
+      let fullOutput = ''; // Accumulate output for debugging
 
       const onData = (data: Buffer) => {
         const output = data.toString();
+        fullOutput += output;
+        console.log('Dev Server Output:', output); // Log all output for debugging
+
         // First, find and store the port
         if (output.includes('- Local:')) {
           const portMatch = output.match(/http:\/\/localhost:(\d+)/);
@@ -60,9 +64,7 @@ describe('MCP Client Integration Test', () => {
   }, 60000); // 60-second timeout for the afterAll hook
 
   it('should successfully connect to the MCP server and call a tool', async () => {
-    const { stdout } = await execAsync(
-      `npm run mcp:client -- --port=${devServerPort}`,
-    );
+    const { stdout } = await execAsync(`npm run mcp:client -- --port=${devServerPort}`);
 
     expect(stdout).toContain('MCP client connected.');
     expect(stdout).toContain(`Using port ${devServerPort}.`);
