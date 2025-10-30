@@ -2,13 +2,19 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Activity, ActivityPlanGenerated } from 'julets';
+import {
+  Activity,
+  ActivityPlanGenerated,
+  ActivityProgressUpdated,
+} from 'julets';
 import PlanCard from './PlanCard';
+import { ProgressUpdated } from './ProgressUpdated';
 
 // Define a union type for different kinds of messages in the UI
 type UIMessage =
   | { type: 'message'; id: string; text: string; originator: 'user' | 'agent' }
-  | { type: 'plan'; id: string; activity: ActivityPlanGenerated };
+  | { type: 'plan'; id: string; activity: ActivityPlanGenerated }
+  | { type: 'progress'; id: string; activity: ActivityProgressUpdated };
 
 export default function Chat() {
   const searchParams = useSearchParams();
@@ -72,6 +78,11 @@ export default function Chat() {
           ...prev,
           { type: 'plan', id: activity.id, activity },
         ]);
+      } else if (activity.type === 'progressUpdated') {
+        setMessages((prev) => [
+          ...prev,
+          { type: 'progress', id: activity.id, activity },
+        ]);
       }
     };
 
@@ -127,6 +138,8 @@ export default function Chat() {
                   plan={msg.activity.plan}
                   onApprove={handleApprovePlan}
                 />
+              ) : msg.type === 'progress' ? (
+                <ProgressUpdated activity={msg.activity} />
               ) : msg.originator === 'user' ? (
                 <p className="text-right text-base text-gray-700 dark:text-gray-300">
                   {msg.text}
