@@ -59,7 +59,7 @@ async function main() {
   console.log('Initiating a fire-and-forget Jules session...');
 
   // This creates a session that will automatically create a PR on completion
-  const sessionConfig = {
+  jules.run({
     source: {
       github: `${owner}/${repo}`,
       branch: 'main',
@@ -67,16 +67,14 @@ async function main() {
     prompt,
     title: 'feat: Add new SDK feature ideas',
     autoPr: true,
-  };
-
-  console.log('Passing the following config to jules.run():');
-  console.log(JSON.stringify(sessionConfig, null, 2));
-
-  const session = jules.run(sessionConfig);
+  });
 
   console.log(
     '✅ Jules session initiated successfully. A new PR with feature ideas will be created shortly.',
   );
+
+  // Explicitly exit the process since the SDK's polling will keep it alive otherwise.
+  process.exit(0);
 }
 
 main().catch((error) => {
