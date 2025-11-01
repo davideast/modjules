@@ -9,7 +9,7 @@ import {
   vi,
 } from 'vitest';
 import { server } from './mocks/server.js';
-import { Jules } from '../src/index.js';
+import { jules as defaultJules } from '../src/index.js';
 import { http, HttpResponse } from 'msw';
 import {
   AutomatedSessionFailedError,
@@ -32,7 +32,7 @@ const MOCK_AUTOMATED_SESSION_CONFIG = {
 };
 
 describe('jules.run()', () => {
-  const jules = Jules({
+  const jules = defaultJules.with({
     apiKey: API_KEY,
     config: { pollingIntervalMs: 100 },
   });

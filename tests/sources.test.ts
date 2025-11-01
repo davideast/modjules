@@ -1,7 +1,7 @@
 // tests/sources.test.ts
 import { beforeAll, afterAll, afterEach, describe, it, expect } from 'vitest';
 import { server } from './mocks/server.js';
-import { Jules, Source } from '../src/index.js';
+import { jules as defaultJules, Source } from '../src/index.js';
 import { http, HttpResponse } from 'msw';
 import { JulesApiError } from '../src/errors.js';
 
@@ -14,7 +14,7 @@ const API_KEY = 'test-api-key';
 const BASE_URL = 'https://jules.googleapis.com/v1alpha';
 
 describe('SourceManager', () => {
-  const jules = Jules({ apiKey: API_KEY });
+  const jules = defaultJules.with({ apiKey: API_KEY });
 
   describe('get()', () => {
     it('should retrieve an existing source by its GitHub identifier', async () => {

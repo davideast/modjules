@@ -1,12 +1,12 @@
 // tests/integration/creation_race.test.ts
-import { Jules } from '../../src/index.js';
+import { jules as defaultJules } from '../../src/index.js';
 import { describe, it, expect, vi } from 'vitest';
 
 describe.skipIf(!process.env.JULES_API_KEY || !process.env.TEST_GITHUB_REPO)(
   'Session Creation Race Condition',
   () => {
     it('should not throw a 404 when streaming activities immediately after session creation', async () => {
-      const jules = Jules({
+      const jules = defaultJules.with({
         apiKey: process.env.JULES_API_KEY,
       });
 

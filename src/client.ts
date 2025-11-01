@@ -30,8 +30,10 @@ export class JulesClientImpl implements JulesClient {
   public sources: SourceManager;
   private apiClient: ApiClient;
   private config: InternalConfig;
+  private options: JulesOptions;
 
   constructor(options: JulesOptions = {}) {
+    this.options = options;
     const apiKey = options.apiKey ?? process.env.JULES_API_KEY;
     const baseUrl = options.baseUrl ?? 'https://jules.googleapis.com/v1alpha';
 
@@ -47,6 +49,17 @@ export class JulesClientImpl implements JulesClient {
       requestTimeoutMs: this.config.requestTimeoutMs,
     });
     this.sources = createSourceManager(this.apiClient);
+  }
+
+  with(options: JulesOptions): JulesClient {
+    return new JulesClientImpl({
+      ...this.options,
+      ...options,
+      config: {
+        ...this.options.config,
+        ...options.config,
+      },
+    });
   }
 
   private async _prepareSessionCreation(
