@@ -1,13 +1,9 @@
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  afterEach,
-} from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Buffer } from 'buffer';
-import type { RestMediaArtifact, RestBashOutputArtifact } from '../src/types.js';
+import type {
+  RestMediaArtifact,
+  RestBashOutputArtifact,
+} from '../src/types.js';
 
 // Mock the entire fs/promises module
 vi.mock('fs/promises', () => ({

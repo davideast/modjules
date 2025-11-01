@@ -42,7 +42,10 @@ describe('Error Handling', () => {
     server.use(
       mockSourceLookup,
       http.post(expectedUrl, () => {
-        return new HttpResponse(null, { status: 401, statusText: 'Unauthorized' });
+        return new HttpResponse(null, {
+          status: 401,
+          statusText: 'Unauthorized',
+        });
       }),
     );
 
@@ -80,7 +83,10 @@ describe('Error Handling', () => {
     server.use(
       mockSourceLookup,
       http.post(expectedUrl, () => {
-        return new HttpResponse(null, { status: 429, statusText: 'Too Many Requests' });
+        return new HttpResponse(null, {
+          status: 429,
+          statusText: 'Too Many Requests',
+        });
       }),
     );
 

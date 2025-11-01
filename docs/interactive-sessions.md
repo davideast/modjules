@@ -20,7 +20,7 @@ async function createNewSession() {
     prompt: "Let's refactor the user authentication flow.",
     source: {
       github: 'my-org/my-repo',
-      branch: 'develop'
+      branch: 'develop',
     },
   });
 
@@ -107,8 +107,8 @@ console.log('Agent response:', agentResponse.message);
 
 ### `send()` vs. `ask()`
 
--   `send()` is asynchronous. It sends a message and immediately returns, without waiting for the agent to process or respond. You would typically use `stream()` to see the agent's response and other activities.
--   `ask()` is synchronous in nature. It sends a message and blocks until the agent sends a message back, which it then returns. It's a simpler way to interact with the agent when you expect a direct reply.
+- `send()` is asynchronous. It sends a message and immediately returns, without waiting for the agent to process or respond. You would typically use `stream()` to see the agent's response and other activities.
+- `ask()` is synchronous in nature. It sends a message and blocks until the agent sends a message back, which it then returns. It's a simpler way to interact with the agent when you expect a direct reply.
 
 Choose `send()` when you want to provide information or commands without needing an immediate answer. Choose `ask()` when you are having a conversational exchange with the agent.
 

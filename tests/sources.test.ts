@@ -42,11 +42,11 @@ describe('SourceManager', () => {
       server.use(
         http.get(`${BASE_URL}/sources/github/server/error`, () => {
           return new HttpResponse('Internal Server Error', { status: 500 });
-        })
+        }),
       );
 
       await expect(
-        jules.sources.get({ github: 'server/error' })
+        jules.sources.get({ github: 'server/error' }),
       ).rejects.toThrow(JulesApiError);
 
       const promise = jules.sources.get({ github: 'server/error' });
@@ -74,7 +74,7 @@ describe('SourceManager', () => {
               },
             ],
           });
-        })
+        }),
       );
 
       const sources: Source[] = [];
@@ -117,7 +117,7 @@ describe('SourceManager', () => {
       server.use(
         http.get(`${BASE_URL}/sources`, () => {
           return new HttpResponse('Server blew up', { status: 500 });
-        })
+        }),
       );
 
       async function consumeGenerator() {

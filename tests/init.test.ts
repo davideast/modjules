@@ -1,5 +1,13 @@
 // tests/init.test.ts
-import { beforeAll, afterAll, afterEach, describe, it, expect, beforeEach } from 'vitest';
+import {
+  beforeAll,
+  afterAll,
+  afterEach,
+  describe,
+  it,
+  expect,
+  beforeEach,
+} from 'vitest';
 import { server } from './mocks/server.js';
 import { Jules } from '../src/index.js';
 import { JulesClientImpl } from '../src/client.js';
@@ -52,12 +60,17 @@ describe('SDK Initialization', () => {
   it('should use the default baseUrl if not provided', () => {
     const jules = Jules({ apiKey: 'test-key' }) as JulesClientImpl;
     // @ts-expect-error apiClient is private, but we access it for this test
-    expect(jules.apiClient['baseUrl']).toBe('https://jules.googleapis.com/v1alpha');
+    expect(jules.apiClient['baseUrl']).toBe(
+      'https://jules.googleapis.com/v1alpha',
+    );
   });
 
   it('should allow overriding the baseUrl', () => {
     const customUrl = 'http://localhost:8080';
-    const jules = Jules({ apiKey: 'test-key', baseUrl: customUrl }) as JulesClientImpl;
+    const jules = Jules({
+      apiKey: 'test-key',
+      baseUrl: customUrl,
+    }) as JulesClientImpl;
     // @ts-expect-error apiClient is private, but we access it for this test
     expect(jules.apiClient['baseUrl']).toBe(customUrl);
   });

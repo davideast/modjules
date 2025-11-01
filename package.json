@@ -37,7 +37,7 @@
   "author": "",
   "license": "ISC",
   "lint-staged": {
-    "**/*.{ts,tsx,js,jsx,json,md,css}": "prettier --write"
+    "**/*": "prettier --write ."
   },
   "devDependencies": {
     "@google/jules": "^0.1.37",

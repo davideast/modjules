@@ -56,7 +56,7 @@ class SourceManagerImpl {
 
       const response = await this.apiClient.request<ListSourcesResponse>(
         'sources',
-        { params }
+        { params },
       );
 
       if (response && response.sources) {
@@ -75,9 +75,7 @@ class SourceManagerImpl {
   async get(filter: { github: string }): Promise<Source | undefined> {
     const { github } = filter;
     if (!github || !github.includes('/')) {
-      throw new Error(
-        "Invalid GitHub filter. Expected format: 'owner/repo'."
-      );
+      throw new Error("Invalid GitHub filter. Expected format: 'owner/repo'.");
     }
 
     const resourceName = `sources/github/${github}`;
