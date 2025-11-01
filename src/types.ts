@@ -799,13 +799,27 @@ export interface JulesClient {
    * const allSources = await Array.fromAsync(sources());
    */
   sources: SourceManager;
+
+  /**
+   * Creates a new Jules client instance with updated configuration.
+   * This is an immutable operation; the original client instance remains unchanged.
+   *
+   * @param options The new configuration options to merge with the existing ones.
+   * @returns A new JulesClient instance with the updated configuration.
+   *
+   * @example
+   * const specialized = jules.with({ apiKey: 'NEW_KEY' });
+   */
+  with(options: JulesOptions): JulesClient;
 }
 
 /**
  * The main entry point for the Jules SDK.
- * This factory function initializes the Jules client.
+ * This is a pre-initialized client that can be used immediately with default settings
+ * (e.g., reading API keys from environment variables).
  *
- * @param options Configuration options for the SDK.
- * @returns An initialized JulesClient instance.
+ * @example
+ * import { jules } from 'julets';
+ * const session = await jules.session({ ... });
  */
-export declare function Jules(options?: JulesOptions): JulesClient;
+export declare const jules: JulesClient;

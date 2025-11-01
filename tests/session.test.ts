@@ -10,7 +10,7 @@ import {
   afterAll,
 } from 'vitest';
 import {
-  Jules,
+  jules as defaultJules,
   JulesClient,
   SessionClient,
   AutomatedSessionFailedError,
@@ -113,7 +113,7 @@ describe('jules.session()', () => {
   let jules: JulesClient;
 
   beforeEach(() => {
-    jules = Jules({ apiKey: 'test-key' });
+    jules = defaultJules.with({ apiKey: 'test-key' });
   });
 
   it('should create a new session with correct defaults', async () => {
@@ -142,7 +142,7 @@ describe('SessionClient', () => {
   let session: SessionClient;
 
   beforeEach(() => {
-    jules = Jules({
+    jules = defaultJules.with({
       apiKey: 'test-key',
       config: { pollingIntervalMs: 10 },
     });

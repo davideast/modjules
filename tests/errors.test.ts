@@ -2,7 +2,7 @@
 import { beforeAll, afterAll, afterEach, describe, it, expect } from 'vitest';
 import { server } from './mocks/server.js';
 import { http, HttpResponse } from 'msw';
-import { Jules } from '../src/index.js';
+import { jules as defaultJules } from '../src/index.js';
 import {
   JulesAuthenticationError,
   JulesRateLimitError,
@@ -35,7 +35,10 @@ const mockSourceLookup = http.get(
 );
 
 describe('Error Handling', () => {
-  const jules = Jules({ apiKey: TEST_API_KEY, baseUrl: TEST_BASE_URL });
+  const jules = defaultJules.with({
+    apiKey: TEST_API_KEY,
+    baseUrl: TEST_BASE_URL,
+  });
 
   it('should throw JulesAuthenticationError on 401 Unauthorized', async () => {
     const expectedUrl = `${TEST_BASE_URL}/sessions`;

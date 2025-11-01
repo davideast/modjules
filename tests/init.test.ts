@@ -9,7 +9,7 @@ import {
   beforeEach,
 } from 'vitest';
 import { server } from './mocks/server.js';
-import { Jules } from '../src/index.js';
+import { jules as defaultJules } from '../src/index.js';
 import { JulesClientImpl } from '../src/client.js';
 import { MissingApiKeyError } from '../src/errors.js';
 
@@ -33,21 +33,46 @@ describe('SDK Initialization', () => {
 
   it('should prioritize apiKey from options over environment variable', () => {
     process.env.JULES_API_KEY = 'env-var-key';
-    const jules = Jules({ apiKey: 'option-key' }) as JulesClientImpl;
+    // Use .with() for configuration
+    const jules = defaultJules.with({
+      apiKey: 'option-key',
+    }) as JulesClientImpl;
     // @ts-expect-error apiClient is private, but we access it for this test
     expect(jules.apiClient['apiKey']).toBe('option-key');
   });
 
   it('should read apiKey from JULES_API_KEY environment variable if not in options', () => {
     process.env.JULES_API_KEY = 'env-var-key';
-    const jules = Jules() as JulesClientImpl;
+    // We must use .with({}) to force a new instance that re-reads the env var,
+    // because the default singleton reads it at module load time.
+    const jules = defaultJules.with({}) as JulesClientImpl;
     // @ts-expect-error apiClient is private, but we access it for this test
     expect(jules.apiClient['apiKey']).toBe('env-var-key');
   });
 
   it('should throw MissingApiKeyError if no apiKey is provided', async () => {
     delete process.env.JULES_API_KEY;
-    const jules = Jules();
+    // Re-create default instance to pick up deleted env var
+    // Since 'jules' is a const, we need to simulate a fresh start or use a factory for this specific test case if we can't re-init the const.
+    // Actually, the const is initialized at module load time.
+    // If we need to test *runtime* missing key, we might need to use `.with({})` to force re-evaluation if it happens there,
+    // OR we might need to rely on the deprecated factory for this specific test if we can't easily re-initialize the singleton's internal state.
+    // LET'S CHECK client.ts: apiKey is read in constructor.
+    // SO: `defaultJules` has already read it.
+    // We MUST use `.with()` or the deprecated factory to test this scenario if we want a fresh read.
+    // `.with()` calls `new JulesClientImpl(...)`.
+    const jules = defaultJules.with({}); // Should re-read env vars if not provided in options?
+    // Wait, client.ts:
+    // constructor(options: JulesOptions = {}) {
+    //   this.options = options;
+    //   const apiKey = options.apiKey ?? process.env.JULES_API_KEY;
+    // ...
+    // with(options) calls new JulesClientImpl({ ...this.options, ...options })
+    // If defaultJules was init with {}, this.options is {}.
+    // .with({}) calls new JulesClientImpl({}).
+    // The new constructor WILL re-read process.env.JULES_API_KEY.
+    // PERFECT.
+
     // Awaiting a method that requires the API key should throw the specific error
     await expect(
       jules.session({
@@ -58,7 +83,7 @@ describe('SDK Initialization', () => {
   });
 
   it('should use the default baseUrl if not provided', () => {
-    const jules = Jules({ apiKey: 'test-key' }) as JulesClientImpl;
+    const jules = defaultJules.with({ apiKey: 'test-key' }) as JulesClientImpl;
     // @ts-expect-error apiClient is private, but we access it for this test
     expect(jules.apiClient['baseUrl']).toBe(
       'https://jules.googleapis.com/v1alpha',
@@ -67,7 +92,7 @@ describe('SDK Initialization', () => {
 
   it('should allow overriding the baseUrl', () => {
     const customUrl = 'http://localhost:8080';
-    const jules = Jules({
+    const jules = defaultJules.with({
       apiKey: 'test-key',
       baseUrl: customUrl,
     }) as JulesClientImpl;
@@ -78,7 +103,7 @@ describe('SDK Initialization', () => {
 
 describe('Configuration', () => {
   it('should apply default config values when none are provided', () => {
-    const jules = Jules({ apiKey: 'test-key' }) as JulesClientImpl;
+    const jules = defaultJules.with({ apiKey: 'test-key' }) as JulesClientImpl;
     // @ts-expect-error config is private, but we access it for this test
     const config = jules.config;
     expect(config.pollingIntervalMs).toBe(5000);
@@ -91,7 +116,7 @@ describe('Configuration', () => {
   });
 
   it('should allow overriding config values', () => {
-    const jules = Jules({
+    const jules = defaultJules.with({
       apiKey: 'test-key',
       config: {
         pollingIntervalMs: 1000,
@@ -111,7 +136,7 @@ describe('Configuration', () => {
   });
 
   it('should only override the specified config value', () => {
-    const jules = Jules({
+    const jules = defaultJules.with({
       apiKey: 'test-key',
       config: {
         pollingIntervalMs: 9999,

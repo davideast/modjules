@@ -4,18 +4,14 @@ import { JulesClient, JulesOptions } from './types.js';
 
 /**
  * The main entry point for the Jules SDK.
- * This factory function initializes the Jules client.
+ * This is a pre-initialized client that can be used immediately with default settings
+ * (e.g., reading API keys from environment variables).
  *
  * @example
- * import { Jules } from 'julets';
- * const jules = Jules();
- *
- * @param options Configuration options for the SDK.
- * @returns An initialized JulesClient instance.
+ * import { jules } from 'julets';
+ * const session = await jules.session({ ... });
  */
-export function Jules(options?: JulesOptions): JulesClient {
-  return new JulesClientImpl(options);
-}
+export const jules: JulesClient = new JulesClientImpl();
 
 // Re-export all the types for convenience
 export * from './errors.js';
