@@ -1,0 +1,21 @@
+{
+  "hosting": {
+    "public": "preview_build",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "headers": [
+      {
+        "source": "**/*.tgz",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/gzip"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=3600"
+          }
+        ]
+      }
+    ]
+  }
+}

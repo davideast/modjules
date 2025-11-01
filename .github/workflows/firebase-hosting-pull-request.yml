@@ -1,0 +1,73 @@
+# .github/workflows/firebase-hosting-pull-request.yml
+name: Deploy to Firebase Hosting on PR
+on: pull_request
+permissions:
+  checks: write
+  contents: read
+  pull-requests: write
+jobs:
+  build_and_preview:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+           node-version: 20
+           cache: 'npm'
+
+      - run: npm ci
+      # 1. Compile TypeScript (creates dist/ folder)
+      - run: npm run build
+
+      # 2. THE TARBALL HACK
+      # Creates standard npm tarball and moves it to the folder Firebase expects to deploy
+      - name: Prepare Preview Artifact
+        run: |
+          mkdir -p preview_build
+          npm pack --pack-destination ./preview_build
+          mv preview_build/*.tgz preview_build/package.tgz
+
+      # 3. Deploy to Firebase
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        id: firebase_preview
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JULES_SDK }}
+          projectId: jules-sdk
+          expires: 7d
+
+      # 4. Tell Jules/Humans the install URL
+      - name: Comment Install Command
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const siteUrl = '${{ steps.firebase_preview.outputs.details_url }}';
+            // The final URL is the site URL + the filename we forced in step 2
+            const tarballUrl = `${siteUrl}/package.tgz`;
+
+            const body = `📦 **NPM Preview Ready**\n\nTest this pull request by running:\n\`\`\`bash\nnpm install ${tarballUrl}\n\`\`\``;
+
+            // Fancy logic to update existing comment instead of spamming new ones on every commit
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const botComment = comments.find(c => c.body.includes('📦 **NPM Preview Ready**'));
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }

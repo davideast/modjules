@@ -1,14 +1,20 @@
+# .github/workflows/ci.yml
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
+
+# Cancel previous runs if a new commit is pushed to the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  quality-gate:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,10 +26,20 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Run type check
+      # Enforce code style
+      - name: Check Formatting
+        run: npm run format:check
+
+      # Enforce type safety for tests/dev files
+      - name: Type Check
         run: npm run type-check
 
-      - name: Run tests
+      # Enforce unit tests pass
+      - name: Run Tests
         run: npm test
+
+      # Ensure the library compiles
+      - name: Production Build
+        run: npm run build
