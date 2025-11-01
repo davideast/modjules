@@ -6,11 +6,11 @@ This guide provides a detailed look at the different types of `Activity` objects
 
 All `Activity` objects share a set of common properties:
 
--   `name`: The full resource name of the activity (e.g., `"sessions/{session}/activities/{activity}"`).
--   `id`: The unique identifier for the activity.
--   `createTime`: The timestamp (in RFC 3339 format) when the activity was created.
--   `originator`: Who created the activity. Can be `'user'`, `'agent'`, or `'system'`.
--   `artifacts`: An array of `Artifact` objects associated with the activity.
+- `name`: The full resource name of the activity (e.g., `"sessions/{session}/activities/{activity}"`).
+- `id`: The unique identifier for the activity.
+- `createTime`: The timestamp (in RFC 3339 format) when the activity was created.
+- `originator`: Who created the activity. Can be `'user'`, `'agent'`, or `'system'`.
+- `artifacts`: An array of `Artifact` objects associated with the activity.
 
 ## Activity Types
 

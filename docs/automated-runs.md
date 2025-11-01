@@ -15,10 +15,10 @@ const jules = Jules();
 
 async function runMyTask() {
   const automatedSession = jules.run({
-    prompt: "Fix the off-by-one error in the pagination logic.",
+    prompt: 'Fix the off-by-one error in the pagination logic.',
     source: {
       github: 'my-org/my-repo',
-      branch: 'main'
+      branch: 'main',
     },
     // By default, autoPr is true, which will create a PR on completion
   });
@@ -41,7 +41,9 @@ async function waitForResult() {
     console.log(`Run finished with state: ${outcome.state}`);
 
     if (outcome.state === 'completed' && outcome.pullRequest) {
-      console.log(`Success! A pull request was created: ${outcome.pullRequest.url}`);
+      console.log(
+        `Success! A pull request was created: ${outcome.pullRequest.url}`,
+      );
     } else if (outcome.state === 'failed') {
       console.error(`The run failed. Session ID: ${outcome.sessionId}`);
     }
@@ -82,10 +84,7 @@ async function streamProgress() {
 }
 
 // You can stream progress and wait for the result simultaneously
-Promise.all([
-  waitForResult(),
-  streamProgress(),
-]);
+Promise.all([waitForResult(), streamProgress()]);
 ```
 
 By combining the promise-like nature of `AutomatedSession` with its `stream()` method, you get the best of both worlds: a simple way to get the final outcome and a powerful way to observe the real-time progress of the agent.

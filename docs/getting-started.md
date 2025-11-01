@@ -29,10 +29,10 @@ The client will automatically pick up the API key from the `JULES_API_KEY` envir
 The Jules SDK is designed to support two primary modes of operation:
 
 1.  **Automated Mode (`jules.run()`):** Ideal for "fire-and-forget" tasks. You provide a prompt and context, and Jules works autonomously to complete the task and deliver a final result. This is perfect for CI/CD pipelines or other automated workflows.
-    *   **Learn more:** [Automated Runs Guide](./automated-runs.md)
+    - **Learn more:** [Automated Runs Guide](./automated-runs.md)
 
 2.  **Interactive Mode (`jules.session()`):** Designed for conversational workflows where you need to guide, approve, or interact with the agent. This mode gives you a `SessionClient` that you can use to have a back-and-forth conversation, approve plans, and stream real-time updates.
-    *   **Learn more:** [Interactive Sessions Guide](./interactive-sessions.md)
+    - **Learn more:** [Interactive Sessions Guide](./interactive-sessions.md)
 
 ## Finding Your Sources
 
@@ -44,7 +44,9 @@ You can list all your connected sources like this:
 async function listSources() {
   for await (const source of jules.sources()) {
     if (source.type === 'githubRepo') {
-      console.log(`Found GitHub repo: ${source.githubRepo.owner}/${source.githubRepo.repo}`);
+      console.log(
+        `Found GitHub repo: ${source.githubRepo.owner}/${source.githubRepo.repo}`,
+      );
     }
   }
 }

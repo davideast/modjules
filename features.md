@@ -324,11 +324,13 @@ test('handles boba app creation session', async () => {
 ```
 
 ### 16. Local Session Cache
+
 - **Category:** DX
 - **Complexity:** Medium
 - **Impact:** Medium
 - **Description:** A mechanism to automatically cache the state of in-progress sessions to the local filesystem. This allows scripts to be re-run and automatically re-attach to the previous session if the script crashed or was interrupted, preventing the need to manually track session IDs.
 - **API Example:**
+
 ```typescript
 const jules = new JulesClient({
   cache: {
@@ -350,11 +352,13 @@ console.log(`Attached to session: ${session.id}`);
 ```
 
 ### 17. State-Specific Timeouts
+
 - **Category:** Helper
 - **Complexity:** Medium
 - **Impact:** Medium
 - **Description:** A helper to automatically manage timeouts for states that require human interaction (like `awaitingPlanApproval`). If a user doesn't provide input within a configured duration, the SDK can automatically perform a default action, such as cancelling the session, preventing indefinite hangs.
 - **API Example:**
+
 ```typescript
 session.onStateChange('awaitingPlanApproval', {
   timeout: 10 * 60 * 1000, // 10 minutes
@@ -369,11 +373,13 @@ await session.result();
 ```
 
 ### 18. Composable Prompt Builder
+
 - **Category:** DX
 - **Complexity:** Medium
 - **Impact:** High
 - **Description:** A builder utility for constructing complex prompts from multiple sources (file contents, git diffs, system messages, user requests). This abstracts the boilerplate of reading files and concatenating strings, and could intelligently manage context to fit within token limits.
 - **API Example:**
+
 ```typescript
 import { PromptBuilder } from 'julets/prompt';
 
@@ -389,11 +395,13 @@ const session = await jules.run({ prompt });
 ```
 
 ### 19. Session Dry Run
+
 - **Category:** Tooling
 - **Complexity:** Medium
 - **Impact:** High
 - **Description:** A client-side "dry run" mode that simulates a session creation and initial interaction without actually calling the backend API. It would validate the session configuration, check local file paths, and return a mock session object. This allows developers to test their script's setup and initial logic (e.g., prompt builders, event listeners) quickly and offline.
 - **API Example:**
+
 ```typescript
 const jules = new JulesClient();
 
@@ -416,13 +424,17 @@ console.log(`Dry run successful. Session ID: ${session.id}`); // e.g., 'dry-run-
 ```
 
 ### 20. Artifact-Aware Session Result
+
 - **Category:** Helper
 - **Complexity:** Medium
 - **Impact:** Medium
 - **Description:** Enhance the `session.result()` method to not only return the final state but also to automatically collect and organize all artifacts generated during the session. This saves the developer from having to iterate through the stream themselves for the common use case of retrieving all outputs.
 - **API Example:**
+
 ```typescript
-const { finalState, artifacts } = await session.result({ collectArtifacts: true });
+const { finalState, artifacts } = await session.result({
+  collectArtifacts: true,
+});
 
 console.log(`Session completed with status: ${finalState.status}`);
 
@@ -439,11 +451,13 @@ if (artifacts.media.length > 0) {
 ```
 
 ### 21. Human-in-the-Loop (`session.promptUser`)
+
 - **Category:** Helper
 - **Complexity:** High
 - **Impact:** High
 - **Description:** Provide a built-in helper method that pauses the session stream and prompts the human operator for input directly in the terminal. The developer could define a question, and the user's response would be sent back to the agent via `session.send()`. This simplifies creating interactive scripts where the agent might need clarification.
 - **API Example:**
+
 ```typescript
 session.on('progress', async (activity) => {
   // Check for a special marker in the agent's message

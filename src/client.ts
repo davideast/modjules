@@ -33,8 +33,7 @@ export class JulesClientImpl implements JulesClient {
 
   constructor(options: JulesOptions = {}) {
     const apiKey = options.apiKey ?? process.env.JULES_API_KEY;
-    const baseUrl =
-      options.baseUrl ?? 'https://jules.googleapis.com/v1alpha';
+    const baseUrl = options.baseUrl ?? 'https://jules.googleapis.com/v1alpha';
 
     // Apply defaults to the user-provided config
     this.config = {
@@ -73,17 +72,20 @@ export class JulesClientImpl implements JulesClient {
   run(config: SessionConfig): AutomatedSession {
     const sessionIdPromise = (async () => {
       const body = await this._prepareSessionCreation(config);
-      const session = await this.apiClient.request<SessionResource>('sessions', {
-        method: 'POST',
-        body: {
-          ...body,
-          automationMode:
-            config.autoPr === false
-              ? 'AUTOMATION_MODE_UNSPECIFIED'
-              : 'AUTO_CREATE_PR',
-          requirePlanApproval: config.requireApproval ?? false,
+      const session = await this.apiClient.request<SessionResource>(
+        'sessions',
+        {
+          method: 'POST',
+          body: {
+            ...body,
+            automationMode:
+              config.autoPr === false
+                ? 'AUTOMATION_MODE_UNSPECIFIED'
+                : 'AUTO_CREATE_PR',
+            requirePlanApproval: config.requireApproval ?? false,
+          },
         },
-      });
+      );
       return session.id;
     })();
 
@@ -118,7 +120,6 @@ export class JulesClientImpl implements JulesClient {
       }
     }.bind(this);
 
-
     return automatedSession;
   }
 
@@ -134,14 +135,17 @@ export class JulesClientImpl implements JulesClient {
     const config = configOrId;
     const sessionPromise = (async () => {
       const body = await this._prepareSessionCreation(config);
-      const session = await this.apiClient.request<SessionResource>('sessions', {
-        method: 'POST',
-        body: {
-          ...body,
-          automationMode: 'AUTOMATION_MODE_UNSPECIFIED',
-          requirePlanApproval: config.requireApproval ?? true,
+      const session = await this.apiClient.request<SessionResource>(
+        'sessions',
+        {
+          method: 'POST',
+          body: {
+            ...body,
+            automationMode: 'AUTOMATION_MODE_UNSPECIFIED',
+            requirePlanApproval: config.requireApproval ?? true,
+          },
         },
-      });
+      );
       return new SessionClientImpl(session.name, this.apiClient, this.config);
     })();
     return sessionPromise;

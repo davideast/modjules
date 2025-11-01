@@ -20,7 +20,9 @@ export class MediaArtifact {
 
   async save(filepath: string): Promise<void> {
     if (!isNode) {
-      throw new Error('MediaArtifact.save() is only available in Node.js environments.');
+      throw new Error(
+        'MediaArtifact.save() is only available in Node.js environments.',
+      );
     }
 
     const buffer = Buffer.from(this.data, 'base64');

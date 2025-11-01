@@ -8,9 +8,9 @@ A `MediaArtifact` represents a media file, such as a PNG image generated during 
 
 ### Properties
 
--   `type`: Always `'media'`.
--   `data`: A base64-encoded string of the media file's content.
--   `format`: The MIME type of the media (e.g., `'image/png'`).
+- `type`: Always `'media'`.
+- `data`: A base64-encoded string of the media file's content.
+- `format`: The MIME type of the media (e.g., `'image/png'`).
 
 ### Methods
 
@@ -54,11 +54,11 @@ A `BashArtifact` represents the output of a shell command executed by the agent.
 
 ### Properties
 
--   `type`: Always `'bashOutput'`.
--   `command`: The command that was executed.
--   `stdout`: The content written to standard output.
--   `stderr`: The content written to standard error.
--   `exitCode`: The exit code of the command (or `null` if it could not be determined).
+- `type`: Always `'bashOutput'`.
+- `command`: The command that was executed.
+- `stdout`: The content written to standard output.
+- `stderr`: The content written to standard error.
+- `exitCode`: The exit code of the command (or `null` if it could not be determined).
 
 ### Methods
 

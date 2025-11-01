@@ -20,7 +20,9 @@ describe('mapRestArtifactToSdkArtifact', () => {
     };
     const sdkArtifact = mapRestArtifactToSdkArtifact(restArtifact);
     expect(sdkArtifact.type).toBe('changeSet');
-    expect((sdkArtifact as any).changeSet.source).toBe('sources/github/test/repo');
+    expect((sdkArtifact as any).changeSet.source).toBe(
+      'sources/github/test/repo',
+    );
   });
 
   it('should map a bashOutput artifact correctly', () => {
@@ -42,7 +44,7 @@ describe('mapRestArtifactToSdkArtifact', () => {
   it('should throw for an unknown artifact type', () => {
     const restArtifact = { unknown: {} };
     expect(() => mapRestArtifactToSdkArtifact(restArtifact as any)).toThrow(
-      'Unknown artifact type'
+      'Unknown artifact type',
     );
   });
 });
@@ -69,7 +71,10 @@ describe('mapRestActivityToSdkActivity', () => {
   it('should map a progressUpdated activity correctly', () => {
     const restActivity = {
       ...BASE_REST_ACTIVITY,
-      progressUpdated: { title: 'Thinking', description: 'Analyzing the request...' },
+      progressUpdated: {
+        title: 'Thinking',
+        description: 'Analyzing the request...',
+      },
     };
     const sdkActivity = mapRestActivityToSdkActivity(restActivity);
     expect(sdkActivity.type).toBe('progressUpdated');
@@ -77,7 +82,10 @@ describe('mapRestActivityToSdkActivity', () => {
   });
 
   it('should map a planGenerated activity correctly', () => {
-    const plan = { id: 'plan-1', steps: [{ id: 'step-1', title: 'Do the thing' }] };
+    const plan = {
+      id: 'plan-1',
+      steps: [{ id: 'step-1', title: 'Do the thing' }],
+    };
     const restActivity = {
       ...BASE_REST_ACTIVITY,
       planGenerated: { plan },
@@ -119,6 +127,8 @@ describe('mapRestActivityToSdkActivity', () => {
 
   it('should throw for an unknown activity type', () => {
     const restActivity = { ...BASE_REST_ACTIVITY, unknown: {} };
-    expect(() => mapRestActivityToSdkActivity(restActivity)).toThrow('Unknown activity type');
+    expect(() => mapRestActivityToSdkActivity(restActivity)).toThrow(
+      'Unknown activity type',
+    );
   });
 });
