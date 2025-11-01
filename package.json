@@ -1,6 +1,10 @@
 {
   "name": "julets",
   "version": "0.0.1",
+  "workspaces": [
+    ".",
+    "examples/*"
+  ],
   "description": "The agent-ready SDK for Jules.",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
