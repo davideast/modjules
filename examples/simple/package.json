@@ -5,13 +5,13 @@
   "main": "main.ts",
   "scripts": {
     "start": "tsx main.ts",
-    "verify": "tsx main.ts"
+    "verify": "tsx smoke-test.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "julets": "file:../../julets-0.0.1.tgz",
+    "julets": "*",
     "tsx": "latest",
     "typescript": "latest"
   }
