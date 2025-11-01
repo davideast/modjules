@@ -2,10 +2,13 @@ import { exec } from 'child_process';
 import { rm, readdir } from 'fs/promises';
 import path from 'path';
 import { promisify } from 'util';
+import { fileURLToPath } from 'url';
 
 const execAsync = promisify(exec);
 
-const ROOT_DIR = path.resolve(import.meta.dirname, '..');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT_DIR = path.resolve(__dirname, '..');
 const EXAMPLES_ROOT_DIR = path.join(ROOT_DIR, 'examples');
 
 async function runCommand(command: string, cwd: string) {
