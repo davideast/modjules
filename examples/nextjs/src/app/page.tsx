@@ -1,6 +1,13 @@
 'use client';
 
-import { useState, FormEvent, useRef, useEffect, useCallback } from 'react';
+import {
+  useState,
+  FormEvent,
+  useRef,
+  useEffect,
+  useCallback,
+  Suspense,
+} from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Activity } from 'julets';
 
@@ -12,6 +19,20 @@ interface Message {
 }
 
 export default function Home() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-screen bg-zinc-950 text-zinc-100">
+          Loading...
+        </div>
+      }
+    >
+      <Chat />
+    </Suspense>
+  );
+}
+
+function Chat() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
