@@ -41,6 +41,8 @@
   },
   "devDependencies": {
     "@google/jules": "^0.1.37",
+    "@inquirer/prompts": "^7.9.0",
+    "@octokit/rest": "^22.0.1",
     "@types/node": "^24.9.1",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.6",
