@@ -1,6 +1,7 @@
 {
   "name": "julets-example",
   "version": "1.0.0",
+  "private": true,
   "description": "A simple example demonstrating the julets SDK.",
   "main": "main.ts",
   "scripts": {
