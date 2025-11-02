@@ -6,7 +6,7 @@ async function main() {
   console.log('Starting idea generation script...');
 
   // Read existing features to provide context in the prompt
-  const featuresFilePath = _path.resolve(process.cwd(), 'features.md');
+  const featuresFilePath = _path.resolve(process.cwd(), 'context/features.md');
   const existingFeatures = await fs.readFile(featuresFilePath, 'utf-8');
   console.log('Read existing features.md file.');
 
