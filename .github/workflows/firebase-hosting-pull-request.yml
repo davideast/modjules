@@ -1,6 +1,12 @@
 # .github/workflows/firebase-hosting-pull-request.yml
 name: Deploy to Firebase Hosting on PR
-on: pull_request
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
 permissions:
   checks: write
   contents: read
