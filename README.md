@@ -13,11 +13,18 @@ Agents thrive on simple actions, persistent memory, and reactive updates. `julet
 ## Core Usage
 
 ```ts
-import { Jules } from 'julets';
+import { jules } from 'julets';
 
-const jules = Jules();
 const session = jules.run({
-  prompt: 'Add a Next.js usage example to README.md',
+  prompt: `Fix visibility issues in the examples/nextjs app. 
+  
+  **Visibility issues**
+  - White text on white backgrounds
+  - Low contrast on button hover
+
+  **Instructions**
+  - Update the global styles and page components to a dark theme with the shadcn zinc palette.
+`,
   source: { github: 'davideast/julets', branch: 'main' },
 });
 
@@ -38,7 +45,7 @@ for await (const activity of session.stream()) {
   }
 }
 
-// Await the automated session to get the PR URL
+// Get the pull-request URL once complete
 const { pullRequest } = await session;
 if (pullRequest) {
   console.log(`PR: ${pullRequest.url}`);
@@ -61,15 +68,13 @@ export JULES_API_KEY=<api-key>
 
 ## Interactive Usage
 
-Use `jules.session()` for interactive workflows where an agent (or human) needs to observe, provide feedback, and guide the process. The `SessionClient` object maintains state across multiple interactions.
+Use `jules.session()` for interactive workflows to observe, provide feedback, and guide the process. The `SessionClient` object maintains state across multiple interactions.
 
 ```typescript
-import { Jules } from 'julets';
+import { jules } from 'julets';
 
-const jules = Jules();
 const session = await jules.session({
-  prompt:
-    'Refactor the user authentication module together. Show me your plan first.',
+  prompt: 'Refactor the user authentication module.',
   source: { github: 'your-org/your-repo', branch: 'develop' },
 });
 
@@ -96,7 +101,7 @@ console.log(`✅ Session finished with state: ${outcome.state}`);
 
 ### Reactive Streams
 
-Both `AutomatedSession` and `SessionClient` objects provide a `.stream()` method that returns an Async Iterator. This is the primary way to observe the agent's progress.
+Sessions progress is observed through the `.stream()` method that is available on both the `AutomatedSession` and `SessionClient` objects. An `AutomatedSession` is created via `jules.run()` and a `SessionClient` is create via `jules.session()`. The `.stream()` method returns an `AsyncIterator` to observe the agent's progress.
 
 ```typescript
 for await (const activity of session.stream()) {
@@ -117,9 +122,9 @@ for await (const activity of session.stream()) {
 }
 ```
 
-### Artifacts
+### Artifacts (change sets, bash outputs, images)
 
-Activities can contain artifacts, such as code changes (`changeSet`), shell output (`bashOutput`), or images (`media`). The SDK provides rich objects with helper methods for interacting with them.
+Session progress is represented through an `Activity` object. Activities can contain artifacts, such as code changes (`changeSet`), shell output (`bashOutput`), or images (`media`). The SDK provides rich objects with helper methods for interacting with them.
 
 ```typescript
 // (Inside a stream loop)
@@ -137,15 +142,33 @@ for (const artifact of activity.artifacts) {
 
 ### Configuration
 
-You can configure timeouts and polling intervals when initializing the client.
+You can configure timeouts and polling intervals by creating a configured client.
+
+#### Multiple API Keys
 
 ```typescript
-const jules = Jules({
-  config: {
-    pollingIntervalMs: 2000, // Poll every 2 seconds
-    requestTimeoutMs: 60000, // 1 minute request timeout
-  },
+import { jules } from 'julets';
+
+// The default jules client initialized with process.env.JULES_API_KEY
+const session = jules.session('<session-id-here>');
+
+// Initializes a jules client with another API key
+const customJules = jules.with({ apiKey: 'other-api-key' });
+const session = customJules.session('<session-id-here>');
+```
+
+#### Polling & Timeouts
+
+```typescript
+import { jules } from 'julets';
+
+const customJules = jules.with({
+  pollingIntervalMs: 2000, // Poll every 2 seconds
+  requestTimeoutMs: 60000, // 1 minute request timeout
 });
+
+// Use the jules client the same as the default
+const session = jules.session('<session-id-here>');
 ```
 
 ### Error Handling
@@ -153,10 +176,10 @@ const jules = Jules({
 The SDK throws custom errors that extend a base `JulesError`. This makes it easy to catch all SDK-related exceptions.
 
 ```typescript
-import { Jules, JulesError } from 'julets';
+import { jules, JulesError } from 'julets';
 
 try {
-  const outcome = await jules.run({ ... });
+  const session = await jules.session({ ... });
 } catch (error) {
   if (error instanceof JulesError) {
     console.error(`An SDK error occurred: ${error.message}`);
@@ -171,19 +194,18 @@ try {
 This is a high-level overview of the main SDK components.
 
 - **Core:**
-  - `Jules()`: The main factory function to initialize the client.
-  - `jules.run()`: Starts an automated, fire-and-forget task. Returns a `AutomatedSession` promise.
-  - `jules.session()`: Creates or rehydrates an interactive session. Returns a `SessionClient`.
+  - `jules`: The pre-initialized client.
+  - `jules.with(options)`: Creates a new client with custom configuration.
+  - `jules.session()`: Creates or rehydrates a session. Returns a `SessionClient`.
 - **Session Control:**
   - `session.ask()`: Sends a message and awaits the agent's reply.
   - `session.send()`: Sends a fire-and-forget message.
   - `session.approve()`: Approves a pending plan.
   - `session.waitFor()`: Pauses until the session reaches a specific state.
+  - `session.waitForCompletion()`: Awaits the final outcome of the session.
 - **Observation:**
-  - `run.stream()` / `session.stream()`: Returns an async iterator of all activities.
-  - `session.result()`: Awaits the final outcome of the session.
+  - `session.stream()`: Returns an async iterator of all activities.
   - `session.info()`: Fetches the latest session state.
-- **Utilities:**
-  - `jules.sources`: A manager to list and get available code sources.
-    - `jules.sources()`: Async iterator for all sources.
-    - `jules.sources.get({ github: '...' })`: Finds a specific GitHub repository.
+- **Artifact Management:**
+  - `artifact.save()`: Decodes the base64 `data` and saves it as a file at the specified path.
+  - `artifact.toString()`: Returns a formatted string that combines the command, exit code, `stdout`, and `stderr`, to simplify log display.
