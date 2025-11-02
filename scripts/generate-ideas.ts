@@ -1,4 +1,4 @@
-import { Jules } from 'julets';
+import { jules } from 'julets';
 import * as fs from 'fs/promises';
 import * as _path from 'path';
 
@@ -53,20 +53,13 @@ async function main() {
     Your goal is to perform a single file modification: update 'features.md' by appending your 3 new, formatted ideas to the end of the file. Preserve all existing content.
   `;
 
-  // The Jules factory function will automatically pick up the JULES_API_KEY from env
-  const jules = Jules();
-
   console.log('Initiating a fire-and-forget Jules session...');
 
   // This creates a session that will automatically create a PR on completion
   jules.run({
-    source: {
-      github: `${owner}/${repo}`,
-      branch: 'main',
-    },
     prompt,
+    source: { github: `${owner}/${repo}`, branch: 'main' },
     title: 'feat: Add new SDK feature ideas',
-    autoPr: true,
   });
 
   console.log(
