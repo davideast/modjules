@@ -1,28 +1,23 @@
-# Getting Started with the Jules SDK
-
-Welcome to the Jules SDK! This guide will walk you through the initial setup and the core concepts you need to start building with Jules.
+# Getting Started
 
 ## Installation
 
-First, add the Jules SDK to your project:
-
 ```bash
 npm install julets
+# OR
+bun add julets
 ```
 
 ## Initialization
 
-The first step is to create an instance of the `JulesClient`. This is the main entry point for all SDK functionality.
+The library provides a default `JulesClient` that initializes with the `process.env.JULES_API_KEY` environment variable. If you need to use multiple keys you can customize the client through the `.with()` method.
 
 ```typescript
-import { Jules } from 'julets';
+import { jules } from 'julets';
 
-const jules = Jules({
-  apiKey: 'YOUR_API_KEY', // Or set the JULES_API_KEY environment variable
-});
+console.log(jules); // default client automatically initializes with `process.env.JULES_API_KEY`
+const custom = jules.with({ apiKey: '<other-api-key>' }); // create a custom client
 ```
-
-The client will automatically pick up the API key from the `JULES_API_KEY` environment variable if you don't provide it in the options.
 
 ## Core Concepts: Two Ways to Use Jules
 
