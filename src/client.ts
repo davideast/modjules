@@ -82,58 +82,43 @@ export class JulesClientImpl implements JulesClient {
     };
   }
 
-  run(config: SessionConfig): AutomatedSession {
-    const sessionIdPromise = (async () => {
-      const body = await this._prepareSessionCreation(config);
-      const session = await this.apiClient.request<SessionResource>(
-        'sessions',
-        {
-          method: 'POST',
-          body: {
-            ...body,
-            automationMode:
-              config.autoPr === false
-                ? 'AUTOMATION_MODE_UNSPECIFIED'
-                : 'AUTO_CREATE_PR',
-            requirePlanApproval: config.requireApproval ?? false,
-          },
+  async run(config: SessionConfig): Promise<AutomatedSession> {
+    const body = await this._prepareSessionCreation(config);
+    const sessionResource = await this.apiClient.request<SessionResource>(
+      'sessions',
+      {
+        method: 'POST',
+        body: {
+          ...body,
+          automationMode:
+            config.autoPr === false
+              ? 'AUTOMATION_MODE_UNSPECIFIED'
+              : 'AUTO_CREATE_PR',
+          requirePlanApproval: config.requireApproval ?? false,
         },
-      );
-      return session.id;
-    })();
+      },
+    );
 
-    const outcomePromise = new Promise<Outcome>(async (resolve, reject) => {
-      try {
-        const sessionId = await sessionIdPromise;
-        const finalSession = await pollUntilCompletion(
-          sessionId,
-          this.apiClient,
-          this.config.pollingIntervalMs,
-        );
-        resolve(mapSessionResourceToOutcome(finalSession));
-      } catch (error) {
-        reject(error);
-      }
-    });
+    const sessionId = sessionResource.id;
 
-    const automatedSession = outcomePromise as AutomatedSession;
-    automatedSession.stream = async function* (this: JulesClientImpl) {
-      try {
-        const sessionId = await sessionIdPromise;
+    return {
+      id: sessionId,
+      stream: async function* (this: JulesClientImpl) {
         yield* streamActivities(
           sessionId,
           this.apiClient,
           this.config.pollingIntervalMs,
         );
-      } catch (error) {
-        // This is necessary to propagate errors from the async generator setup
-        // (e.g., if sessionIdPromise rejects). Re-throwing the original error
-        // preserves the specific error type (e.g., JulesAuthenticationError).
-        throw error;
-      }
-    }.bind(this);
-
-    return automatedSession;
+      }.bind(this),
+      result: async () => {
+        const finalSession = await pollUntilCompletion(
+          sessionId,
+          this.apiClient,
+          this.config.pollingIntervalMs,
+        );
+        return mapSessionResourceToOutcome(finalSession);
+      },
+    };
   }
 
   session(config: SessionConfig): Promise<SessionClient>;
