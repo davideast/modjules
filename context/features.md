@@ -472,3 +472,84 @@ session.on('progress', async (activity) => {
 
 await session.result();
 ```
+
+### 22. Webhook Trigger Registry
+
+- **Category:** Triggers
+- **Complexity:** Medium
+- **Impact:** High
+- **Description:** A utility to define handlers for various webhook triggers (e.g., from Figma, Linear, GitHub). It would provide a structured way to parse incoming webhook payloads, validate them, and map their data to a Jules session configuration. This abstracts the boilerplate of building unique handlers for each event source.
+- **API Example:**
+```typescript
+import { createTriggerHandler, Jules } from 'julets';
+
+const jules = new Jules();
+
+const figmaTrigger = {
+  // A unique name for this trigger type
+  name: 'figma-comment-trigger',
+  // Zod schema for validation
+  schema: z.object({ comment: z.array(z.object({ text: z.string() })) }),
+  // Mapper function from payload to session config
+  mapper: (payload) => ({
+    prompt: `Address the following design feedback: ${payload.comment[0].text}`,
+    title: 'Update component based on Figma feedback',
+    source: { github: 'my-org/my-repo' },
+  }),
+};
+
+const handler = createTriggerHandler({ jules, triggers: [figmaTrigger] });
+
+// In an Express.js route or serverless function:
+// handler.handle('figma-comment-trigger', request.body);
+```
+
+### 23. Idempotency Key Support
+
+- **Category:** Triggers
+- **Complexity:** Low
+- **Impact:** Medium
+- **Description:** A client-side helper to prevent duplicate sessions from being created by repeated trigger events (e.g., a webhook that is sent multiple times). The developer provides a unique key from the event payload, and the SDK ensures that only the first request with that key results in a new session.
+- **API Example:**
+```typescript
+// Assuming `payload` is an incoming webhook event
+const eventId = payload.id; // A unique identifier for the event
+
+const session = await jules.run(
+  {
+    // Session configuration...
+  },
+  {
+    // The SDK would use this key to prevent creating a duplicate session
+    // for the same eventId if the request is repeated.
+    idempotencyKey: eventId,
+  },
+);
+```
+
+### 24. Conditional Session Dispatch
+
+- **Category:** Triggers
+- **Complexity:** Low
+- **Impact:** High
+- **Description:** A utility that wraps session creation logic with a conditional check. This allows developers to easily filter incoming trigger events and only start a Jules session if specific criteria are met (e.g., a GitHub issue label is added, a comment contains a specific keyword). This prevents unnecessary sessions from being created for irrelevant events.
+- **API Example:**
+```typescript
+import { when } from 'julets/triggers';
+import { jules } from './jules-client';
+
+// `when` is a higher-order function that wraps the session creation logic.
+const runOnMagicWord = when(
+  (payload) => payload.comment.body.includes('@jules-bot run'),
+  (payload) => {
+    return jules.run({
+      prompt: `Act on this comment: ${payload.comment.body}`,
+      source: { github: 'my-org/my-repo' },
+    });
+  },
+);
+
+// In a GitHub webhook handler for issue comments:
+// This will only run the jules.run() command if the condition is met.
+await runOnMagicWord(githubCommentPayload);
+```
