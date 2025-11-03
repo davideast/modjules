@@ -80,7 +80,7 @@ describe('jules.run()', () => {
       }),
     );
 
-    const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
+    const automatedSession = await jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
     await vi.advanceTimersByTimeAsync(0); // Allow session creation to complete
 
     expect(requestBody.sourceContext.source).toBe(
@@ -89,7 +89,7 @@ describe('jules.run()', () => {
     expect(requestBody.requirePlanApproval).toBe(false);
 
     // Await the automated session to ensure all background activity completes
-    await expect(automatedSession).resolves.toBeDefined();
+    await expect(automatedSession.result()).resolves.toBeDefined();
   });
 
   // Test successful run: stream and final outcome
@@ -115,13 +115,13 @@ describe('jules.run()', () => {
       }),
     );
 
-    const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
+    const automatedSession = await jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
 
-    const iterator = automatedSession.stream!()[Symbol.asyncIterator]();
+    const iterator = automatedSession.stream()[Symbol.asyncIterator]();
     const { value: activity } = await iterator.next();
     await iterator.return!();
 
-    const outcome = await automatedSession;
+    const outcome = await automatedSession.result();
 
     expect(activity.type).toBe('sessionCompleted');
     expect(outcome.state).toBe('completed');
@@ -146,12 +146,12 @@ describe('jules.run()', () => {
         return HttpResponse.json({ id: MOCK_SESSION_ID, state: 'failed' });
       }),
     );
-    const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
-    const promise = expect(automatedSession).rejects.toThrow(
+    const automatedSession = await jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
+    const promise = expect(automatedSession.result()).rejects.toThrow(
       AutomatedSessionFailedError,
     );
 
-    const iterator = automatedSession.stream!()[Symbol.asyncIterator]();
+    const iterator = automatedSession.stream()[Symbol.asyncIterator]();
     const { value: activity } = await iterator.next();
     await iterator.return!();
 
@@ -159,30 +159,27 @@ describe('jules.run()', () => {
     await promise;
   });
 
-  // Critical test for the coordination/race condition
-  it('should handle calling .stream() immediately before sessionId is available', async () => {
-    // Mock session creation with a delay
+  // Critical test for ensuring stream works immediately
+  it('should handle calling .stream() immediately after run resolves', async () => {
     server.use(
-      http.post(`${BASE_URL}/sessions`, async () => {
-        await new Promise((r) => setTimeout(r, 50)); // 50ms delay
+      http.post(`${BASE_URL}/sessions`, () => {
         return HttpResponse.json({
           id: MOCK_SESSION_ID,
           name: `sessions/${MOCK_SESSION_ID}`,
         });
       }),
       http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
-        // Return a terminal activity to ensure the stream closes and the test doesn't time out.
         return HttpResponse.json({
           activities: [{ name: 'a/1', sessionCompleted: {} }],
         });
       }),
     );
 
-    const automatedSession = jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
-    const stream = automatedSession.stream!();
+    const automatedSession = await jules.run(MOCK_AUTOMATED_SESSION_CONFIG);
+    const stream = automatedSession.stream();
     const iterator = stream[Symbol.asyncIterator]();
 
-    // Advance timers to cover the session creation delay and allow the stream to process
+    // Advance timers to allow the stream to process
     await vi.advanceTimersByTimeAsync(100);
     const { value: activity } = await iterator.next();
     await iterator.return!();

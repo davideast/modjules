@@ -587,22 +587,34 @@ export interface Outcome {
 /**
  * Represents a Jules Session in automated mode, initiated by `jules.run()`.
  *
- * It is an enhanced Promise that resolves to the final Outcome when the task completes or fails.
- * It also provides methods for real-time observation.
+ * It provides methods for real-time observation and retrieving the final outcome.
  */
-export interface AutomatedSession extends Promise<Outcome> {
+export interface AutomatedSession {
+  /**
+   * The unique ID of the session.
+   */
+  readonly id: string;
+
   /**
    * Provides a real-time stream of activities as the automated run progresses.
    * This uses an Async Iterator, making it easy to consume events as they happen.
    *
    * @example
-   * const run = jules.run({ ... });
+   * const run = await jules.run({ ... });
    * for await (const activity of run.stream()) {
    *   console.log(`[${activity.type}]`);
    * }
-   * const outcome = await run; // Await the promise itself for the final result.
    */
   stream(): AsyncIterable<Activity>;
+
+  /**
+   * Waits for the session to complete and returns the final outcome.
+   *
+   * @example
+   * const run = await jules.run({ ... });
+   * const outcome = await run.result();
+   */
+  result(): Promise<Outcome>;
 }
 
 // -----------------------------------------------------------------------------
@@ -757,13 +769,15 @@ export interface JulesClient {
    * @returns A `AutomatedSession` object, which is an enhanced Promise that resolves to the final outcome.
    *
    * @example
-   * const automatedSession = jules.run({
+   * const run = await jules.run({
    *   prompt: "Fix the bug described in issue #123",
    *   source: { github: 'my-org/my-project', branch: 'main' }
    * });
-   * const outcome = await automatedSession;
+   * // The session is now running in the background.
+   * // You can optionally wait for the result:
+   * // const outcome = await run.result();
    */
-  run(config: SessionConfig): AutomatedSession;
+  run(config: SessionConfig): Promise<AutomatedSession>;
 
   /**
    * Creates a new interactive session for workflows requiring human oversight.
