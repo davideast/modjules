@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { promisify } from 'util';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -22,7 +22,7 @@ async function runCommand(
     });
     return stdout.trim();
   } catch (error: any) {
-    console.error(`Error executing command: ${command}`);
+    // console.error(`Error executing command: ${command}`);
     if (error.stdout) console.error('--- STDOUT ---\n', error.stdout);
     if (error.stderr) console.error('--- STDERR ---\n', error.stderr);
     throw error;
@@ -34,41 +34,74 @@ async function main() {
   let tmpDir: string | undefined;
 
   try {
-    console.log('\n=== 1. Build and Pack ===');
-    await runCommand('npm run build', ROOT_DIR);
+    // --- Argument Parsing ---
+    const args = process.argv.slice(2);
+    let version: string | undefined;
+    let tool: 'npm' | 'bun' = 'npm';
 
-    const packOutput = await runCommand('npm pack', ROOT_DIR);
-    const lines = packOutput.trim().split('\n');
-    const tarballName = lines[lines.length - 1].trim();
-
-    if (!tarballName || !tarballName.endsWith('.tgz')) {
-      throw new Error(
-        `Could not determine tarball filename from output:\n${packOutput}`,
-      );
+    for (let i = 0; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--tool') {
+        const next = args[i + 1];
+        if (next === 'npm' || next === 'bun') {
+          tool = next;
+          i++;
+        } else {
+          throw new Error('--tool must be "npm" or "bun"');
+        }
+      } else if (!arg.startsWith('-')) {
+        if (!version) version = arg;
+        else
+          throw new Error(
+            `Multiple version arguments provided: ${version}, ${arg}`,
+          );
+      }
     }
 
-    tarballPath = path.join(ROOT_DIR, tarballName);
-    console.log(`Creating tarball: ${tarballPath}`);
+    const isLocal = !version;
+    console.log(`\n📋 Smoke Test Configuration:`);
+    console.log(
+      `   Mode: ${isLocal ? 'LOCAL (build & pack)' : `REMOTE (install julets@${version})`}`,
+    );
+    console.log(`   Tool: ${tool}`);
 
-    console.log('\n=== 2. Inspect Tarball Contents ===');
-    const tarList = await runCommand(`tar -tf "${tarballName}"`, ROOT_DIR);
-    const files = new Set(tarList.split('\n').map((f) => f.trim()));
+    if (isLocal) {
+      console.log('\n=== 1. Build and Pack (Local) ===');
+      await runCommand('npm run build', ROOT_DIR);
 
-    const REQUIRED_FILES = [
-      'package/package.json',
-      'package/README.md',
-      'package/dist/index.js',
-      'package/dist/index.d.ts',
-    ];
+      const packOutput = await runCommand('npm pack', ROOT_DIR);
+      const lines = packOutput.trim().split('\n');
+      const tarballName = lines[lines.length - 1].trim();
 
-    const missing = REQUIRED_FILES.filter((f) => !files.has(f));
-    if (missing.length > 0) {
-      console.error('Tarball contents:', Array.from(files).sort());
-      throw new Error(
-        `❌ Tarball is missing critical files:\n   - ${missing.join('\n   - ')}`,
-      );
+      if (!tarballName || !tarballName.endsWith('.tgz')) {
+        throw new Error(
+          `Could not determine tarball filename from output:\n${packOutput}`,
+        );
+      }
+
+      tarballPath = path.join(ROOT_DIR, tarballName);
+      console.log(`Creating tarball: ${tarballPath}`);
+
+      console.log('\n=== 2. Inspect Tarball Contents ===');
+      const tarList = await runCommand(`tar -tf "${tarballName}"`, ROOT_DIR);
+      const files = new Set(tarList.split('\n').map((f) => f.trim()));
+
+      const REQUIRED_FILES = [
+        'package/package.json',
+        'package/README.md',
+        'package/dist/index.js',
+        'package/dist/index.d.ts',
+      ];
+
+      const missing = REQUIRED_FILES.filter((f) => !files.has(f));
+      if (missing.length > 0) {
+        console.error('Tarball contents:', Array.from(files).sort());
+        throw new Error(
+          `❌ Tarball is missing critical files:\n   - ${missing.join('\n   - ')}`,
+        );
+      }
+      console.log('✅ Tarball contains all critical files.');
     }
-    console.log('✅ Tarball contains all critical files.');
 
     console.log('\n=== 3. Functional Verification ===');
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'julets-smoke-'));
@@ -87,26 +120,30 @@ async function main() {
       ),
     );
 
-    // 3b. Install tarball and typescript
-    // Installing typescript might be slow, but it's necessary for standard 'tsc' run in isolation.
-    // Alternatively we could try to use the root's tsc, but it might have resolution issues with the internal node_modules.
-    // Let's try installing it, it's safer.
-    console.log('Installing dependencies (this may take a moment)...');
-    // Suppress output unless it fails to keep logs clean, or keep it for debugging?
-    // runCommand logs it.
-    await runCommand(
-      `npm install "${tarballPath}" typescript @types/node`,
-      tmpDir,
-    );
+    // 3b. Install dependencies
+    const installTarget = isLocal ? tarballPath! : `julets@${version}`;
+    console.log(`Installing ${installTarget} using ${tool}...`);
+
+    if (tool === 'npm') {
+      await runCommand(
+        `npm install "${installTarget}" typescript @types/node`,
+        tmpDir,
+      );
+    } else {
+      // Bun needs explicit package name mapping for local tarballs sometimes,
+      // and prefers file URLs.
+      const bunPackage = isLocal
+        ? `julets@${pathToFileURL(tarballPath!).href}`
+        : `julets@${version}`;
+      await runCommand(`bun add ${bunPackage} typescript @types/node`, tmpDir);
+    }
 
     // 3c. Type Check
     console.log('\n--- Running Type Check ---');
     const testTs = `
 import { jules } from 'julets';
-
 async function test() {
   // Verify types resolve and we can access methods
-  // We don't need valid arguments, just checking if TS complains about missing library
   if (typeof jules.run !== 'function') {
       throw new Error('Runtime type mismatch during type check fake run');
   }
@@ -124,7 +161,6 @@ async function test() {
             strict: true,
             noEmit: true,
             skipLibCheck: true,
-            // Ensure we don't accidentally pick up root types if something goes wrong, strictly look in local node_modules
             typeRoots: ['./node_modules/@types'],
           },
         },
@@ -133,7 +169,8 @@ async function test() {
       ),
     );
 
-    await runCommand('npx tsc', tmpDir);
+    const tscCommand = tool === 'bun' ? 'bun x tsc' : 'npx tsc';
+    await runCommand(tscCommand, tmpDir);
     console.log('✅ Type Check Passed');
 
     // 3d. Runtime Check
@@ -153,12 +190,14 @@ try {
 }
 `;
     await fs.writeFile(path.join(tmpDir, 'test.js'), testJs);
-    await runCommand('node test.js', tmpDir);
+    const runRuntimeCommand =
+      tool === 'bun' ? 'bun run test.js' : 'node test.js';
+    await runCommand(runRuntimeCommand, tmpDir);
 
     console.log('\n✨ Smoke Test Passed Successfully! ✨');
   } catch (error) {
     console.error('\n❌ Smoke Test Failed!');
-    // console.error(error); // runCommand already logs errors usually
+    // console.error(error);
     process.exit(1);
   } finally {
     if (tarballPath) await fs.unlink(tarballPath).catch(() => {});
