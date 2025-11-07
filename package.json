@@ -1,6 +1,6 @@
 {
   "name": "julets",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "workspaces": [
     ".",
     "examples/*"
@@ -27,6 +27,7 @@
     "format:check": "prettier --check .",
     "test": "vitest",
     "test:integration": "vitest run -c vitest.integration.config.ts",
+    "test:smoke": "tsx scripts/smoke-test.ts",
     "type-check": "tsc --project tsconfig.test.json",
     "verify": "tsx scripts/verify.ts",
     "prepare": "husky"
