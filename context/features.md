@@ -472,3 +472,80 @@ session.on('progress', async (activity) => {
 
 await session.result();
 ```
+
+### 22. Webhook Trigger Adapters
+
+- **Category:** Triggers
+- **Complexity:** Medium
+- **Impact:** High
+- **Description:** Provide pre-built, chainable adapters that parse common webhook payloads (e.g., from GitHub, Jira, Figma) and transform them into structured prompts for Jules. This drastically reduces the boilerplate code needed to wire up external events to the SDK.
+- **API Example:**
+```typescript
+import { Trigger } from 'julets';
+
+// In a webhook handler for a new GitHub issue
+async function onNewIssue(request: Request) {
+  const prompt = await Trigger.fromGitHub(request)
+    .forIssue()
+    .withTemplate(
+      (issue) =>
+        `A new issue was created: "${issue.title}". The user provided this description: ${issue.body}. Please create a plan to address it.`,
+    )
+    .build();
+
+  await jules.run({ prompt });
+}
+```
+
+### 23. Idempotent Session Creation
+
+- **Category:** Triggers
+- **Complexity:** Medium
+- **Impact:** Medium
+- **Description:** A helper to prevent duplicate sessions from being created by webhook delivery retries. The developer can provide a unique event identifier (like a webhook delivery ID), and the SDK ensures a session is only created once for that ID within a configurable time window.
+- **API Example:**
+```typescript
+// In a serverless function where duplicate events can occur
+const deliveryId = request.headers.get('x-github-delivery');
+
+// `runOnce` will internally track the deliveryId to prevent re-runs.
+// If a session was already created, it could return the existing session.
+const { session, isNew } = await jules.runOnce(deliveryId, {
+  source: { github: 'my/repo' },
+  prompt: 'A new commit was pushed, please review it.',
+});
+
+if (!isNew) {
+  console.log(`Request already processed for session ${session.id}.`);
+}
+```
+
+### 24. Declarative Post-Session Reactors
+
+- **Category:** Triggers
+- **Complexity:** Medium
+- **Impact:** High
+- **Description:** A declarative way to define "reactors"—actions that run after a session completes. This simplifies the common pattern of "closing the loop" by posting results back to the source system (e.g., commenting on a PR, updating a Jira ticket) without complex `await` logic in the main script.
+- **API Example:**
+```typescript
+import { react } from 'julets/triggers';
+
+// The reactor provides the logic to run after the session.
+// Context is passed in from the `run` command.
+const updateJiraTicket = react.jira.updateTicket({
+  on: 'completed', // or 'failed', 'always'
+  comment: (result, ctx) =>
+    `Jules session ${result.session.id} finished with status: ${result.finalState.status}.`,
+});
+
+// Run the session and attach the reactor.
+await jules.run({
+  prompt: 'Analyze and fix the bug described in TICKET-123.',
+  reactors: [updateJiraTicket],
+  reactorContext: {
+    jira: { ticketId: 'TICKET-123' },
+  },
+});
+
+// The script can now exit; the reactor will handle the callback.
+```
