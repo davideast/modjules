@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   DefaultActivityClient,
-  RawNetworkStream,
+  NetworkClient,
 } from '../../src/activities/client.js';
 import { ActivityStorage } from '../../src/storage/types.js';
 import { ActivityAgentMessaged } from '../../src/types.js';
@@ -10,11 +10,12 @@ import { ActivityAgentMessaged } from '../../src/types.js';
 const createActivity = (
   id: string,
   createTime: string,
+  type: string = 'agentMessaged',
 ): ActivityAgentMessaged =>
   ({
     name: `sessions/s1/activities/${id}`,
     id,
-    type: 'agentMessaged',
+    type,
     message: `Message ${id}`,
     createTime,
     originator: 'agent',
@@ -23,7 +24,7 @@ const createActivity = (
 
 describe('DefaultActivityClient', () => {
   let storageMock: ActivityStorage;
-  let networkMock: RawNetworkStream;
+  let networkMock: NetworkClient;
   let client: DefaultActivityClient;
 
   beforeEach(() => {
@@ -41,6 +42,8 @@ describe('DefaultActivityClient', () => {
       rawStream: vi.fn().mockImplementation(async function* () {
         yield* [];
       }),
+      listActivities: vi.fn().mockResolvedValue({ activities: [] }),
+      fetchActivity: vi.fn().mockResolvedValue(undefined),
     };
     client = new DefaultActivityClient(storageMock, networkMock);
   });
@@ -159,23 +162,110 @@ describe('DefaultActivityClient', () => {
     });
   });
 
-  describe('Unimplemented methods', () => {
-    it('select() should throw Not Implemented', async () => {
-      await expect(client.select()).rejects.toThrow(
-        "Method 'select()' not yet implemented.",
-      );
+  describe('select()', () => {
+    const a1 = createActivity('a1', '2023-10-26T10:00:00Z', 'typeA');
+    const a2 = createActivity('a2', '2023-10-26T10:01:00Z', 'typeB');
+    const a3 = createActivity('a3', '2023-10-26T10:02:00Z', 'typeA');
+    const a4 = createActivity('a4', '2023-10-26T10:03:00Z', 'typeC');
+    const a5 = createActivity('a5', '2023-10-26T10:04:00Z', 'typeA');
+
+    beforeEach(() => {
+      storageMock.scan = vi.fn().mockImplementation(async function* () {
+        yield a1;
+        yield a2;
+        yield a3;
+        yield a4;
+        yield a5;
+      });
     });
 
-    it('list() should throw Not Implemented', async () => {
-      await expect(client.list()).rejects.toThrow(
-        "Method 'list()' not yet implemented.",
-      );
+    it('should return all activities if no options provided', async () => {
+      const results = await client.select();
+      expect(results).toEqual([a1, a2, a3, a4, a5]);
+      expect(storageMock.init).toHaveBeenCalledTimes(1);
     });
 
-    it('get() should throw Not Implemented', async () => {
-      await expect(client.get('some-id')).rejects.toThrow(
-        "Method 'get()' not yet implemented.",
-      );
+    it('should filter by type', async () => {
+      const results = await client.select({ type: 'typeA' });
+      expect(results).toEqual([a1, a3, a5]);
+    });
+
+    it('should support "after" cursor (exclusive)', async () => {
+      const results = await client.select({ after: 'a2' });
+      expect(results).toEqual([a3, a4, a5]);
+    });
+
+    it('should support "before" cursor (exclusive)', async () => {
+      const results = await client.select({ before: 'a4' });
+      expect(results).toEqual([a1, a2, a3]);
+    });
+
+    it('should support both "after" and "before" cursors', async () => {
+      const results = await client.select({ after: 'a1', before: 'a5' });
+      expect(results).toEqual([a2, a3, a4]);
+    });
+
+    it('should support limit', async () => {
+      const results = await client.select({ limit: 2 });
+      expect(results).toEqual([a1, a2]);
+    });
+
+    it('should support combined filters (type + after + limit)', async () => {
+      const results = await client.select({
+        type: 'typeA',
+        after: 'a1',
+        limit: 1,
+      });
+      expect(results).toEqual([a3]);
+    });
+
+    it('should return empty list if "after" cursor not found', async () => {
+      const results = await client.select({ after: 'non-existent' });
+      expect(results).toEqual([]);
+    });
+  });
+
+  describe('list()', () => {
+    it('should delegate to network.listActivities', async () => {
+      const mockResponse = {
+        activities: [createActivity('a1', '2023-10-26T10:00:00Z')],
+        nextPageToken: 'token',
+      };
+      (networkMock.listActivities as any).mockResolvedValue(mockResponse);
+
+      const options = { pageSize: 10, pageToken: 'prev-token' };
+      const result = await client.list(options);
+
+      expect(networkMock.listActivities).toHaveBeenCalledWith(options);
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe('get()', () => {
+    it('should return from storage if found (cache hit)', async () => {
+      const cachedActivity = createActivity('a1', '2023-10-26T10:00:00Z');
+      storageMock.get = vi.fn().mockResolvedValue(cachedActivity);
+
+      const result = await client.get('a1');
+
+      expect(storageMock.init).toHaveBeenCalledTimes(1);
+      expect(storageMock.get).toHaveBeenCalledWith('a1');
+      expect(networkMock.fetchActivity).not.toHaveBeenCalled();
+      expect(result).toEqual(cachedActivity);
+    });
+
+    it('should fetch from network, persist, and return if not in storage (cache miss)', async () => {
+      const freshActivity = createActivity('a1', '2023-10-26T10:00:00Z');
+      storageMock.get = vi.fn().mockResolvedValue(undefined);
+      (networkMock.fetchActivity as any).mockResolvedValue(freshActivity);
+
+      const result = await client.get('a1');
+
+      expect(storageMock.init).toHaveBeenCalledTimes(1);
+      expect(storageMock.get).toHaveBeenCalledWith('a1');
+      expect(networkMock.fetchActivity).toHaveBeenCalledWith('a1');
+      expect(storageMock.append).toHaveBeenCalledWith(freshActivity);
+      expect(result).toEqual(freshActivity);
     });
   });
 });
