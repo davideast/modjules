@@ -472,3 +472,94 @@ session.on('progress', async (activity) => {
 
 await session.result();
 ```
+
+### 22. Trigger Registry and Handler
+
+- **Category:** Triggers
+- **Complexity:** High
+- **Impact:** High
+- **Description:** A dedicated system for defining and managing trigger-based automations. This would provide a structured way to map incoming events (like webhooks) to specific, pre-configured Jules sessions. The SDK would handle the boilerplate of parsing, validating, and dispatching events to the correct automation logic.
+- **API Example:**
+```typescript
+import { createTriggerHandler } from 'julets/triggers';
+
+// Define how to handle a specific trigger, e.g., a Figma comment webhook
+const figmaTrigger = {
+  id: 'figma-design-update',
+  // Use Zod for payload validation
+  schema: z.object({ comment: z.string(), nodeId: z.string() }),
+  // Define the session to run when the trigger fires
+  getSessionConfig: (payload) => ({
+    source: { github: 'my-org/design-system' },
+    prompt: `The design for node ${payload.nodeId} was updated with the comment: "${payload.comment}". Please implement the necessary changes.`,
+  }),
+};
+
+const handler = createTriggerHandler({
+  triggers: [figmaTrigger],
+  // Optional: Add global error handlers or logging
+});
+
+// In an Express.js or Next.js API route:
+// handler.handle(req.body) would validate the payload, find the right
+// trigger, and start the corresponding Jules session.
+```
+
+### 23. Idempotency Key Support
+
+- **Category:** Triggers
+- **Complexity:** Medium
+- **Impact:** Medium
+- **Description:** Provide built-in support for idempotency keys in trigger-based sessions. When an automation is triggered by an event (e.g., a webhook), the caller can provide a unique key. If a session has already been created with that key, the SDK will simply return the existing session instead of creating a new one, preventing duplicate work from webhook retries.
+- **API Example:**
+```typescript
+// The trigger source (e.g., GitHub Actions, webhook handler)
+// would generate a unique key for the event.
+const idempotencyKey = `webhook-event-${github.context.payload.delivery_id}`;
+
+const session = await jules.run(
+  {
+    title: 'Update component from Figma webhook',
+    // ... other config
+  },
+  { idempotencyKey }, // Pass the key during creation
+);
+
+// If a session with this key was already created in the last 24h,
+// the SDK would fetch and return it instead of creating a new one.
+console.log(`Ensured session ${session.id} for key ${idempotencyKey}`);
+```
+
+### 24. Session Orchestrator for Multi-Agent Workflows
+
+- **Category:** Helper
+- **Complexity:** High
+- **Impact:** High
+- **Description:** A high-level helper for orchestrating workflows that involve multiple, dependent Jules sessions. This would allow a developer to define a sequence or graph of tasks, where the output or artifacts from one session (e.g., a "research" agent) are automatically used as input for the next session (e.g., a "coder" agent).
+- **API Example:**
+```typescript
+import { createOrchestrator } from 'julets/orchestration';
+
+const orchestrator = createOrchestrator();
+
+// Define a multi-step workflow
+const { finalResult } = await orchestrator.runWorkflow({
+  // Each key is a step
+  steps: {
+    research: {
+      prompt: 'Research the best libraries for state management in React.',
+      // The output of this step will be available to dependent steps
+    },
+    implement: {
+      // Depends on the 'research' step completing
+      dependsOn: ['research'],
+      prompt: (inputs) =>
+        `Based on the following research:\n\n${inputs.research.summary}\n\nPlease implement the chosen library into the project.`,
+    },
+  },
+  // The final output of the entire workflow
+  finalOutput: (steps) => steps.implement.artifacts.changeSets[0],
+});
+
+console.log('Workflow complete! Patch is ready.');
+```
