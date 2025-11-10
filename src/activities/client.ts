@@ -2,21 +2,20 @@ import { Activity } from '../types.js';
 import { ActivityStorage } from '../storage/types.js';
 import { ActivityClient, ListOptions, SelectOptions } from './types.js';
 
-// Minimal interface for the raw network source.
-// In prod, this will be wrapped around the standard julets REST client.
-export interface RawNetworkStream {
-  /**
-   * Should yield ALL activities from the server, ideally from the beginning of time
-   * or a reasonably far-back point, to ensure we don't miss anything.
-   * It must keep yielding indefinitely as new events arrive (polling internally).
-   */
+// Upgraded interface to support P3 requirements.
+// In a real app, this might live in src/network/types.ts
+export interface NetworkClient {
   rawStream(): AsyncIterable<Activity>;
+  listActivities(
+    options?: ListOptions,
+  ): Promise<{ activities: Activity[]; nextPageToken?: string }>;
+  fetchActivity(activityId: string): Promise<Activity>;
 }
 
 export class DefaultActivityClient implements ActivityClient {
   constructor(
     private storage: ActivityStorage,
-    private network: RawNetworkStream,
+    private network: NetworkClient,
   ) {}
 
   async *history(): AsyncIterable<Activity> {
@@ -81,17 +80,68 @@ export class DefaultActivityClient implements ActivityClient {
     yield* this.updates();
   }
 
-  async select(options?: SelectOptions): Promise<Activity[]> {
-    throw new Error("Method 'select()' not yet implemented.");
+  async select(options: SelectOptions = {}): Promise<Activity[]> {
+    await this.storage.init();
+    const results: Activity[] = [];
+
+    // State machine flags for cursor handling
+    let started = !options.after; // If no 'after', start immediately
+    let count = 0;
+
+    for await (const act of this.storage.scan()) {
+      // 1. Handle 'after' cursor (exclusive)
+      if (!started) {
+        if (act.id === options.after) {
+          started = true;
+        }
+        continue;
+      }
+
+      // 2. Handle 'before' cursor (exclusive)
+      if (options.before && act.id === options.before) {
+        break;
+      }
+
+      // 3. Apply filters
+      if (options.type && act.type !== options.type) {
+        continue;
+      }
+
+      // 4. Collect result
+      results.push(act);
+      count++;
+
+      // 5. Check limits
+      if (options.limit && count >= options.limit) {
+        break;
+      }
+    }
+
+    return results;
   }
 
   async list(
     options?: ListOptions,
   ): Promise<{ activities: Activity[]; nextPageToken?: string }> {
-    throw new Error("Method 'list()' not yet implemented.");
+    return this.network.listActivities(options);
   }
 
   async get(activityId: string): Promise<Activity> {
-    throw new Error("Method 'get()' not yet implemented.");
+    await this.storage.init();
+
+    // 1. Try cache first (Aggressive Caching)
+    const cached = await this.storage.get(activityId);
+    if (cached) {
+      return cached;
+    }
+
+    // 2. Network fallback (Read-Through)
+    const fresh = await this.network.fetchActivity(activityId);
+
+    // 3. Persist for next time before returning
+    // We await this to guarantee consistency.
+    await this.storage.append(fresh);
+
+    return fresh;
   }
 }
