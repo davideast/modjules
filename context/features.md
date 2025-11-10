@@ -472,3 +472,91 @@ session.on('progress', async (activity) => {
 
 await session.result();
 ```
+
+### 22. Trigger-based Session Templates
+- **Category:** Triggers
+- **Complexity:** Medium
+- **Impact:** High
+- **Description:** A declarative way to define session "templates" that map incoming webhook payloads or event data to a Jules session configuration. This would abstract away the boilerplate of writing custom parsing and mapping logic for common triggers like GitHub webhooks (e.g., issue created, comment added) or Figma events. The developer would define the mapping, and the SDK would handle the rest.
+- **API Example:**
+```typescript
+import { createTriggerHandler } from 'julets/triggers';
+
+// Define a template for handling new GitHub issues
+const handleNewIssue = createTriggerHandler({
+  // Use a JSON path or function to extract data from the trigger payload
+  source: {
+    github: '{{ payload.repository.full_name }}',
+    branch: '{{ payload.repository.default_branch }}',
+  },
+  prompt: `A new issue was created: "{{ payload.issue.title }}". Please triage it, add relevant labels, and suggest a fix. Issue body: {{ payload.issue.body }}`,
+  title: 'Triage Issue #{{ payload.issue.number }}',
+});
+
+// In a serverless function or webhook handler:
+// `githubWebhookPayload` is the raw JSON from the event
+const session = await handleNewIssue(githubWebhookPayload);
+console.log(`Session created for issue: ${session.id}`);
+```
+
+### 23. Idempotent Trigger Guard
+- **Category:** Triggers
+- **Complexity:** Medium
+- **Impact:** High
+- **Description:** A utility to prevent duplicate sessions from being created for the same trigger event. Many event systems (like webhooks) can send the same event multiple times. This feature would generate a unique, stable ID from the trigger payload (e.g., a hash of a commit ID or an event timestamp) and use the local cache to ensure that a session for that ID is only created once.
+- **API Example:**
+```typescript
+import { IdempotencyGuard } from 'julets/triggers';
+
+// Configure the guard to look at the unique ID from a GitHub webhook
+const guard = new IdempotencyGuard({
+  // Use a JSON path to find a stable, unique identifier in the payload
+  eventIdPath: '{{ payload.head_commit.id }}',
+});
+
+// In your webhook handler
+async function handlePushEvent(payload) {
+  const shouldProceed = await guard.checkAndSet(payload);
+
+  if (!shouldProceed) {
+    console.log('Duplicate event received. Skipping session creation.');
+    return;
+  }
+
+  // Known unique event, proceed with creating the session
+  await jules.run({
+    /* ... session config ... */
+  });
+}
+```
+
+### 24. Conditional Session Execution
+- **Category:** Triggers
+- **Complexity:** Low
+- **Impact:** Medium
+- **Description:** A helper that allows developers to define client-side pre-conditions that must be met before a trigger-based session is created. This prevents unnecessary API calls and session creation for events that don't require action. For example, a GitHub push event could be ignored if the commit message contains `[skip ci]`.
+- **API Example:**
+```typescript
+import { shouldRun } from 'julets/triggers';
+
+// In a GitHub Action or webhook handler for PR comments
+const prCommentPayload = getCommentPayload();
+
+const proceed = shouldRun(prCommentPayload, {
+  // Define a set of rules. The session will only be created if all rules pass.
+  conditions: [
+    // Only run if the comment was made by a user in the 'maintainers' array
+    { path: '{{ payload.sender.login }}', operator: 'in', value: ['user1', 'user2'] },
+    // Only run if the comment body starts with "/jules"
+    { path: '{{ payload.comment.body }}', operator: 'startsWith', value: '/jules' },
+  ],
+});
+
+if (proceed) {
+  // Conditions met, create the session
+  const prompt = prCommentPayload.comment.body.replace('/jules', '').trim();
+  await jules.run({ prompt, /* ... */ });
+} else {
+  console.log('Conditions not met. Skipping session creation.');
+}
+```
