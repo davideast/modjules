@@ -1,10 +1,16 @@
 // src/session.ts
+import { DefaultActivityClient } from './activities/client.js';
+import { ActivityClient } from './activities/types.js';
 import { ApiClient } from './api.js';
 import { InternalConfig } from './client.js';
 import { InvalidStateError, JulesError } from './errors.js';
 import { mapSessionResourceToOutcome } from './mappers.js';
+import { NetworkAdapter } from './network/adapter.js';
 import { pollSession, pollUntilCompletion } from './polling.js';
-import { streamActivities, StreamActivitiesOptions } from './streaming.js';
+import { MemoryStorage } from './storage/memory.js';
+import { NodeFileStorage } from './storage/node-fs.js';
+import { ActivityStorage } from './storage/types.js';
+import { StreamActivitiesOptions } from './streaming.js';
 import {
   Activity,
   ActivityAgentMessaged,
@@ -14,24 +20,73 @@ import {
   SessionState,
 } from './types.js';
 
+// Helper factory for isomorphic storage selection
+function createDefaultStorage(sessionId: string): ActivityStorage {
+  // Allow forcing memory storage for tests to avoid disk I/O and state leakage
+  if (
+    typeof process !== 'undefined' &&
+    process.env.JULES_FORCE_MEMORY_STORAGE === 'true'
+  ) {
+    return new MemoryStorage();
+  }
+
+  // Simple, standard check for Node.js environment
+  const isNode =
+    typeof process !== 'undefined' &&
+    process.versions != null &&
+    process.versions.node != null;
+
+  if (isNode) {
+    return new NodeFileStorage(sessionId);
+  }
+
+  // Fallback for browsers/other runtimes until IndexedDB adapter is ready
+  return new MemoryStorage();
+}
+
 export class SessionClientImpl implements SessionClient {
   readonly id: string;
   private apiClient: ApiClient;
   private config: InternalConfig;
 
+  // The new client instance
+  private _activities: ActivityClient;
+
   constructor(sessionId: string, apiClient: ApiClient, config: InternalConfig) {
     this.id = sessionId.replace(/^sessions\//, '');
     this.apiClient = apiClient;
     this.config = config;
+
+    // --- WIRING THE NEW ENGINE ---
+    const network = new NetworkAdapter(
+      this.apiClient,
+      this.id,
+      this.config.pollingIntervalMs,
+    );
+
+    const storage = createDefaultStorage(this.id);
+
+    this._activities = new DefaultActivityClient(storage, network);
   }
 
-  stream(options: StreamActivitiesOptions = {}): AsyncIterable<Activity> {
-    return streamActivities(
-      this.id,
-      this.apiClient,
-      this.config.pollingIntervalMs,
-      options,
-    );
+  activities(): ActivityClient {
+    return this._activities;
+  }
+
+  async *stream(
+    options: StreamActivitiesOptions = {},
+  ): AsyncIterable<Activity> {
+    // Proxy to the new engine, preserving legacy filtering options.
+    // The base .stream() does not yet support filtering, so we do it here.
+    for await (const activity of this._activities.stream()) {
+      if (
+        options.exclude?.originator &&
+        activity.originator === options.exclude.originator
+      ) {
+        continue;
+      }
+      yield activity;
+    }
   }
 
   async approve(): Promise<void> {

@@ -3,6 +3,7 @@ import { ApiClient } from '../api.js';
 import { NetworkClient } from '../activities/client.js';
 import { Activity } from '../types.js';
 import { ListOptions } from '../activities/types.js';
+import { mapRestActivityToSdkActivity } from '../mappers.js';
 
 export class NetworkAdapter implements NetworkClient {
   constructor(
@@ -12,9 +13,10 @@ export class NetworkAdapter implements NetworkClient {
   ) {}
 
   async fetchActivity(activityId: string): Promise<Activity> {
-    return this.apiClient.request<Activity>(
+    const restActivity = await this.apiClient.request<any>(
       `sessions/${this.sessionId}/activities/${activityId}`,
     );
+    return mapRestActivityToSdkActivity(restActivity);
   }
 
   async listActivities(
@@ -29,12 +31,12 @@ export class NetworkAdapter implements NetworkClient {
     }
 
     const response = await this.apiClient.request<{
-      activities?: Activity[];
+      activities?: any[];
       nextPageToken?: string;
     }>(`sessions/${this.sessionId}/activities`, { params });
 
     return {
-      activities: response.activities || [],
+      activities: (response.activities || []).map(mapRestActivityToSdkActivity),
       nextPageToken: response.nextPageToken,
     };
   }

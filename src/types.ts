@@ -10,6 +10,8 @@
 // Configuration Types
 // =============================================================================
 
+import { ActivityClient } from './activities/types.js';
+
 /**
  * Configuration options for the Jules SDK client.
  *
@@ -642,6 +644,13 @@ export interface SessionClient {
    * The unique ID of the session.
    */
   readonly id: string;
+
+  /**
+   * Access the rich Activity Engine for this session.
+   * Allows for querying history, streaming real-time updates, and
+   * performing efficient local lookups.
+   */
+  activities(): ActivityClient;
 
   /**
    * Provides a real-time stream of activities for the session.
