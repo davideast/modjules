@@ -14,6 +14,26 @@ vi.mock('../../src/api.js', () => {
   };
 });
 
+function createMockRestActivity(id: string) {
+  return {
+    name: `sessions/session-123/activities/${id}`,
+    createTime: '2023-01-01T00:00:00Z',
+    originator: 'system',
+    sessionCompleted: {},
+  };
+}
+
+function createExpectedSdkActivity(id: string) {
+  return {
+    name: `sessions/session-123/activities/${id}`,
+    id: id,
+    createTime: '2023-01-01T00:00:00Z',
+    originator: 'system',
+    artifacts: [],
+    type: 'sessionCompleted',
+  };
+}
+
 describe('NetworkAdapter', () => {
   let adapter: NetworkAdapter;
   let apiClient: ApiClient;
@@ -37,20 +57,23 @@ describe('NetworkAdapter', () => {
   });
 
   it('should fetch a single activity', async () => {
-    const mockActivity = { id: 'act-1' };
-    mockRequest.mockResolvedValue(mockActivity);
+    const mockRest = createMockRestActivity('act-1');
+    mockRequest.mockResolvedValue(mockRest);
 
     const result = await adapter.fetchActivity('act-1');
 
     expect(mockRequest).toHaveBeenCalledWith(
       'sessions/session-123/activities/act-1',
     );
-    expect(result).toEqual(mockActivity);
+    expect(result).toEqual(createExpectedSdkActivity('act-1'));
   });
 
   it('should list activities with options', async () => {
     const mockResponse = {
-      activities: [{ id: 'act-1' }, { id: 'act-2' }],
+      activities: [
+        createMockRestActivity('act-1'),
+        createMockRestActivity('act-2'),
+      ],
       nextPageToken: 'token-next',
     };
     mockRequest.mockResolvedValue(mockResponse);
@@ -69,7 +92,13 @@ describe('NetworkAdapter', () => {
         },
       },
     );
-    expect(result).toEqual(mockResponse);
+    expect(result).toEqual({
+      activities: [
+        createExpectedSdkActivity('act-1'),
+        createExpectedSdkActivity('act-2'),
+      ],
+      nextPageToken: 'token-next',
+    });
   });
 
   it('should handle empty list response', async () => {
@@ -84,11 +113,14 @@ describe('NetworkAdapter', () => {
   it('should poll in rawStream', async () => {
     // Mock first call: returns one activity, no next page
     mockRequest.mockResolvedValueOnce({
-      activities: [{ id: 'act-1' }],
+      activities: [createMockRestActivity('act-1')],
     });
     // Mock second call (after poll): returns same activity + new one
     mockRequest.mockResolvedValueOnce({
-      activities: [{ id: 'act-1' }, { id: 'act-2' }],
+      activities: [
+        createMockRestActivity('act-1'),
+        createMockRestActivity('act-2'),
+      ],
     });
 
     const stream = adapter.rawStream();
@@ -96,7 +128,7 @@ describe('NetworkAdapter', () => {
 
     // First fetch
     let next = await iterator.next();
-    expect(next.value).toEqual({ id: 'act-1' });
+    expect(next.value).toEqual(createExpectedSdkActivity('act-1'));
 
     // Should be waiting now.
     // We need to trigger the wait.
@@ -107,10 +139,10 @@ describe('NetworkAdapter', () => {
 
     next = await nextPromise;
     // Re-fetched 'act-1' because it starts from scratch
-    expect(next.value).toEqual({ id: 'act-1' });
+    expect(next.value).toEqual(createExpectedSdkActivity('act-1'));
 
     next = await iterator.next();
     // Newly fetched 'act-2'
-    expect(next.value).toEqual({ id: 'act-2' });
+    expect(next.value).toEqual(createExpectedSdkActivity('act-2'));
   });
 });

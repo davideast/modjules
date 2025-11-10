@@ -99,7 +99,10 @@ const server = setupServer(
   }),
 );
 
-beforeAll(() => server.listen());
+beforeAll(() => {
+  server.listen();
+  process.env.JULES_FORCE_MEMORY_STORAGE = 'true';
+});
 afterEach(() => {
   server.resetHandlers();
   capturedRequestBody = undefined;
@@ -107,7 +110,10 @@ afterEach(() => {
   approvePlanCalled = false;
   vi.useRealTimers();
 });
-afterAll(() => server.close());
+afterAll(() => {
+  server.close();
+  delete process.env.JULES_FORCE_MEMORY_STORAGE;
+});
 
 describe('jules.session()', () => {
   let jules: JulesClient;
