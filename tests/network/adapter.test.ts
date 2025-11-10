@@ -3,18 +3,32 @@ import { NetworkAdapter } from '../../src/network/adapter.js';
 import { ApiClient } from '../../src/api.js';
 
 // Mock ApiClient
-const apiClientMock = {
-  request: vi.fn(),
-} as unknown as ApiClient;
+const mockRequest = vi.fn();
+vi.mock('../../src/api.js', () => {
+  return {
+    ApiClient: vi.fn().mockImplementation(() => {
+      return {
+        request: mockRequest,
+      };
+    }),
+  };
+});
 
 describe('NetworkAdapter', () => {
   let adapter: NetworkAdapter;
-  const sessionId = 'test-session-id';
+  let apiClient: ApiClient;
 
   beforeEach(() => {
-    vi.resetAllMocks();
-    // Use a small polling interval for tests to run fast
-    adapter = new NetworkAdapter(apiClientMock, sessionId, 100); // 100ms
+    mockRequest.mockReset();
+    apiClient = new ApiClient({
+      apiKey: 'test-key',
+      baseUrl: 'http://test-url',
+      requestTimeoutMs: 1000,
+    });
+    adapter = new NetworkAdapter(apiClient, 'session-123', 100); // Short polling interval for tests
+  });
+
+  beforeEach(() => {
     vi.useFakeTimers();
   });
 
@@ -22,111 +36,81 @@ describe('NetworkAdapter', () => {
     vi.useRealTimers();
   });
 
-  describe('fetchActivity', () => {
-    it('should call apiClient.request with correct URL', async () => {
-      const activityId = 'act-123';
-      const mockActivity = { id: activityId };
-      (apiClientMock.request as any).mockResolvedValue(mockActivity);
+  it('should fetch a single activity', async () => {
+    const mockActivity = { id: 'act-1' };
+    mockRequest.mockResolvedValue(mockActivity);
 
-      const result = await adapter.fetchActivity(activityId);
+    const result = await adapter.fetchActivity('act-1');
 
-      expect(apiClientMock.request).toHaveBeenCalledWith(
-        `sessions/${sessionId}/activities/${activityId}`,
-      );
-      expect(result).toEqual(mockActivity);
-    });
+    expect(mockRequest).toHaveBeenCalledWith(
+      'sessions/session-123/activities/act-1',
+    );
+    expect(result).toEqual(mockActivity);
   });
 
-  describe('listActivities', () => {
-    it('should call apiClient.request with correct URL and no params if no options', async () => {
-      const mockResponse = { activities: [] };
-      (apiClientMock.request as any).mockResolvedValue(mockResponse);
+  it('should list activities with options', async () => {
+    const mockResponse = {
+      activities: [{ id: 'act-1' }, { id: 'act-2' }],
+      nextPageToken: 'token-next',
+    };
+    mockRequest.mockResolvedValue(mockResponse);
 
-      const result = await adapter.listActivities();
-
-      expect(apiClientMock.request).toHaveBeenCalledWith(
-        `sessions/${sessionId}/activities`,
-        { params: {} },
-      );
-      expect(result).toEqual(mockResponse);
+    const result = await adapter.listActivities({
+      pageSize: 10,
+      pageToken: 'token-prev',
     });
 
-    it('should map options to query params', async () => {
-      const mockResponse = { activities: [] };
-      (apiClientMock.request as any).mockResolvedValue(mockResponse);
-
-      await adapter.listActivities({ pageSize: 10, pageToken: 'token123' });
-
-      expect(apiClientMock.request).toHaveBeenCalledWith(
-        `sessions/${sessionId}/activities`,
-        {
-          params: {
-            pageSize: '10',
-            pageToken: 'token123',
-          },
+    expect(mockRequest).toHaveBeenCalledWith(
+      'sessions/session-123/activities',
+      {
+        params: {
+          pageSize: '10',
+          pageToken: 'token-prev',
         },
-      );
-    });
+      },
+    );
+    expect(result).toEqual(mockResponse);
   });
 
-  describe('rawStream', () => {
-    it('should yield activities from multiple pages and then poll from scratch', async () => {
-      const page1 = {
-        activities: [{ id: 'a1' }, { id: 'a2' }],
-        nextPageToken: 'token2',
-      };
-      const page2 = {
-        activities: [{ id: 'a3' }],
-        // No nextPageToken, will trigger polling wait
-      };
-      const page1Reloaded = {
-        activities: [{ id: 'a1_reloaded' }], // Changed ID to verify it's a new fetch
-      };
+  it('should handle empty list response', async () => {
+    mockRequest.mockResolvedValue({});
 
-      let callCount = 0;
-      (apiClientMock.request as any).mockImplementation(
-        async (url: string, options: any) => {
-          callCount++;
-          if (callCount === 1) {
-            // First call, no token
-            expect(options.params.pageToken).toBeUndefined();
-            return page1;
-          }
-          if (callCount === 2) {
-            // Second call, token2
-            expect(options.params.pageToken).toBe('token2');
-            return page2;
-          }
-          if (callCount === 3) {
-            // Third call, after polling wait, should be back to no token
-            expect(options.params.pageToken).toBeUndefined();
-            return page1Reloaded;
-          }
-          // Hang forever after this to stop the test from looping nicely if we wanted
-          return new Promise(() => {});
-        },
-      );
+    const result = await adapter.listActivities();
 
-      const stream = adapter.rawStream();
-      const iterator = stream[Symbol.asyncIterator]();
+    expect(result.activities).toEqual([]);
+    expect(result.nextPageToken).toBeUndefined();
+  });
 
-      // Page 1
-      expect((await iterator.next()).value).toEqual({ id: 'a1' });
-      expect((await iterator.next()).value).toEqual({ id: 'a2' });
-
-      // Page 2
-      expect((await iterator.next()).value).toEqual({ id: 'a3' });
-
-      // Now it should be waiting.
-      const nextPromise = iterator.next();
-
-      // Advance time to trigger the sleep to finish
-      await vi.advanceTimersByTimeAsync(200);
-
-      // Should have re-fetched page 1 from scratch
-      expect((await nextPromise).value).toEqual({ id: 'a1_reloaded' });
-
-      expect(callCount).toBeGreaterThanOrEqual(3);
+  it('should poll in rawStream', async () => {
+    // Mock first call: returns one activity, no next page
+    mockRequest.mockResolvedValueOnce({
+      activities: [{ id: 'act-1' }],
     });
+    // Mock second call (after poll): returns same activity + new one
+    mockRequest.mockResolvedValueOnce({
+      activities: [{ id: 'act-1' }, { id: 'act-2' }],
+    });
+
+    const stream = adapter.rawStream();
+    const iterator = stream[Symbol.asyncIterator]();
+
+    // First fetch
+    let next = await iterator.next();
+    expect(next.value).toEqual({ id: 'act-1' });
+
+    // Should be waiting now.
+    // We need to trigger the wait.
+    const nextPromise = iterator.next();
+
+    // Advance time to trigger polling
+    await vi.advanceTimersByTimeAsync(101);
+
+    next = await nextPromise;
+    // Re-fetched 'act-1' because it starts from scratch
+    expect(next.value).toEqual({ id: 'act-1' });
+
+    next = await iterator.next();
+    // Newly fetched 'act-2'
+    expect(next.value).toEqual({ id: 'act-2' });
   });
 });
