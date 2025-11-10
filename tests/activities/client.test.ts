@@ -76,13 +76,15 @@ describe('DefaultActivityClient', () => {
 
   describe('Unimplemented methods', () => {
     it('updates() should throw Not Implemented', async () => {
-      await expect(client.updates().next()).rejects.toThrow(
+      const iterator = client.updates()[Symbol.asyncIterator]();
+      await expect(iterator.next()).rejects.toThrow(
         "Method 'updates()' not yet implemented.",
       );
     });
 
     it('stream() should throw Not Implemented', async () => {
-      await expect(client.stream().next()).rejects.toThrow(
+      const iterator = client.stream()[Symbol.asyncIterator]();
+      await expect(iterator.next()).rejects.toThrow(
         "Method 'stream()' not yet implemented.",
       );
     });
