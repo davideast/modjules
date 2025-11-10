@@ -472,3 +472,87 @@ session.on('progress', async (activity) => {
 
 await session.result();
 ```
+
+### 22. Trigger-to-Prompt Transformation
+
+- **Category:** Triggers
+- **Complexity:** Medium
+- **Impact:** High
+- **Description:** A utility to transform raw, trigger-based event payloads (e.g., a GitHub issue webhook, a Figma comment) into a structured, actionable prompt for a Jules session. This helper would use customizable templates to extract relevant details, format them, and construct a high-quality prompt, solving a major boilerplate problem for event-driven automations.
+- **API Example:**
+```typescript
+import { createPromptFromTrigger } from 'julets/triggers';
+
+// Example: Handling a GitHub issue creation webhook
+const GITHUB_ISSUE_TEMPLATE = `
+A new GitHub issue titled "{{title}}" was created by {{user}}.
+Repository: {{repo}}
+Issue Number: #{{number}}
+
+## Body
+{{body}}
+
+## Task
+Based on the issue, please formulate a plan to address it.
+`;
+
+const prompt = createPromptFromTrigger(
+  GITHUB_ISSUE_TEMPLATE,
+  githubWebhookPayload, // The raw JSON payload from GitHub
+);
+
+const session = await jules.run({ prompt });
+```
+
+### 23. Idempotency Key for Triggered Sessions
+
+- **Category:** Triggers
+- **Complexity:** Low
+- **Impact:** Medium
+- **Description:** Provides a simple, client-side mechanism for passing an idempotency key when creating a session. This is critical for trigger-based systems (like webhooks) that might retry and send the same event multiple times. The SDK would use this key to ensure that only one session is created for a unique event, preventing duplicate work. This could be implemented by storing a reference of keys used in the local cache.
+- **API Example:**
+```typescript
+// Webhook event payload often includes a unique delivery ID
+const idempotencyKey = githubWebhookPayload.delivery_id;
+
+// The SDK will ensure that a session with this key is only created once.
+// If called again with the same key, it would return the existing session.
+const session = await jules.run(
+  {
+    prompt: 'Fix the bug described in the webhook.',
+    // ... other config
+  },
+  { idempotencyKey },
+);
+
+console.log(`Session ${session.id} is running for event ${idempotencyKey}`);
+```
+
+### 24. Webhook Signature Verification Middleware
+
+- **Category:** Triggers
+- **Complexity:** Medium
+- **Impact:** High
+- **Description:** A specialized middleware for verifying the authenticity of incoming webhooks from popular services like GitHub, Stripe, or Figma. The developer provides the secret, and the middleware handles the complex logic of hashing the request body and comparing signatures. This provides a critical security layer for any public-facing endpoint that triggers Jules automations.
+- **API Example:**
+```typescript
+import { createGithubSignatureVerifier } from 'julets/triggers';
+
+// In a server environment (e.g., Next.js API route)
+const verifier = createGithubSignatureVerifier({
+  secret: process.env.GITHUB_WEBHOOK_SECRET,
+});
+
+const jules = new JulesClient({
+  middlewares: [verifier],
+});
+
+// If the signature is invalid, jules.run() will throw an error
+// before ever making an API call.
+try {
+  await jules.run({ prompt: '...' });
+} catch (error) {
+  // Handle authentication error
+  console.error('Invalid webhook signature:', error);
+}
+```
