@@ -30,7 +30,9 @@
     "test:smoke": "tsx scripts/smoke-test.ts",
     "type-check": "tsc --project tsconfig.test.json",
     "verify": "tsx scripts/verify.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "changeset": "changeset",
+    "release": "changeset publish"
   },
   "keywords": [
     "jules",
@@ -52,6 +54,7 @@
     "tabWidth": 2
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.5.1",
     "@changesets/cli": "^2.29.7",
     "@google/jules": "^0.1.37",
     "@inquirer/prompts": "^7.9.0",
