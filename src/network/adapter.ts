@@ -1,3 +1,4 @@
+import { setTimeout } from 'timers/promises';
 import { ApiClient } from '../api.js';
 import { NetworkClient } from '../activities/client.js';
 import { Activity } from '../types.js';
@@ -7,7 +8,7 @@ export class NetworkAdapter implements NetworkClient {
   constructor(
     private apiClient: ApiClient,
     private sessionId: string,
-    private pollingIntervalMs: number = 2000,
+    private pollingIntervalMs: number = 5000,
   ) {}
 
   async fetchActivity(activityId: string): Promise<Activity> {
@@ -27,33 +28,32 @@ export class NetworkAdapter implements NetworkClient {
       params.pageToken = options.pageToken;
     }
 
-    return this.apiClient.request<{
-      activities: Activity[];
+    const response = await this.apiClient.request<{
+      activities?: Activity[];
       nextPageToken?: string;
     }>(`sessions/${this.sessionId}/activities`, { params });
+
+    return {
+      activities: response.activities || [],
+      nextPageToken: response.nextPageToken,
+    };
   }
 
   async *rawStream(): AsyncIterable<Activity> {
-    let currentToken: string | undefined;
-
     while (true) {
-      const response = await this.listActivities({ pageToken: currentToken });
+      let pageToken: string | undefined = undefined;
 
-      if (response.activities) {
+      do {
+        const response = await this.listActivities({ pageToken });
+
         for (const activity of response.activities) {
           yield activity;
         }
-      }
 
-      if (response.nextPageToken) {
-        currentToken = response.nextPageToken;
-      } else {
-        // End of list reached. Wait and restart from scratch.
-        await new Promise((resolve) =>
-          setTimeout(resolve, this.pollingIntervalMs),
-        );
-        currentToken = undefined;
-      }
+        pageToken = response.nextPageToken;
+      } while (pageToken);
+
+      await setTimeout(this.pollingIntervalMs);
     }
   }
 }
