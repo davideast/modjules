@@ -472,3 +472,119 @@ session.on('progress', async (activity) => {
 
 await session.result();
 ```
+
+### 22. Trigger Registry and Dispatcher
+- **Category:** Triggers
+- **Complexity:** High
+- **Impact:** High
+- **Description:** This feature introduces a high-level abstraction for managing event-driven automations. A developer could define different "triggers" (e.g., 'onFigmaComment', 'onJiraTicketUpdate') and associate them with specific prompt-generation logic. The SDK would provide a central dispatcher to route incoming webhook payloads to the correct trigger, handle payload parsing, and initiate a Jules session. This drastically reduces the boilerplate for wiring up different event sources.
+- **API Example:**
+```typescript
+import { TriggerRegistry } from 'julets/triggers';
+import { figma, jira } from 'julets/triggers/presets'; // hypothetical presets
+
+const registry = new TriggerRegistry()
+  .on(figma.commentAdded, async (event) => {
+    return {
+      title: `Figma Comment #${event.comment.id}`,
+      prompt: `A new comment was added to the Figma file "${event.file_name}". The comment is: "${event.comment.message}". Please analyze the design and provide feedback.`,
+      source: { github: 'my-org/design-system' },
+    };
+  })
+  .on(jira.issueUpdated, async (event) => {
+    if (event.fields.status.name !== 'Done') return null; // Ignore
+    return {
+      title: `Jira Issue Closed: ${event.key}`,
+      prompt: `The Jira issue ${event.key} (${event.fields.summary}) was just closed. Please review the associated PR and ensure the documentation was updated.`,
+      source: { github: `my-org/${event.fields.repository}` },
+    };
+  });
+
+// In an Express/Next.js API route:
+async function handler(req, res) {
+  // The dispatcher inspects the request (e.g., headers, body) to find the right trigger
+  const session = await registry.dispatch(req);
+  if (session) {
+    res.status(202).send({ sessionId: session.id });
+  } else {
+    res.status(200).send({ message: 'No action taken.' });
+  }
+}
+```
+
+### 23. Idempotency Key for Triggers
+- **Category:** Triggers
+- **Complexity:** Medium
+- **Impact:** High
+- **Description:** Webhooks can sometimes be delivered more than once, which could trigger duplicate, expensive Jules sessions. This feature provides a simple, client-side mechanism to prevent this. A developer can provide an "idempotency key" (e.g., a webhook delivery ID) when creating a session. The SDK would maintain a local cache of these keys for a configurable TTL and automatically ignore any subsequent requests with a key that has already been processed.
+- **API Example:**
+```typescript
+// Webhook handler (e.g., in a Next.js API route)
+async function figmaWebhookHandler(req, res) {
+  const idempotencyKey = req.headers['x-webhook-id']; // Get a unique ID from the trigger source
+  const event = req.body;
+
+  try {
+    const session = await jules.run(
+      {
+        title: `Figma update for ${event.file_name}`,
+        prompt: `The figma file was updated. Please implement the changes.`,
+        source: { github: 'my-org/website' },
+      },
+      {
+        idempotencyKey: idempotencyKey,
+        // Optional: onDuplicate: 'ignore' | 'error' (defaults to 'ignore')
+      },
+    );
+
+    if (session) {
+      console.log('New session started:', session.id);
+    } else {
+      console.log('Duplicate webhook ignored.');
+    }
+
+    res.status(200).send();
+  } catch (error) {
+    // Handle potential errors if onDuplicate is set to 'error'
+    res.status(409).send({ error: 'Conflict: Duplicate request' });
+  }
+}
+```
+
+### 24. Dynamic Session Throttling
+- **Category:** Triggers
+- **Complexity:** Medium
+- **Impact:** Medium
+- **Description:** In response to a burst of events (e.g., many GitHub commits in quick succession), a naive webhook handler might create a storm of Jules sessions. This feature provides a client-side throttling mechanism to manage this. A developer can define a throttling key (e.g., a repository name or issue ID) and a policy (e.g., "only one active session at a time," or "allow up to 3 concurrent sessions"). The SDK would then manage a queue, ensuring that new sessions are only created when the policy for that key is not being violated.
+- **API Example:**
+```typescript
+// In a GitHub Action that runs on every push to a feature branch
+async function handlePushEvent(context) {
+  const branchName = context.payload.ref; // e.g., 'refs/heads/feature/new-login'
+  const repoName = context.payload.repository.full_name;
+
+  // Throttle based on the repository name. Only allow one session at a time per repo.
+  const session = await jules.run(
+    {
+      title: `Review commit on ${branchName}`,
+      prompt: `A new commit was pushed to ${branchName}. Please review the changes for code quality.`,
+      source: { github: repoName, branch: branchName },
+    },
+    {
+      throttle: {
+        key: repoName,
+        policy: 'concurrency', // or 'debounce', 'rateLimit'
+        limit: 1,
+      },
+    },
+  );
+
+  if (session) {
+    console.log(`Session started for ${repoName}: ${session.id}`);
+  } else {
+    console.log(
+      `Throttled: A session is already active for repository ${repoName}.`,
+    );
+  }
+}
+```
