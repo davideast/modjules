@@ -32,7 +32,7 @@ export type StreamActivitiesOptions = {
  * @param options Streaming options, including filters.
  * @internal
  */
-import { Platform } from './platform.js';
+import { Platform } from './platform/types.js';
 
 export async function* streamActivities(
   sessionId: string,

@@ -52,7 +52,55 @@ describe('Artifacts', () => {
           filepath,
           base64Data,
           'base64',
+          undefined,
         );
+      });
+
+      it('should pass activityId to platform.saveFile if present', async () => {
+        const base64Data = 'SGVsbG8sIFdvcmxkIQ==';
+        const activityId = 'act-123';
+        const artifact = new MediaArtifact(
+          {
+            data: base64Data,
+            format: 'text/plain',
+          },
+          mockPlatform,
+          activityId,
+        );
+        const filepath = '/path/to/file.txt';
+
+        await artifact.save(filepath);
+
+        expect(mockPlatform.saveFile).toHaveBeenCalledWith(
+          filepath,
+          base64Data,
+          'base64',
+          activityId,
+        );
+      });
+
+      it('should call platform.createDataUrl when toUrl is called', () => {
+        const base64Data = 'SGVsbG8sIFdvcmxkIQ==';
+        const mimeType = 'text/plain';
+        const artifact = new MediaArtifact(
+          {
+            data: base64Data,
+            format: mimeType,
+          },
+          mockPlatform,
+        );
+
+        const mockUrl = 'data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==';
+        (mockPlatform.createDataUrl as Mock).mockReturnValue(mockUrl);
+
+        const url = artifact.toUrl();
+
+        expect(mockPlatform.createDataUrl).toHaveBeenCalledOnce();
+        expect(mockPlatform.createDataUrl).toHaveBeenCalledWith(
+          base64Data,
+          mimeType,
+        );
+        expect(url).toBe(mockUrl);
       });
     });
 

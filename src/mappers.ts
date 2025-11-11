@@ -30,12 +30,13 @@ import {
 export function mapRestArtifactToSdkArtifact(
   restArtifact: RestArtifact,
   platform: any,
+  activityId?: string,
 ): Artifact {
   if ('changeSet' in restArtifact) {
     return { type: 'changeSet', changeSet: restArtifact.changeSet };
   }
   if ('media' in restArtifact) {
-    return new MediaArtifact(restArtifact.media, platform);
+    return new MediaArtifact(restArtifact.media, platform, activityId);
   }
   if ('bashOutput' in restArtifact) {
     return new BashArtifact(restArtifact.bashOutput);
@@ -55,14 +56,16 @@ export function mapRestActivityToSdkActivity(
     artifacts: rawArtifacts,
   } = restActivity;
 
+  const activityId = name.split('/').pop();
+
   // First, map the artifacts since they are common to all activities.
   const artifacts: Artifact[] = (rawArtifacts || []).map((artifact: any) =>
-    mapRestArtifactToSdkArtifact(artifact, platform),
+    mapRestArtifactToSdkArtifact(artifact, platform, activityId),
   );
 
   const baseActivity = {
     name,
-    id: name.split('/').pop(),
+    id: activityId,
     createTime,
     originator: originator || 'system',
     artifacts,

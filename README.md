@@ -226,8 +226,12 @@ for (const artifact of activity.artifacts) {
     console.log(artifact.toString());
   }
   if (artifact.type === 'media' && artifact.format === 'image/png') {
-    // The .save() helper works in Node.js environments
+    // The .save() helper works in both Node.js and browser environments
     await artifact.save(`./screenshots/${activity.id}.png`);
+
+    // Get a URL for display or download (works cross-platform)
+    const url = artifact.toUrl();
+    console.log('Screenshot URL:', url);
   }
 }
 ```
@@ -304,5 +308,6 @@ This is a high-level overview of the main SDK components.
   - `session.activities().updates()`: Returns a stream of live activities from the network.
   - `session.activities().select(query)`: Queries the local activity cache.
 - **Artifact Management:**
-  - `artifact.save()`: Decodes the base64 `data` and saves it as a file at the specified path.
+  - `artifact.save()`: Decodes the base64 `data` and saves it. In Node.js, it writes to the filesystem. In the browser, it saves to IndexedDB.
+  - `artifact.toUrl()`: Returns a `data:` URI for the artifact data, usable in both Node.js and browser.
   - `artifact.toString()`: Returns a formatted string that combines the command, exit code, `stdout`, and `stderr`, to simplify log display.

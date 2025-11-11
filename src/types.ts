@@ -376,6 +376,21 @@ export interface MediaArtifact {
    * }
    */
   save(filepath: string): Promise<void>;
+
+  /**
+   * Creates a blob URL for the media data.
+   * This works in both Node.js and browser environments.
+   *
+   * @returns A URL string that can be used to display or download the media.
+   *
+   * @example
+   * if (artifact.type === 'media') {
+   *   const url = artifact.toUrl();
+   *   // Browser: <img src={url} />
+   *   // Node: console.log('Media URL:', url);
+   * }
+   */
+  toUrl(): string;
 }
 
 /**

@@ -16,33 +16,35 @@ A `MediaArtifact` represents a media file, such as a PNG image generated during 
 
 #### `save(filepath: string): Promise<void>`
 
-This method decodes the base64 `data` and saves it as a file at the specified path.
+This method decodes the base64 `data` and saves it.
 
-**Note:** This method is only available in a Node.js environment. Calling it in a browser will throw an error.
+- **Node.js:** Saves the artifact as a file at the specified `filepath` on the local filesystem.
+- **Browser:** Saves the artifact to the `artifacts` object store in IndexedDB, using `filepath` as the key. This acts as a virtual filesystem within the browser's sandbox.
+
+#### `toUrl(): string`
+
+Returns a URL string that can be used to display or download the media.
+
+- **Browser:** Returns a `data:` URI.
+- **Node.js:** Returns a `data:` URI.
 
 ### Example
 
-Here is how you can identify a `MediaArtifact` in the activity stream and save it to a file.
+Here is how you can work with `MediaArtifact` in both Node.js and browser environments.
 
 ```typescript
-import { promises as fs } from 'fs';
-
 for await (const activity of session.stream()) {
   for (const artifact of activity.artifacts) {
-    // Check if the artifact is a media artifact
-    if (artifact.type === 'media') {
-      console.log(`Found a media artifact with format: ${artifact.format}`);
+    if (artifact.type === 'media' && artifact.format === 'image/png') {
+      // 1. Save the artifact (works in both Node.js and Browser)
+      // Node.js: writes to ./screenshots/image.png
+      // Browser: writes to IndexedDB with key './screenshots/image.png'
+      await artifact.save('./screenshots/image.png');
 
-      // Example: Save any PNG images
-      if (artifact.format === 'image/png') {
-        const filepath = './screenshot.png';
-        try {
-          await artifact.save(filepath);
-          console.log(`Successfully saved screenshot to ${filepath}`);
-        } catch (error) {
-          console.error(`Failed to save screenshot: ${error.message}`);
-        }
-      }
+      // 2. Get a displayable URL (works in both Node.js and Browser)
+      const url = artifact.toUrl();
+      console.log('Image URL:', url);
+      // Browser: can be used in <img src={url} />
     }
   }
 }
