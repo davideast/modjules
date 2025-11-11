@@ -26,14 +26,21 @@ export type InternalConfig = {
   requestTimeoutMs: number;
 };
 
+import { StorageFactory } from './types.js';
+
 export class JulesClientImpl implements JulesClient {
   public sources: SourceManager;
   private apiClient: ApiClient;
   private config: InternalConfig;
   private options: JulesOptions;
+  private storageFactory: StorageFactory;
 
-  constructor(options: JulesOptions = {}) {
+  constructor(
+    options: JulesOptions = {},
+    defaultStorageFactory: StorageFactory,
+  ) {
     this.options = options;
+    this.storageFactory = options.storageFactory ?? defaultStorageFactory;
     const apiKey = options.apiKey ?? process.env.JULES_API_KEY;
     const baseUrl = options.baseUrl ?? 'https://jules.googleapis.com/v1alpha';
 
@@ -52,14 +59,17 @@ export class JulesClientImpl implements JulesClient {
   }
 
   with(options: JulesOptions): JulesClient {
-    return new JulesClientImpl({
-      ...this.options,
-      ...options,
-      config: {
-        ...this.options.config,
-        ...options.config,
+    return new JulesClientImpl(
+      {
+        ...this.options,
+        ...options,
+        config: {
+          ...this.options.config,
+          ...options.config,
+        },
       },
-    });
+      this.storageFactory,
+    );
   }
 
   private async _prepareSessionCreation(
@@ -127,7 +137,13 @@ export class JulesClientImpl implements JulesClient {
     configOrId: SessionConfig | string,
   ): Promise<SessionClient> | SessionClient {
     if (typeof configOrId === 'string') {
-      return new SessionClientImpl(configOrId, this.apiClient, this.config);
+      const storage = this.storageFactory(configOrId);
+      return new SessionClientImpl(
+        configOrId,
+        this.apiClient,
+        this.config,
+        storage,
+      );
     }
 
     const config = configOrId;
@@ -144,7 +160,13 @@ export class JulesClientImpl implements JulesClient {
           },
         },
       );
-      return new SessionClientImpl(session.name, this.apiClient, this.config);
+      const storage = this.storageFactory(session.id);
+      return new SessionClientImpl(
+        session.name,
+        this.apiClient,
+        this.config,
+        storage,
+      );
     })();
     return sessionPromise;
   }

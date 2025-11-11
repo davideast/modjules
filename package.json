@@ -6,14 +6,15 @@
     "examples/*"
   ],
   "description": "The agent-ready SDK for Jules.",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
+      "import": "./dist/index.es.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.es.js"
     },
     "./package.json": "./package.json"
   },
@@ -22,10 +23,11 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "vite build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest",
+    "test": "vitest --exclude tests/storage/browser.test.ts",
+    "test:browser": "vitest run -c vitest.browser.config.ts",
     "test:integration": "vitest run -c vitest.integration.config.ts",
     "test:smoke": "tsx scripts/smoke-test.ts",
     "type-check": "tsc --project tsconfig.test.json",
@@ -60,12 +62,19 @@
     "@inquirer/prompts": "^7.9.0",
     "@octokit/rest": "^22.0.1",
     "@types/node": "^24.9.1",
+    "fake-indexeddb": "^6.2.5",
     "husky": "^9.1.7",
+    "jsdom": "^27.1.0",
     "lint-staged": "^16.2.6",
     "msw": "^2.11.6",
     "prettier": "^3.6.2",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
+    "vite": "^7.2.2",
+    "vite-plugin-dts": "^4.5.4",
     "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "idb": "^8.0.3"
   }
 }

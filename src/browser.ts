@@ -1,20 +1,19 @@
-// src/index.ts
+// src/browser.ts
 import { JulesClientImpl } from './client.js';
-import { NodeFileStorage } from './storage/node-fs.js';
+import { BrowserStorage } from './storage/browser.js';
 import { JulesClient } from './types.js';
 
 /**
- * The main entry point for the Jules SDK.
- * This is a pre-initialized client that can be used immediately with default settings
- * (e.g., reading API keys from environment variables).
+ * The main entry point for the Jules SDK for browser environments.
+ * This is a pre-initialized client that can be used immediately with default settings.
  *
  * @example
- * import { jules } from 'julets';
+ * import { jules } from 'julets/browser';
  * const session = await jules.session({ ... });
  */
 export const jules: JulesClient = new JulesClientImpl(
   {},
-  (sessionId) => new NodeFileStorage(sessionId),
+  (sessionId) => new BrowserStorage(sessionId),
 );
 
 // Re-export all the types for convenience

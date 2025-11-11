@@ -11,6 +11,13 @@
 // =============================================================================
 
 import { ActivityClient } from './activities/types.js';
+import { ActivityStorage } from './storage/types.js';
+
+/**
+ * A factory function that creates an ActivityStorage instance for a given session ID.
+ * @internal
+ */
+export type StorageFactory = (sessionId: string) => ActivityStorage;
 
 /**
  * Configuration options for the Jules SDK client.
@@ -37,6 +44,12 @@ export interface JulesOptions {
    * @default 'https://jules.googleapis.com/v1alpha'
    */
   baseUrl?: string;
+  /**
+   * (Internal) A factory for creating storage instances.
+   * This is used to inject platform-specific storage implementations (Node vs. Browser).
+   * @internal
+   */
+  storageFactory?: StorageFactory;
   /**
    * Advanced operational parameters for the SDK.
    */
