@@ -7,6 +7,9 @@ Welcome to the documentation for the Jules SDK. These guides provide a practical
 - **[Getting Started](./getting-started.md)**
   - Learn how to install and initialize the SDK, and understand the core concepts of automated runs and interactive sessions.
 
+- **[Local-first Synchronization](./local-first.md)**
+  - An explanation of the local-first synchronization engine and its benefits.
+
 - **[Automated Runs](./automated-runs.md)**
   - A detailed guide to using `jules.run()` for "fire-and-forget" tasks and handling the `AutomatedSession` object.
 
