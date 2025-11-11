@@ -20,30 +20,6 @@ import {
   SessionState,
 } from './types.js';
 
-// Helper factory for isomorphic storage selection
-function createDefaultStorage(sessionId: string): ActivityStorage {
-  // Allow forcing memory storage for tests to avoid disk I/O and state leakage
-  if (
-    typeof process !== 'undefined' &&
-    process.env.JULES_FORCE_MEMORY_STORAGE === 'true'
-  ) {
-    return new MemoryStorage();
-  }
-
-  // Simple, standard check for Node.js environment
-  const isNode =
-    typeof process !== 'undefined' &&
-    process.versions != null &&
-    process.versions.node != null;
-
-  if (isNode) {
-    return new NodeFileStorage(sessionId);
-  }
-
-  // Fallback for browsers/other runtimes until IndexedDB adapter is ready
-  return new MemoryStorage();
-}
-
 export class SessionClientImpl implements SessionClient {
   readonly id: string;
   private apiClient: ApiClient;
@@ -52,7 +28,13 @@ export class SessionClientImpl implements SessionClient {
   // The new client instance
   private _activities: ActivityClient;
 
-  constructor(sessionId: string, apiClient: ApiClient, config: InternalConfig) {
+  constructor(
+    sessionId: string,
+    apiClient: ApiClient,
+    config: InternalConfig,
+    storage: ActivityStorage,
+    platform: any,
+  ) {
     this.id = sessionId.replace(/^sessions\//, '');
     this.apiClient = apiClient;
     this.config = config;
@@ -62,9 +44,8 @@ export class SessionClientImpl implements SessionClient {
       this.apiClient,
       this.id,
       this.config.pollingIntervalMs,
+      platform,
     );
-
-    const storage = createDefaultStorage(this.id);
 
     this._activities = new DefaultActivityClient(storage, network);
   }

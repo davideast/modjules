@@ -34,6 +34,8 @@ function createExpectedSdkActivity(id: string) {
   };
 }
 
+import { mockPlatform } from '../mocks/platform.js';
+
 describe('NetworkAdapter', () => {
   let adapter: NetworkAdapter;
   let apiClient: ApiClient;
@@ -45,7 +47,7 @@ describe('NetworkAdapter', () => {
       baseUrl: 'http://test-url',
       requestTimeoutMs: 1000,
     });
-    adapter = new NetworkAdapter(apiClient, 'session-123', 100); // Short polling interval for tests
+    adapter = new NetworkAdapter(apiClient, 'session-123', 100, mockPlatform); // Short polling interval for tests
   });
 
   beforeEach(() => {

@@ -1,22 +1,24 @@
-import { setTimeout } from 'timers/promises';
 import { ApiClient } from '../api.js';
 import { NetworkClient } from '../activities/client.js';
 import { Activity } from '../types.js';
 import { ListOptions } from '../activities/types.js';
 import { mapRestActivityToSdkActivity } from '../mappers.js';
 
+import { Platform } from '../platform.js';
+
 export class NetworkAdapter implements NetworkClient {
   constructor(
     private apiClient: ApiClient,
     private sessionId: string,
     private pollingIntervalMs: number = 5000,
+    private platform: Platform,
   ) {}
 
   async fetchActivity(activityId: string): Promise<Activity> {
     const restActivity = await this.apiClient.request<any>(
       `sessions/${this.sessionId}/activities/${activityId}`,
     );
-    return mapRestActivityToSdkActivity(restActivity);
+    return mapRestActivityToSdkActivity(restActivity, this.platform);
   }
 
   async listActivities(
@@ -36,7 +38,9 @@ export class NetworkAdapter implements NetworkClient {
     }>(`sessions/${this.sessionId}/activities`, { params });
 
     return {
-      activities: (response.activities || []).map(mapRestActivityToSdkActivity),
+      activities: (response.activities || []).map((activity) =>
+        mapRestActivityToSdkActivity(activity, this.platform),
+      ),
       nextPageToken: response.nextPageToken,
     };
   }
@@ -55,7 +59,7 @@ export class NetworkAdapter implements NetworkClient {
         pageToken = response.nextPageToken;
       } while (pageToken);
 
-      await setTimeout(this.pollingIntervalMs);
+      await this.platform.sleep(this.pollingIntervalMs);
     }
   }
 }

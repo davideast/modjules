@@ -32,10 +32,13 @@ export type StreamActivitiesOptions = {
  * @param options Streaming options, including filters.
  * @internal
  */
+import { Platform } from './platform.js';
+
 export async function* streamActivities(
   sessionId: string,
   apiClient: ApiClient,
   pollingInterval: number,
+  platform: Platform,
   options: StreamActivitiesOptions = {},
 ): AsyncGenerator<Activity> {
   let pageToken: string | undefined = undefined;
@@ -111,7 +114,7 @@ export async function* streamActivities(
         continue;
       }
 
-      const activity = mapRestActivityToSdkActivity(rawActivity);
+      const activity = mapRestActivityToSdkActivity(rawActivity, platform);
 
       if (
         options.exclude?.originator &&

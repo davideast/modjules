@@ -1,5 +1,3 @@
-import * as fs from 'fs/promises';
-import { Buffer } from 'buffer';
 import type { RestMediaArtifact, RestBashOutputArtifact } from './types.js';
 
 // Helper to check if running in a Node.js environment
@@ -8,25 +6,22 @@ const isNode =
   process.versions != null &&
   process.versions.node != null;
 
+import { Platform } from './platform.js';
+
 export class MediaArtifact {
   public readonly type = 'media';
   public readonly data: string;
   public readonly format: string;
+  private platform: Platform;
 
-  constructor(artifact: RestMediaArtifact['media']) {
+  constructor(artifact: RestMediaArtifact['media'], platform: Platform) {
     this.data = artifact.data;
     this.format = artifact.format;
+    this.platform = platform;
   }
 
   async save(filepath: string): Promise<void> {
-    if (!isNode) {
-      throw new Error(
-        'MediaArtifact.save() is only available in Node.js environments.',
-      );
-    }
-
-    const buffer = Buffer.from(this.data, 'base64');
-    await fs.writeFile(filepath, buffer);
+    await this.platform.saveFile(filepath, this.data, 'base64');
   }
 }
 

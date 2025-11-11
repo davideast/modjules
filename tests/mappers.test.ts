@@ -6,6 +6,8 @@ import {
 } from '../src/mappers.js';
 import { Activity, Artifact } from '../src/types.js';
 
+import { mockPlatform } from './mocks/platform.js';
+
 describe('mapRestArtifactToSdkArtifact', () => {
   it('should map a changeSet artifact correctly', () => {
     const restArtifact = {
@@ -18,7 +20,10 @@ describe('mapRestArtifactToSdkArtifact', () => {
         },
       },
     };
-    const sdkArtifact = mapRestArtifactToSdkArtifact(restArtifact);
+    const sdkArtifact = mapRestArtifactToSdkArtifact(
+      restArtifact,
+      mockPlatform,
+    );
     expect(sdkArtifact.type).toBe('changeSet');
     expect((sdkArtifact as any).changeSet.source).toBe(
       'sources/github/test/repo',
@@ -34,7 +39,10 @@ describe('mapRestArtifactToSdkArtifact', () => {
         exitCode: 0,
       },
     };
-    const sdkArtifact = mapRestArtifactToSdkArtifact(restArtifact);
+    const sdkArtifact = mapRestArtifactToSdkArtifact(
+      restArtifact,
+      mockPlatform,
+    );
     expect(sdkArtifact.type).toBe('bashOutput');
     // After mapping, it's a rich object, not a raw one.
     expect((sdkArtifact as any).command).toBe('ls -l');
@@ -43,9 +51,9 @@ describe('mapRestArtifactToSdkArtifact', () => {
 
   it('should throw for an unknown artifact type', () => {
     const restArtifact = { unknown: {} };
-    expect(() => mapRestArtifactToSdkArtifact(restArtifact as any)).toThrow(
-      'Unknown artifact type',
-    );
+    expect(() =>
+      mapRestArtifactToSdkArtifact(restArtifact as any, mockPlatform),
+    ).toThrow('Unknown artifact type');
   });
 });
 
@@ -63,7 +71,10 @@ describe('mapRestActivityToSdkActivity', () => {
       ...BASE_REST_ACTIVITY,
       agentMessaged: { agentMessage: 'Hello there!' },
     };
-    const sdkActivity = mapRestActivityToSdkActivity(restActivity);
+    const sdkActivity = mapRestActivityToSdkActivity(
+      restActivity,
+      mockPlatform,
+    );
     expect(sdkActivity.type).toBe('agentMessaged');
     expect((sdkActivity as any).message).toBe('Hello there!');
   });
@@ -76,7 +87,10 @@ describe('mapRestActivityToSdkActivity', () => {
         description: 'Analyzing the request...',
       },
     };
-    const sdkActivity = mapRestActivityToSdkActivity(restActivity);
+    const sdkActivity = mapRestActivityToSdkActivity(
+      restActivity,
+      mockPlatform,
+    );
     expect(sdkActivity.type).toBe('progressUpdated');
     expect((sdkActivity as any).title).toBe('Thinking');
   });
@@ -90,7 +104,10 @@ describe('mapRestActivityToSdkActivity', () => {
       ...BASE_REST_ACTIVITY,
       planGenerated: { plan },
     };
-    const sdkActivity = mapRestActivityToSdkActivity(restActivity);
+    const sdkActivity = mapRestActivityToSdkActivity(
+      restActivity,
+      mockPlatform,
+    );
     expect(sdkActivity.type).toBe('planGenerated');
     expect((sdkActivity as any).plan.id).toBe('plan-1');
   });
@@ -100,7 +117,10 @@ describe('mapRestActivityToSdkActivity', () => {
       ...BASE_REST_ACTIVITY,
       sessionCompleted: {},
     };
-    const sdkActivity = mapRestActivityToSdkActivity(restActivity);
+    const sdkActivity = mapRestActivityToSdkActivity(
+      restActivity,
+      mockPlatform,
+    );
     expect(sdkActivity.type).toBe('sessionCompleted');
   });
 
@@ -109,7 +129,10 @@ describe('mapRestActivityToSdkActivity', () => {
       ...BASE_REST_ACTIVITY,
       sessionFailed: { reason: 'Something went wrong.' },
     };
-    const sdkActivity = mapRestActivityToSdkActivity(restActivity);
+    const sdkActivity = mapRestActivityToSdkActivity(
+      restActivity,
+      mockPlatform,
+    );
     expect(sdkActivity.type).toBe('sessionFailed');
     expect((sdkActivity as any).reason).toBe('Something went wrong.');
   });
@@ -120,15 +143,18 @@ describe('mapRestActivityToSdkActivity', () => {
       progressUpdated: { title: 'Executing command' },
       artifacts: [{ bashOutput: { command: 'npm install' } }],
     };
-    const sdkActivity = mapRestActivityToSdkActivity(restActivity);
+    const sdkActivity = mapRestActivityToSdkActivity(
+      restActivity,
+      mockPlatform,
+    );
     expect(sdkActivity.artifacts).toHaveLength(1);
     expect(sdkActivity.artifacts[0].type).toBe('bashOutput');
   });
 
   it('should throw for an unknown activity type', () => {
     const restActivity = { ...BASE_REST_ACTIVITY, unknown: {} };
-    expect(() => mapRestActivityToSdkActivity(restActivity)).toThrow(
-      'Unknown activity type',
-    );
+    expect(() =>
+      mapRestActivityToSdkActivity(restActivity, mockPlatform),
+    ).toThrow('Unknown activity type');
   });
 });

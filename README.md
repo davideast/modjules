@@ -93,6 +93,65 @@ npm i julets
 bun add julets
 ```
 
+## Cross-Platform Usage
+
+The `julets` SDK is designed to work seamlessly in both Node.js and browser environments. It uses conditional exports in its `package.json` to automatically provide the correct implementation for your platform.
+
+### Node.js (Default)
+
+In a Node.js environment, the SDK defaults to using the local filesystem for caching session activities in a `.jules/cache` directory. This provides a persistent, restart-safe experience.
+
+```typescript
+// Imports the Node.js version by default
+import { jules } from 'julets';
+
+const session = await jules.session({
+  prompt: 'Refactor the user authentication module.',
+  source: { github: 'your-org/your-repo', branch: 'develop' },
+});
+```
+
+### Browser
+
+When used in a browser environment (e.g., in a web application bundled with Vite, Webpack, or Rollup), the SDK automatically uses a browser-specific implementation that leverages IndexedDB for storage. This allows your web application to maintain session state locally.
+
+To use the browser version, you can explicitly import it:
+
+```typescript
+// Explicitly import the browser-optimized version
+import { jules } from 'julets/browser';
+
+// The rest of your code remains the same
+const session = await jules.session({
+  prompt: 'Refactor the user authentication module.',
+  source: { github: 'your-org/your-repo', branch: 'develop' },
+});
+```
+
+### Bundler Resolution vs. Explicit Imports
+
+There are two primary strategies for handling platform-specific code, and `julets` is designed to support both.
+
+1.  **Automatic Resolution (Recommended for most cases):** Modern bundlers that support the `exports` field in `package.json` can automatically select the correct file based on the environment. For example, Vite, when building for the browser, will see the `browser` condition in the `exports` map and use the `dist/browser.es.js` file. This is the ideal scenario, as it requires no changes to your import statements.
+
+    ```typescript
+    // In a browser environment, the bundler will automatically
+    // resolve this to the browser-specific build.
+    import { jules } from 'julets';
+    ```
+
+2.  **Explicit Imports:** In some cases, you may want to be explicit about which version you are using, or your tooling may not fully support conditional exports. In these situations, you can use a direct import path.
+
+    ```typescript
+    // Always imports the browser version, regardless of bundler configuration
+    import { jules } from 'julets/browser';
+    ```
+
+**When to choose which?**
+
+- Use the **default import (`julets`)** whenever possible. It's cleaner and relies on the standard module resolution features of the JavaScript ecosystem.
+- Use the **explicit import (`julets/browser`)** if you need to override the bundler's resolution, if you are working in an environment that doesn't support conditional exports, or if you want to be very clear in your code that you are using the browser-specific version.
+
 ## Authentication / API Key
 
 ```bash
