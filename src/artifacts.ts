@@ -6,22 +6,37 @@ const isNode =
   process.versions != null &&
   process.versions.node != null;
 
-import { Platform } from './platform.js';
+import { Platform } from './platform/types.js';
 
 export class MediaArtifact {
   public readonly type = 'media';
   public readonly data: string;
   public readonly format: string;
   private platform: Platform;
+  private activityId?: string;
 
-  constructor(artifact: RestMediaArtifact['media'], platform: Platform) {
+  constructor(
+    artifact: RestMediaArtifact['media'],
+    platform: Platform,
+    activityId?: string,
+  ) {
     this.data = artifact.data;
     this.format = artifact.format;
     this.platform = platform;
+    this.activityId = activityId;
   }
 
   async save(filepath: string): Promise<void> {
-    await this.platform.saveFile(filepath, this.data, 'base64');
+    await this.platform.saveFile(
+      filepath,
+      this.data,
+      'base64',
+      this.activityId,
+    );
+  }
+
+  toUrl(): string {
+    return this.platform.createDataUrl(this.data, this.format);
   }
 }
 

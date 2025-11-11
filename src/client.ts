@@ -26,7 +26,7 @@ export type InternalConfig = {
   requestTimeoutMs: number;
 };
 
-import { Platform } from './platform.js';
+import { Platform } from './platform/types.js';
 import { StorageFactory } from './types.js';
 
 export class JulesClientImpl implements JulesClient {

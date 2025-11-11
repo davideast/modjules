@@ -4,7 +4,7 @@ import { Activity } from '../types.js';
 import { ListOptions } from '../activities/types.js';
 import { mapRestActivityToSdkActivity } from '../mappers.js';
 
-import { Platform } from '../platform.js';
+import { Platform } from '../platform/types.js';
 
 export class NetworkAdapter implements NetworkClient {
   constructor(

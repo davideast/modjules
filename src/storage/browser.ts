@@ -15,14 +15,29 @@ export class BrowserStorage implements ActivityStorage {
 
   private getDb(): Promise<IDBPDatabase<unknown>> {
     if (!this.dbPromise) {
-      this.dbPromise = openDB(DB_NAME, 1, {
-        upgrade(db) {
-          if (!db.objectStoreNames.contains(STORE_NAME)) {
-            const store = db.createObjectStore(STORE_NAME, {
-              keyPath: 'id',
+      // We use version 2 here as well to match BrowserPlatform and avoid conflicts.
+      // We don't necessarily need to know about 'artifacts' store here, but we must use the same version.
+      this.dbPromise = openDB(DB_NAME, 2, {
+        upgrade(db, oldVersion, newVersion, transaction) {
+          if (oldVersion < 1) {
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+              const store = db.createObjectStore(STORE_NAME, {
+                keyPath: 'id',
+              });
+              // Index to efficiently find the latest activity for a session
+              store.createIndex('sessionTimestamp', [
+                'sessionId',
+                'createTime',
+              ]);
+            }
+          }
+          // Ensure artifacts store exists if we are upgrading to v2 or from scratch
+          // This might duplicate logic in BrowserPlatform, but it's safer if both can upgrade.
+          if (!db.objectStoreNames.contains('artifacts')) {
+            const store = db.createObjectStore('artifacts', {
+              keyPath: 'filepath',
             });
-            // Index to efficiently find the latest activity for a session
-            store.createIndex('sessionTimestamp', ['sessionId', 'createTime']);
+            store.createIndex('activityId', 'activityId');
           }
         },
       });

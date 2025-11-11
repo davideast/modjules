@@ -83,6 +83,10 @@ export default defineConfig({
         'wasi',
         'worker_threads',
         'zlib',
+        // Add explicit node: prefixed modules
+        'node:buffer',
+        'node:fs/promises',
+        'node:timers/promises',
       ],
     },
   },
