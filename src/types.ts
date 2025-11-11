@@ -10,7 +10,7 @@
 // Configuration Types
 // =============================================================================
 
-import { ActivityClient } from './activities/types.js';
+import { SelectOptions } from './activities/types.js';
 import { ActivityStorage } from './storage/types.js';
 
 /**
@@ -665,11 +665,23 @@ export interface SessionClient {
   readonly id: string;
 
   /**
-   * Access the rich Activity Engine for this session.
-   * Allows for querying history, streaming real-time updates, and
-   * performing efficient local lookups.
+   * COLD STREAM: Yields all known past activities from local storage.
+   * Ends immediately after yielding the last known activity.
+   * Does NOT open a network connection.
    */
-  activities(): ActivityClient;
+  history(): AsyncIterable<Activity>;
+
+  /**
+   * HOT STREAM: Yields ONLY future activities as they arrive from the network.
+   * Blocks indefinitely.
+   */
+  updates(): AsyncIterable<Activity>;
+
+  /**
+   * LOCAL QUERY: Performs rich filtering against local storage only.
+   * Fast, but might be incomplete if not synced.
+   */
+  select(options?: SelectOptions): Promise<Activity[]>;
 
   /**
    * Provides a real-time stream of activities for the session.

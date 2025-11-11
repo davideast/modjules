@@ -1,6 +1,6 @@
 // src/session.ts
 import { DefaultActivityClient } from './activities/client.js';
-import { ActivityClient } from './activities/types.js';
+import { ActivityClient, SelectOptions } from './activities/types.js';
 import { ApiClient } from './api.js';
 import { InternalConfig } from './client.js';
 import { InvalidStateError, JulesError } from './errors.js';
@@ -50,8 +50,16 @@ export class SessionClientImpl implements SessionClient {
     this._activities = new DefaultActivityClient(storage, network);
   }
 
-  activities(): ActivityClient {
-    return this._activities;
+  history(): AsyncIterable<Activity> {
+    return this._activities.history();
+  }
+
+  updates(): AsyncIterable<Activity> {
+    return this._activities.updates();
+  }
+
+  select(options?: SelectOptions): Promise<Activity[]> {
+    return this._activities.select(options);
   }
 
   async *stream(

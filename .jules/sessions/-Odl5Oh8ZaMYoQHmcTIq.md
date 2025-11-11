@@ -1,6 +1,6 @@
 ---
 branch_name: browser-storage
-commits: 
+commits:
   - 1b3b12f42111284fdeecb2ca11eee6ed247bc46d
 date: 2025-11-10
 session_id: 6264873810634182746
