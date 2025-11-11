@@ -2,8 +2,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JulesClient, SessionClient } from '../src/index.js';
 import { jules as defaultJules } from '../src/index.js';
-import { ActivityStorage } from '../src/storage/types.js';
-import { NetworkAdapter } from '../src/network/adapter.js';
 
 // This is a simplified mock. In a real scenario, this would be more robust.
 vi.mock('../src/activities/client.js', () => {

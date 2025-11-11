@@ -89,7 +89,7 @@ async function main() {
       const REQUIRED_FILES = [
         'package/package.json',
         'package/README.md',
-        'package/dist/index.js',
+        'package/dist/index.es.js',
         'package/dist/index.d.ts',
       ];
 
@@ -197,7 +197,7 @@ try {
     console.log('\n✨ Smoke Test Passed Successfully! ✨');
   } catch (error) {
     console.error('\n❌ Smoke Test Failed!');
-    // console.error(error);
+    console.error(error);
     process.exit(1);
   } finally {
     if (tarballPath) await fs.unlink(tarballPath).catch(() => {});
