@@ -26,6 +26,7 @@ export type InternalConfig = {
   requestTimeoutMs: number;
 };
 
+import { Platform } from './platform.js';
 import { StorageFactory } from './types.js';
 
 export class JulesClientImpl implements JulesClient {
@@ -34,13 +35,16 @@ export class JulesClientImpl implements JulesClient {
   private config: InternalConfig;
   private options: JulesOptions;
   private storageFactory: StorageFactory;
+  private platform: Platform;
 
   constructor(
     options: JulesOptions = {},
     defaultStorageFactory: StorageFactory,
+    defaultPlatform: Platform,
   ) {
     this.options = options;
     this.storageFactory = options.storageFactory ?? defaultStorageFactory;
+    this.platform = options.platform ?? defaultPlatform;
     const apiKey = options.apiKey ?? process.env.JULES_API_KEY;
     const baseUrl = options.baseUrl ?? 'https://jules.googleapis.com/v1alpha';
 
@@ -69,6 +73,7 @@ export class JulesClientImpl implements JulesClient {
         },
       },
       this.storageFactory,
+      this.platform,
     );
   }
 
@@ -118,6 +123,7 @@ export class JulesClientImpl implements JulesClient {
           sessionId,
           this.apiClient,
           this.config.pollingIntervalMs,
+          this.platform,
         );
       }.bind(this),
       result: async () => {
@@ -143,6 +149,7 @@ export class JulesClientImpl implements JulesClient {
         this.apiClient,
         this.config,
         storage,
+        this.platform,
       );
     }
 
@@ -166,6 +173,7 @@ export class JulesClientImpl implements JulesClient {
         this.apiClient,
         this.config,
         storage,
+        this.platform,
       );
     })();
     return sessionPromise;

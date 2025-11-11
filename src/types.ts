@@ -51,6 +51,12 @@ export interface JulesOptions {
    */
   storageFactory?: StorageFactory;
   /**
+   * (Internal) The platform implementation.
+   * This is used to inject platform-specific functionality (Node vs. Browser).
+   * @internal
+   */
+  platform?: any;
+  /**
    * Advanced operational parameters for the SDK.
    */
   config?: {

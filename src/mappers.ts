@@ -29,12 +29,13 @@ import {
  */
 export function mapRestArtifactToSdkArtifact(
   restArtifact: RestArtifact,
+  platform: any,
 ): Artifact {
   if ('changeSet' in restArtifact) {
     return { type: 'changeSet', changeSet: restArtifact.changeSet };
   }
   if ('media' in restArtifact) {
-    return new MediaArtifact(restArtifact.media);
+    return new MediaArtifact(restArtifact.media, platform);
   }
   if ('bashOutput' in restArtifact) {
     return new BashArtifact(restArtifact.bashOutput);
@@ -43,7 +44,10 @@ export function mapRestArtifactToSdkArtifact(
   throw new Error(`Unknown artifact type: ${JSON.stringify(restArtifact)}`);
 }
 
-export function mapRestActivityToSdkActivity(restActivity: any): Activity {
+export function mapRestActivityToSdkActivity(
+  restActivity: any,
+  platform: any,
+): Activity {
   const {
     name,
     createTime,
@@ -52,8 +56,8 @@ export function mapRestActivityToSdkActivity(restActivity: any): Activity {
   } = restActivity;
 
   // First, map the artifacts since they are common to all activities.
-  const artifacts: Artifact[] = (rawArtifacts || []).map(
-    mapRestArtifactToSdkArtifact,
+  const artifacts: Artifact[] = (rawArtifacts || []).map((artifact: any) =>
+    mapRestArtifactToSdkArtifact(artifact, platform),
   );
 
   const baseActivity = {

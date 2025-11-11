@@ -1,6 +1,7 @@
 // src/index.ts
 import { JulesClientImpl } from './client.js';
 import { NodeFileStorage } from './storage/node-fs.js';
+import { NodePlatform } from './platform/node.js';
 import { JulesClient } from './types.js';
 
 /**
@@ -15,6 +16,7 @@ import { JulesClient } from './types.js';
 export const jules: JulesClient = new JulesClientImpl(
   {},
   (sessionId) => new NodeFileStorage(sessionId),
+  new NodePlatform(),
 );
 
 // Re-export all the types for convenience

@@ -33,6 +33,7 @@ export class SessionClientImpl implements SessionClient {
     apiClient: ApiClient,
     config: InternalConfig,
     storage: ActivityStorage,
+    platform: any,
   ) {
     this.id = sessionId.replace(/^sessions\//, '');
     this.apiClient = apiClient;
@@ -43,6 +44,7 @@ export class SessionClientImpl implements SessionClient {
       this.apiClient,
       this.id,
       this.config.pollingIntervalMs,
+      platform,
     );
 
     this._activities = new DefaultActivityClient(storage, network);

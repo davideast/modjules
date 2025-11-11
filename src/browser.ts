@@ -1,6 +1,7 @@
 // src/browser.ts
 import { JulesClientImpl } from './client.js';
 import { BrowserStorage } from './storage/browser.js';
+import { BrowserPlatform } from './platform/browser.js';
 import { JulesClient } from './types.js';
 
 /**
@@ -14,6 +15,7 @@ import { JulesClient } from './types.js';
 export const jules: JulesClient = new JulesClientImpl(
   {},
   (sessionId) => new BrowserStorage(sessionId),
+  new BrowserPlatform(),
 );
 
 // Re-export all the types for convenience

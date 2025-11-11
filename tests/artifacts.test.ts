@@ -5,10 +5,7 @@ import type {
   RestBashOutputArtifact,
 } from '../src/types.js';
 
-// Mock the entire fs/promises module
-vi.mock('fs/promises', () => ({
-  writeFile: vi.fn(),
-}));
+import { mockPlatform } from './mocks/platform.js';
 
 describe('Artifacts', () => {
   // These modules will be dynamically imported to handle environment mocking
@@ -37,21 +34,24 @@ describe('Artifacts', () => {
     });
 
     describe('MediaArtifact', () => {
-      it('should correctly decode base64 and call fs.writeFile', async () => {
+      it('should correctly decode base64 and call platform.saveFile', async () => {
         const base64Data = 'SGVsbG8sIFdvcmxkIQ=='; // "Hello, World!"
-        const artifact = new MediaArtifact({
-          data: base64Data,
-          format: 'text/plain',
-        });
+        const artifact = new MediaArtifact(
+          {
+            data: base64Data,
+            format: 'text/plain',
+          },
+          mockPlatform,
+        );
         const filepath = '/path/to/file.txt';
 
         await artifact.save(filepath);
 
-        const expectedBuffer = Buffer.from(base64Data, 'base64');
-        expect(fs_promises.writeFile).toHaveBeenCalledOnce();
-        expect(fs_promises.writeFile).toHaveBeenCalledWith(
+        expect(mockPlatform.saveFile).toHaveBeenCalledOnce();
+        expect(mockPlatform.saveFile).toHaveBeenCalledWith(
           filepath,
-          expectedBuffer,
+          base64Data,
+          'base64',
         );
       });
     });
@@ -96,7 +96,10 @@ describe('Artifacts', () => {
         const restArtifact: RestMediaArtifact = {
           media: { data: 'data', format: 'image/png' },
         };
-        const sdkArtifact = mapRestArtifactToSdkArtifact(restArtifact);
+        const sdkArtifact = mapRestArtifactToSdkArtifact(
+          restArtifact,
+          mockPlatform,
+        );
         expect(sdkArtifact).toBeInstanceOf(MediaArtifact);
         expect(sdkArtifact.type).toBe('media');
         expect(typeof sdkArtifact.save).toBe('function');
@@ -139,13 +142,20 @@ describe('Artifacts', () => {
       const { MediaArtifact: BrowserMediaArtifact } = await import(
         '../src/artifacts.js'
       );
-      const artifact = new BrowserMediaArtifact({
-        data: 'SGVsbG8sIFdvcmxkIQ==',
-        format: 'text/plain',
+      const artifact = new BrowserMediaArtifact(
+        {
+          data: 'SGVsbG8sIFdvcmxkIQ==',
+          format: 'text/plain',
+        },
+        mockPlatform,
+      );
+
+      mockPlatform.saveFile.mockImplementation(async () => {
+        throw new Error('Saving files is not supported in the browser.');
       });
 
       await expect(artifact.save('/any/path.txt')).rejects.toThrow(
-        'MediaArtifact.save() is only available in Node.js environments.',
+        'Saving files is not supported in the browser.',
       );
     });
   });
