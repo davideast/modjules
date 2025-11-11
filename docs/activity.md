@@ -2,6 +2,55 @@
 
 This guide provides a detailed look at the different types of `Activity` objects you will encounter when streaming a Jules session. Each activity represents a specific event in the session's lifecycle.
 
+## Streaming Activities
+
+There are several ways to stream activities from a session, each suited to different use cases.
+
+### `session.stream()` (Recommended)
+
+The `session.stream()` method is the easiest and most common way to get a stream of activities. It's an idiomatic async iterator that provides a complete history of activities and stays open for live updates.
+
+```typescript
+for await (const activity of session.stream()) {
+  console.log(`[${activity.type}]`);
+}
+```
+
+This method is a convenient wrapper around the more advanced `session.activities().stream()`.
+
+### `session.activities().stream()` (Robust)
+
+For applications that need to be resilient to restarts, the `session.activities().stream()` method offers a more robust solution. It leverages the local-first cache to provide a hybrid stream of historical data and live updates, automatically de-duplicating events.
+
+```typescript
+const activityClient = session.activities();
+for await (const activity of activityClient.stream()) {
+  console.log(`[${activity.type}] ID: ${activity.id}`);
+}
+```
+
+### Granular Streaming
+
+The `ActivityClient` also provides two more granular streaming methods:
+
+- **`.history()` (Cold Stream):** Fetches the complete activity history from the local cache and then closes the stream. This is useful for replaying or analyzing a session's past events without waiting for live updates.
+
+  ```typescript
+  const history = session.activities().history();
+  for await (const activity of history) {
+    // ... process historical activity
+  }
+  ```
+
+- **`.updates()` (Hot Stream):** Opens a live stream of new activities from the network without fetching the history. This is ideal for situations where you only care about real-time events from the point of connection.
+
+  ```typescript
+  const updates = session.activities().updates();
+  for await (const activity of updates) {
+    // ... process live activity
+  }
+  ```
+
 ## Common Properties
 
 All `Activity` objects share a set of common properties:
