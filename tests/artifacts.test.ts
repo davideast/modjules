@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { Buffer } from 'buffer';
 import type {
   RestMediaArtifact,
@@ -150,7 +150,7 @@ describe('Artifacts', () => {
         mockPlatform,
       );
 
-      mockPlatform.saveFile.mockImplementation(async () => {
+      (mockPlatform.saveFile as Mock).mockImplementation(async () => {
         throw new Error('Saving files is not supported in the browser.');
       });
 

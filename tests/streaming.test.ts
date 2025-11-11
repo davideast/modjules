@@ -24,6 +24,8 @@ const BASE_URL = 'https://jules.googleapis.com/v1alpha';
 const SESSION_ID = 'stream-session-123';
 const POLLING_INTERVAL = 1000; // Use a faster interval for tests
 
+import { mockPlatform } from './mocks/platform.js';
+
 describe('streamActivities', () => {
   const apiClient = new ApiClient({
     apiKey: API_KEY,
@@ -66,7 +68,12 @@ describe('streamActivities', () => {
       ),
     );
 
-    const stream = streamActivities(SESSION_ID, apiClient, POLLING_INTERVAL);
+    const stream = streamActivities(
+      SESSION_ID,
+      apiClient,
+      POLLING_INTERVAL,
+      mockPlatform,
+    );
     const iterator = stream[Symbol.asyncIterator]();
 
     const result1 = await iterator.next();
@@ -101,7 +108,12 @@ describe('streamActivities', () => {
       }),
     );
 
-    const stream = streamActivities(SESSION_ID, apiClient, POLLING_INTERVAL);
+    const stream = streamActivities(
+      SESSION_ID,
+      apiClient,
+      POLLING_INTERVAL,
+      mockPlatform,
+    );
     const iterator = stream[Symbol.asyncIterator]();
 
     // Process the first batch
@@ -146,7 +158,12 @@ describe('streamActivities', () => {
       }),
     );
 
-    const stream = streamActivities(SESSION_ID, apiClient, POLLING_INTERVAL);
+    const stream = streamActivities(
+      SESSION_ID,
+      apiClient,
+      POLLING_INTERVAL,
+      mockPlatform,
+    );
     const iterator = stream[Symbol.asyncIterator]();
 
     const { value: activity1 } = await iterator.next();
