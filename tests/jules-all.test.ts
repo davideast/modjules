@@ -11,11 +11,7 @@ const mockRun = vi.fn();
 class MockJulesClient extends JulesClientImpl {
   constructor() {
     // Pass dummy dependencies
-    super(
-      {},
-      () => ({}) as any,
-      new NodePlatform()
-    );
+    super({}, () => ({}) as any, new NodePlatform());
   }
 
   // Override run to mock it
@@ -34,7 +30,9 @@ describe('jules.all', () => {
 
   it('should process all items and return results in order', async () => {
     const items = [1, 2, 3];
-    mockRun.mockImplementation(async (config) => ({ id: `session-${config.prompt}` } as any));
+    mockRun.mockImplementation(
+      async (config) => ({ id: `session-${config.prompt}` }) as any,
+    );
 
     const results = await client.all(items, (n) => ({
       prompt: String(n),
@@ -61,10 +59,14 @@ describe('jules.all', () => {
       return { id: `session-${config.prompt}` } as any;
     });
 
-    await client.all(items, (n) => ({
-      prompt: String(n),
-      source: { github: 'user/repo', branch: 'main' },
-    }), { concurrency: 2 });
+    await client.all(
+      items,
+      (n) => ({
+        prompt: String(n),
+        source: { github: 'user/repo', branch: 'main' },
+      }),
+      { concurrency: 2 },
+    );
 
     expect(maxRunning).toBe(2);
     expect(mockRun).toHaveBeenCalledTimes(4);
@@ -77,10 +79,12 @@ describe('jules.all', () => {
       return { id: `session-${config.prompt}` } as any;
     });
 
-    await expect(client.all(items, (n) => ({
-      prompt: String(n),
-      source: { github: 'user/repo', branch: 'main' },
-    }))).rejects.toThrow('Failed');
+    await expect(
+      client.all(items, (n) => ({
+        prompt: String(n),
+        source: { github: 'user/repo', branch: 'main' },
+      })),
+    ).rejects.toThrow('Failed');
   });
 
   it('should aggregate errors if stopOnError is false', async () => {
@@ -92,10 +96,14 @@ describe('jules.all', () => {
     });
 
     try {
-      await client.all(items, (n) => ({
-        prompt: String(n),
-        source: { github: 'user/repo', branch: 'main' },
-      }), { stopOnError: false });
+      await client.all(
+        items,
+        (n) => ({
+          prompt: String(n),
+          source: { github: 'user/repo', branch: 'main' },
+        }),
+        { stopOnError: false },
+      );
     } catch (err: any) {
       expect(err).toBeInstanceOf(AggregateError);
       expect(err.errors).toHaveLength(2);

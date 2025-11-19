@@ -41,7 +41,10 @@ export async function pMap<T, R>(
   await Promise.all(workers);
 
   if (!stopOnError && errors.length > 0) {
-    throw new AggregateError(errors, 'Multiple errors occurred during jules.all()');
+    throw new AggregateError(
+      errors,
+      'Multiple errors occurred during jules.all()',
+    );
   }
 
   return results;

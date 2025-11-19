@@ -41,19 +41,19 @@ You can control the execution behavior with the optional third argument.
 
 ```javascript
 const sessions = await jules.all(items, mapper, {
-  concurrency: 10,    // Default is 4
+  concurrency: 10, // Default is 4
   stopOnError: false, // Default is true
-  delayMs: 1000       // Default is 0
+  delayMs: 1000, // Default is 0
 });
 ```
 
 ### Options
 
-| Option | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `concurrency` | `number` | `4` | The maximum number of sessions to start concurrently. |
-| `stopOnError` | `boolean` | `true` | If `true`, the batch operation stops immediately if any item fails. If `false`, it continues processing other items. |
-| `delayMs` | `number` | `0` | A delay in milliseconds to wait before starting each item. Useful for rate limiting. |
+| Option        | Type      | Default | Description                                                                                                          |
+| :------------ | :-------- | :------ | :------------------------------------------------------------------------------------------------------------------- |
+| `concurrency` | `number`  | `4`     | The maximum number of sessions to start concurrently.                                                                |
+| `stopOnError` | `boolean` | `true`  | If `true`, the batch operation stops immediately if any item fails. If `false`, it continues processing other items. |
+| `delayMs`     | `number`  | `0`     | A delay in milliseconds to wait before starting each item. Useful for rate limiting.                                 |
 
 ## Error Handling
 

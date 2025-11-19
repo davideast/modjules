@@ -62,7 +62,7 @@ const todos = ['Fix login bug', 'Update README', 'Refactor tests'];
 // Processes items concurrently (default: 4 at a time)
 const sessions = await jules.all(todos, (task) => ({
   prompt: task,
-  source: { github: 'user/repo', branch: 'main' }
+  source: { github: 'user/repo', branch: 'main' },
 }));
 
 // The results array preserves the order of the input array
@@ -75,7 +75,7 @@ For more control, you can pass an options object:
 const sessions = await jules.all(largeList, mapFn, {
   concurrency: 10, // Run 10 at a time
   stopOnError: false, // Don't stop if one fails
-  delayMs: 500 // Wait 500ms between starting each item
+  delayMs: 500, // Wait 500ms between starting each item
 });
 ```
 
