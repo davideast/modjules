@@ -16,6 +16,7 @@ import { streamActivities } from './streaming.js';
 import { pollUntilCompletion } from './polling.js';
 import { mapSessionResourceToOutcome } from './mappers.js';
 import { SessionClientImpl } from './session.js';
+import { pMap } from './utils.js';
 
 /**
  * The fully resolved internal configuration for the SDK.
@@ -74,6 +75,25 @@ export class JulesClientImpl implements JulesClient {
       },
       this.storageFactory,
       this.platform,
+    );
+  }
+
+  async all<T>(
+    items: T[],
+    mapper: (item: T) => SessionConfig | Promise<SessionConfig>,
+    options?: {
+      concurrency?: number;
+      stopOnError?: boolean;
+      delayMs?: number;
+    },
+  ): Promise<AutomatedSession[]> {
+    return pMap(
+      items,
+      async (item) => {
+        const config = await mapper(item);
+        return this.run(config);
+      },
+      options,
     );
   }
 

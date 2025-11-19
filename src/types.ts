@@ -880,6 +880,44 @@ export interface JulesClient {
    * const specialized = jules.with({ apiKey: 'NEW_KEY' });
    */
   with(options: JulesOptions): JulesClient;
+
+  /**
+   * Executes a batch of automated sessions in parallel, with concurrency control.
+   *
+   * @param items The raw data to process.
+   * @param mapper A function that transforms each item into a `SessionConfig` object.
+   * @param options Configuration for the batch operation.
+   * @returns A Promise resolving to an array of `AutomatedSession` objects, preserving the order of the input items.
+   *
+   * @example
+   * const todos = ['Fix login', 'Add tests'];
+   * const sessions = await jules.all(todos, (task) => ({
+   *   prompt: task,
+   *   source: { github: 'user/repo', branch: 'main' }
+   * }));
+   */
+  all<T>(
+    items: T[],
+    mapper: (item: T) => SessionConfig | Promise<SessionConfig>,
+    options?: {
+      /**
+       * The maximum number of concurrent sessions to run.
+       * @default 4
+       */
+      concurrency?: number;
+      /**
+       * If true, the batch operation will stop immediately if any session fails to start.
+       * If false, it will continue processing the remaining items.
+       * @default true
+       */
+      stopOnError?: boolean;
+      /**
+       * The delay in milliseconds between starting each session.
+       * @default 0
+       */
+      delayMs?: number;
+    },
+  ): Promise<AutomatedSession[]>;
 }
 
 /**
