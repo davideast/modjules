@@ -12,6 +12,19 @@ describe('polling helpers', () => {
   const sessionId = 'test-session-id';
   const pollingInterval = 100;
 
+  const baseSession: SessionResource = {
+    id: sessionId,
+    name: `sessions/${sessionId}`,
+    state: 'completed',
+    prompt: 'test prompt',
+    sourceContext: { source: 'test-source' },
+    title: 'test session',
+    url: 'http://test.url',
+    outputs: [],
+    createTime: '2023-01-01T00:00:00Z',
+    updateTime: '2023-01-01T00:01:00Z',
+  };
+
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -23,11 +36,8 @@ describe('polling helpers', () => {
   describe('pollSession', () => {
     it('should return immediately if predicate is met on first try', async () => {
       const session: SessionResource = {
-        id: sessionId,
-        name: `sessions/${sessionId}`,
+        ...baseSession,
         state: 'completed',
-        createdAt: '2023-01-01T00:00:00Z',
-        updatedAt: '2023-01-01T00:01:00Z',
       };
 
       vi.mocked(mockApiClient.request).mockResolvedValueOnce(session);
@@ -50,17 +60,15 @@ describe('polling helpers', () => {
       vi.useFakeTimers();
 
       const runningSession: SessionResource = {
-        id: sessionId,
-        name: `sessions/${sessionId}`,
-        state: 'running',
-        createdAt: '2023-01-01T00:00:00Z',
-        updatedAt: '2023-01-01T00:00:00Z',
+        ...baseSession,
+        state: 'inProgress',
+        updateTime: '2023-01-01T00:00:00Z',
       };
 
       const completedSession: SessionResource = {
-        ...runningSession,
+        ...baseSession,
         state: 'completed',
-        updatedAt: '2023-01-01T00:01:00Z',
+        updateTime: '2023-01-01T00:01:00Z',
       };
 
       vi.mocked(mockApiClient.request)
@@ -89,11 +97,8 @@ describe('polling helpers', () => {
   describe('pollUntilCompletion', () => {
     it('should resolve when state is completed', async () => {
       const completedSession: SessionResource = {
-        id: sessionId,
-        name: `sessions/${sessionId}`,
+        ...baseSession,
         state: 'completed',
-        createdAt: '2023-01-01T00:00:00Z',
-        updatedAt: '2023-01-01T00:01:00Z',
       };
 
       vi.mocked(mockApiClient.request).mockResolvedValueOnce(completedSession);
@@ -109,11 +114,8 @@ describe('polling helpers', () => {
 
     it('should resolve when state is failed', async () => {
       const failedSession: SessionResource = {
-        id: sessionId,
-        name: `sessions/${sessionId}`,
+        ...baseSession,
         state: 'failed',
-        createdAt: '2023-01-01T00:00:00Z',
-        updatedAt: '2023-01-01T00:01:00Z',
       };
 
       vi.mocked(mockApiClient.request).mockResolvedValueOnce(failedSession);
@@ -131,17 +133,15 @@ describe('polling helpers', () => {
       vi.useFakeTimers();
 
       const runningSession: SessionResource = {
-        id: sessionId,
-        name: `sessions/${sessionId}`,
-        state: 'running',
-        createdAt: '2023-01-01T00:00:00Z',
-        updatedAt: '2023-01-01T00:00:00Z',
+        ...baseSession,
+        state: 'inProgress',
+        updateTime: '2023-01-01T00:00:00Z',
       };
 
       const completedSession: SessionResource = {
-        ...runningSession,
+        ...baseSession,
         state: 'completed',
-        updatedAt: '2023-01-01T00:01:00Z',
+        updateTime: '2023-01-01T00:01:00Z',
       };
 
       vi.mocked(mockApiClient.request)
