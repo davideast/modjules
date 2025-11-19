@@ -142,6 +142,8 @@ const session = await jules.session({
 
 When used in a browser environment (e.g., in a web application bundled with Vite, Webpack, or Rollup), the SDK automatically uses a browser-specific implementation that leverages IndexedDB for storage. This allows your web application to maintain session state locally.
 
+> **Warning:** Never expose your `JULES_API_KEY` in a production or public-facing application. The browser module is designed for trusted client environments like Electron apps or websites running exclusively on a local machine.
+
 To use the browser version, you can explicitly import it:
 
 ```typescript
