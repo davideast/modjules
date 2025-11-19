@@ -14,7 +14,7 @@ export async function pMap<T, R>(
     delayMs?: number;
   } = {},
 ): Promise<R[]> {
-  const concurrency = options.concurrency ?? 4;
+  const concurrency = options.concurrency ?? 3;
   const stopOnError = options.stopOnError ?? true;
   const delayMs = options.delayMs ?? 0;
 
