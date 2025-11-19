@@ -79,34 +79,13 @@ const sessions = await jules.all(largeList, mapFn, {
 });
 ```
 
-## Local-first Synchronization
-
-The SDK features a powerful local-first synchronization engine, making your agent-driven applications fast, reliable, and offline-capable. It's accessible via `session.activities()`.
-
-### Robust Hybrid Streaming
-
-The `session.activities().stream()` method is the recommended way to interact with session activities. It automatically caches activities to disk, providing a restart-safe stream that combines a complete history with live updates.
-
-```typescript
-const session = jules.session(id);
-
-// Automatically caches to disk and deduplicates events across restarts.
-for await (const act of session.activities().stream()) {
-  console.log(act.type, act.id);
-}
-```
-
-This method is ideal for building resilient UIs and services that can seamlessly resume from a previous state. For a simpler, idiomatic stream, `session.stream()` is also available and uses `session.activities().stream()` under the hood.
-
-For more granular control, you can use `.history()` to fetch only the locally cached activities (cold) or `.updates()` to stream only new, live activities (hot).
-
 ### Rich Local Querying
 
 The local cache can be queried instantly without network latency using the `.select()` method.
 
 ```typescript
 // Query your local cache instantly without network latency.
-const errors = await session.activities().select({
+const errors = await session.select({
   type: 'sessionFailed',
   limit: 10,
 });
@@ -327,13 +306,11 @@ This is a high-level overview of the main SDK components.
   - `session.waitFor()`: Pauses until the session reaches a specific state.
   - `session.waitForCompletion()`: Awaits the final outcome of the session.
 - **Observation:**
-  - `session.stream()`: Returns an async iterator of all activities.
+  - `session.stream()`: Returns an async iterator of all activities (history + live).
+  - `session.history()`: Returns a stream of locally cached activities.
+  - `session.updates()`: Returns a stream of live activities from the network.
+  - `session.select(query)`: Queries the local activity cache.
   - `session.info()`: Fetches the latest session state.
-  - `session.activities()`: Returns an `ActivityClient` for advanced stream and cache control.
-  - `session.activities().stream()`: A robust, restart-safe stream of all activities (history + live).
-  - `session.activities().history()`: Returns a stream of locally cached activities.
-  - `session.activities().updates()`: Returns a stream of live activities from the network.
-  - `session.activities().select(query)`: Queries the local activity cache.
 - **Artifact Management:**
   - `artifact.save()`: Decodes the base64 `data` and saves it. In Node.js, it writes to the filesystem. In the browser, it saves to IndexedDB.
   - `artifact.toUrl()`: Returns a `data:` URI for the artifact data, usable in both Node.js and browser.
