@@ -52,6 +52,33 @@ if (pullRequest) {
 }
 ```
 
+## Batch Processing
+
+Process multiple items in parallel with `jules.all()`. This method is designed to feel like `Promise.all()` but with built-in concurrency control.
+
+```javascript
+const todos = ['Fix login bug', 'Update README', 'Refactor tests'];
+
+// Processes items concurrently (default: 4 at a time)
+const sessions = await jules.all(todos, (task) => ({
+  prompt: task,
+  source: { github: 'user/repo', branch: 'main' }
+}));
+
+// The results array preserves the order of the input array
+console.log(`Created ${sessions.length} sessions.`);
+```
+
+For more control, you can pass an options object:
+
+```javascript
+const sessions = await jules.all(largeList, mapFn, {
+  concurrency: 10, // Run 10 at a time
+  stopOnError: false, // Don't stop if one fails
+  delayMs: 500 // Wait 500ms between starting each item
+});
+```
+
 ## Local-first Synchronization
 
 The SDK features a powerful local-first synchronization engine, making your agent-driven applications fast, reliable, and offline-capable. It's accessible via `session.activities()`.
