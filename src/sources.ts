@@ -45,6 +45,13 @@ class SourceManagerImpl {
     this.apiClient = apiClient;
   }
 
+  /**
+   * Lists all connected sources.
+   *
+   * **Logic:**
+   * - Automatically handles API pagination by following `nextPageToken`.
+   * - Yields sources one by one as they are retrieved.
+   */
   async *list(): AsyncIterable<Source> {
     let pageToken: string | undefined = undefined;
 
@@ -72,6 +79,16 @@ class SourceManagerImpl {
     }
   }
 
+  /**
+   * Retrieves a specific source by its external identifier.
+   *
+   * **Data Transformation:**
+   * - Constructs a resource name (e.g., `sources/github/owner/repo`) from the input filter.
+   *
+   * @param filter Filter criteria (currently supports GitHub repo name).
+   * @returns The matching Source object, or `undefined` if not found (404).
+   * @throws {Error} If the filter format is invalid.
+   */
   async get(filter: { github: string }): Promise<Source | undefined> {
     const { github } = filter;
     if (!github || !github.includes('/')) {

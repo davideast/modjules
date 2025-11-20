@@ -29,7 +29,15 @@ export type InternalConfig = {
 import { Platform } from './platform/types.js';
 import { StorageFactory } from './types.js';
 
+/**
+ * Implementation of the main JulesClient interface.
+ * This class acts as the central hub for creating and managing sessions,
+ * as well as accessing other resources like sources.
+ */
 export class JulesClientImpl implements JulesClient {
+  /**
+   * Manages source connections (e.g., GitHub repositories).
+   */
   public sources: SourceManager;
   private apiClient: ApiClient;
   private config: InternalConfig;
@@ -37,6 +45,13 @@ export class JulesClientImpl implements JulesClient {
   private storageFactory: StorageFactory;
   private platform: Platform;
 
+  /**
+   * Creates a new instance of the JulesClient.
+   *
+   * @param options Configuration options for the client.
+   * @param defaultStorageFactory Factory for creating storage instances.
+   * @param defaultPlatform Platform-specific implementation.
+   */
   constructor(
     options: JulesOptions = {},
     defaultStorageFactory: StorageFactory,
@@ -62,6 +77,13 @@ export class JulesClientImpl implements JulesClient {
     this.sources = createSourceManager(this.apiClient);
   }
 
+  /**
+   * Creates a new Jules client instance with updated configuration.
+   * This is an immutable operation; the original client instance remains unchanged.
+   *
+   * @param options The new configuration options to merge with the existing ones.
+   * @returns A new JulesClient instance with the updated configuration.
+   */
   with(options: JulesOptions): JulesClient {
     return new JulesClientImpl(
       {
@@ -97,6 +119,31 @@ export class JulesClientImpl implements JulesClient {
     };
   }
 
+  /**
+   * Executes a task in automated mode.
+   * This is a high-level abstraction for "fire-and-forget" tasks.
+   *
+   * **Side Effects:**
+   * - Creates a new session on the Jules API (`POST /sessions`).
+   * - Initiates background polling for activity updates.
+   * - May create a Pull Request if `autoPr` is true (default).
+   *
+   * **Data Transformation:**
+   * - Resolves the `github` source identifier (e.g., `owner/repo`) to a full resource name.
+   * - Defaults `requirePlanApproval` to `false` for automated runs.
+   *
+   * @param config The configuration for the run.
+   * @returns A `AutomatedSession` object, which is an enhanced Promise that resolves to the final outcome.
+   * @throws {SourceNotFoundError} If the specified GitHub repository cannot be found or accessed.
+   * @throws {JulesApiError} If the session creation fails (e.g., 401 Unauthorized).
+   *
+   * @example
+   * const run = await jules.run({
+   *   prompt: "Fix the login bug",
+   *   source: { github: "my-org/repo", branch: "main" }
+   * });
+   * const outcome = await run.result();
+   */
   async run(config: SessionConfig): Promise<AutomatedSession> {
     const body = await this._prepareSessionCreation(config);
     const sessionResource = await this.apiClient.request<SessionResource>(
@@ -137,7 +184,43 @@ export class JulesClientImpl implements JulesClient {
     };
   }
 
+  /**
+   * Creates a new interactive session for workflows requiring human oversight.
+   *
+   * **Side Effects:**
+   * - Creates a new session on the Jules API (`POST /sessions`).
+   * - Initializes local storage for the session.
+   *
+   * **Data Transformation:**
+   * - Defaults `requirePlanApproval` to `true` for interactive sessions.
+   *
+   * @param config The configuration for the session.
+   * @returns A Promise resolving to the interactive `SessionClient`.
+   * @throws {SourceNotFoundError} If the source cannot be found.
+   *
+   * @example
+   * const session = await jules.session({
+   *   prompt: "Let's explore the codebase",
+   *   source: { github: "owner/repo", branch: "main" }
+   * });
+   */
   session(config: SessionConfig): Promise<SessionClient>;
+  /**
+   * Rehydrates an existing session from its ID, allowing you to resume interaction.
+   * This is useful for stateless environments (like serverless functions) where you need to
+   * reconnect to a long-running session.
+   *
+   * **Side Effects:**
+   * - Initializes local storage for the existing session ID.
+   * - Does NOT make a network request immediately (lazy initialization).
+   *
+   * @param sessionId The ID of the existing session.
+   * @returns The interactive `SessionClient`.
+   *
+   * @example
+   * const session = jules.session("12345");
+   * const info = await session.info(); // Now makes a request
+   */
   session(sessionId: string): SessionClient;
   session(
     configOrId: SessionConfig | string,

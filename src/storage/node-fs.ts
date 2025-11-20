@@ -5,6 +5,10 @@ import * as readline from 'readline';
 import { Activity } from '../types.js';
 import { ActivityStorage } from './types.js';
 
+/**
+ * Node.js filesystem implementation of ActivityStorage.
+ * Stores activities in a JSONL file located at `.jules/cache/<sessionId>/activities.jsonl`.
+ */
 export class NodeFileStorage implements ActivityStorage {
   private filePath: string;
   private initialized = false;
@@ -18,6 +22,13 @@ export class NodeFileStorage implements ActivityStorage {
     );
   }
 
+  /**
+   * Initializes the storage by ensuring the cache directory exists.
+   *
+   * **Side Effects:**
+   * - Creates the `.jules/cache/<sessionId>` directory if it does not exist.
+   * - Sets the internal `initialized` flag.
+   */
   async init(): Promise<void> {
     if (this.initialized) return;
     // Ensure the cache directory exists before we ever try to read/write
@@ -25,11 +36,21 @@ export class NodeFileStorage implements ActivityStorage {
     this.initialized = true;
   }
 
+  /**
+   * Closes the storage.
+   */
   async close(): Promise<void> {
     // No persistent handles to close in this simple V1 implementation.
     this.initialized = false;
   }
 
+  /**
+   * Appends an activity to the file.
+   *
+   * **Side Effects:**
+   * - Appends a new line containing the JSON representation of the activity to `activities.jsonl`.
+   * - Implicitly calls `init()` if not already initialized.
+   */
   async append(activity: Activity): Promise<void> {
     // Safety check: ensure init() was called if the user forgot
     if (!this.initialized) await this.init();
@@ -39,6 +60,10 @@ export class NodeFileStorage implements ActivityStorage {
     await fs.appendFile(this.filePath, line, 'utf8');
   }
 
+  /**
+   * Retrieves an activity by ID.
+   * Uses a linear scan of the file.
+   */
   async get(activityId: string): Promise<Activity | undefined> {
     // V1 Implementation: Linear Scan.
     // Acceptable trade-off for simplicity as session logs are rarely massive.
@@ -50,6 +75,10 @@ export class NodeFileStorage implements ActivityStorage {
     return undefined;
   }
 
+  /**
+   * Retrieves the latest activity.
+   * Scans the entire file to find the last entry.
+   */
   async latest(): Promise<Activity | undefined> {
     // V1 Implementation: Full Scan to find the end.
     let last: Activity | undefined;
@@ -59,6 +88,18 @@ export class NodeFileStorage implements ActivityStorage {
     return last;
   }
 
+  /**
+   * Yields all activities in the file.
+   *
+   * **Behavior:**
+   * - Opens a read stream to `activities.jsonl`.
+   * - Reads line-by-line using `readline`.
+   * - Parses each line as JSON.
+   *
+   * **Edge Cases:**
+   * - Logs a warning and skips lines if JSON parsing fails (corrupt data).
+   * - Returns immediately (yields nothing) if the file does not exist.
+   */
   async *scan(): AsyncIterable<Activity> {
     if (!this.initialized) await this.init();
 

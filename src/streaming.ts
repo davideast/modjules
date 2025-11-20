@@ -14,9 +14,13 @@ type ListActivitiesResponse = {
 };
 
 /**
+ * Options for controlling the activity stream.
  * @internal
  */
 export type StreamActivitiesOptions = {
+  /**
+   * Filters to exclude certain activities.
+   */
   exclude?: {
     originator: Origin;
   };
@@ -29,6 +33,7 @@ export type StreamActivitiesOptions = {
  * @param sessionId The ID of the session to stream activities for.
  * @param apiClient The API client to use for requests.
  * @param pollingInterval The time in milliseconds to wait before polling for new activities.
+ * @param platform The platform adapter.
  * @param options Streaming options, including filters.
  * @internal
  */

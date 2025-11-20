@@ -2,8 +2,11 @@ import { Activity } from '../types.js';
 import { ActivityStorage } from '../storage/types.js';
 import { ActivityClient, ListOptions, SelectOptions } from './types.js';
 
-// Upgraded interface to support P3 requirements.
-// In a real app, this might live in src/network/types.ts
+/**
+ * Interface for the network layer used by the activity client.
+ * Abstracts away the details of polling and fetching from the API.
+ * @internal
+ */
 export interface NetworkClient {
   rawStream(): AsyncIterable<Activity>;
   listActivities(
@@ -12,12 +15,20 @@ export interface NetworkClient {
   fetchActivity(activityId: string): Promise<Activity>;
 }
 
+/**
+ * The default implementation of the ActivityClient.
+ * Implements a "local-first" architecture where activities are fetched from
+ * the network, cached locally, and then served from the cache.
+ */
 export class DefaultActivityClient implements ActivityClient {
   constructor(
     private storage: ActivityStorage,
     private network: NetworkClient,
   ) {}
 
+  /**
+   * Returns an async iterable of all activities stored locally.
+   */
   async *history(): AsyncIterable<Activity> {
     // Ensure storage is ready before we start yielding
     await this.storage.init();
@@ -27,6 +38,18 @@ export class DefaultActivityClient implements ActivityClient {
     yield* this.storage.scan();
   }
 
+  /**
+   * Returns an async iterable of new activities from the network.
+   * This method polls the network and updates the local storage.
+   *
+   * **Side Effects:**
+   * - Polls the network continuously.
+   * - Appends new activities to local storage (write-through caching).
+   *
+   * **Logic:**
+   * - Reads the latest activity from storage to determine the "high-water mark".
+   * - Ignores incoming activities older than or equal to the high-water mark.
+   */
   async *updates(): AsyncIterable<Activity> {
     await this.storage.init();
 
@@ -69,6 +92,14 @@ export class DefaultActivityClient implements ActivityClient {
     }
   }
 
+  /**
+   * Returns a combined stream of history and updates.
+   * This is the primary method for consuming the activity stream.
+   *
+   * **Behavior:**
+   * 1. Yields all historical activities from local storage (offline capable).
+   * 2. Switches to `updates()` to yield new activities from the network (real-time).
+   */
   async *stream(): AsyncIterable<Activity> {
     // The Hybrid is just a composition of the two modalities.
     // 1. Yield everything we already know safely from disk.
@@ -80,6 +111,9 @@ export class DefaultActivityClient implements ActivityClient {
     yield* this.updates();
   }
 
+  /**
+   * Queries local storage for activities matching the given options.
+   */
   async select(options: SelectOptions = {}): Promise<Activity[]> {
     await this.storage.init();
     const results: Activity[] = [];
@@ -120,12 +154,30 @@ export class DefaultActivityClient implements ActivityClient {
     return results;
   }
 
+  /**
+   * Lists activities from the network directly.
+   * @param options Pagination options.
+   */
   async list(
     options?: ListOptions,
   ): Promise<{ activities: Activity[]; nextPageToken?: string }> {
     return this.network.listActivities(options);
   }
 
+  /**
+   * Gets a single activity by ID.
+   * Implements a "read-through" caching strategy.
+   *
+   * **Logic:**
+   * 1. Checks local storage. If found, returns it immediately (fast).
+   * 2. If missing, fetches from the network.
+   * 3. Persists the fetched activity to storage (future reads will hit cache).
+   * 4. Returns the activity.
+   *
+   * **Side Effects:**
+   * - May perform a network request.
+   * - May write to local storage.
+   */
   async get(activityId: string): Promise<Activity> {
     await this.storage.init();
 

@@ -5,6 +5,10 @@ const DB_NAME = 'jules-activities';
 const ARTIFACTS_STORE_NAME = 'artifacts';
 const ACTIVITIES_STORE_NAME = 'activities';
 
+/**
+ * Browser implementation of the Platform interface.
+ * Uses IndexedDB for file storage.
+ */
 export class BrowserPlatform implements Platform {
   private dbPromise: Promise<IDBPDatabase<unknown>> | null = null;
 
@@ -32,6 +36,18 @@ export class BrowserPlatform implements Platform {
     return this.dbPromise;
   }
 
+  /**
+   * Saves a file to IndexedDB.
+   *
+   * **Data Transformation:**
+   * - Decodes base64 data into a `Blob`.
+   *
+   * **Side Effects:**
+   * - Stores the blob in the `artifacts` object store.
+   * - Associates the file with the `activityId` (if provided).
+   *
+   * @throws {Error} If the encoding is not 'base64'.
+   */
   async saveFile(
     filepath: string,
     data: string,
