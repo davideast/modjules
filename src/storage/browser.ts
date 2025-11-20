@@ -5,6 +5,10 @@ import { ActivityStorage } from './types.js';
 const DB_NAME = 'jules-activities';
 const STORE_NAME = 'activities';
 
+/**
+ * Browser implementation of ActivityStorage using IndexedDB.
+ * Allows for persistent storage of activities in the browser.
+ */
 export class BrowserStorage implements ActivityStorage {
   private sessionId: string;
   private dbPromise: Promise<IDBPDatabase<unknown>> | null = null;
@@ -45,11 +49,21 @@ export class BrowserStorage implements ActivityStorage {
     return this.dbPromise;
   }
 
+  /**
+   * Initializes the storage.
+   *
+   * **Side Effects:**
+   * - Opens an IndexedDB connection.
+   * - Upgrades the database schema to v2 if necessary (creating object stores).
+   */
   async init(): Promise<void> {
     // openDB handles initialization, so just call it to ensure DB is ready.
     await this.getDb();
   }
 
+  /**
+   * Closes the storage connection.
+   */
   async close(): Promise<void> {
     if (this.dbPromise) {
       const db = await this.dbPromise;
@@ -58,6 +72,13 @@ export class BrowserStorage implements ActivityStorage {
     }
   }
 
+  /**
+   * Appends an activity to IndexedDB.
+   *
+   * **Side Effects:**
+   * - Adds a `sessionId` field to the activity for indexing.
+   * - Writes the modified activity to the `activities` object store.
+   */
   async append(activity: Activity): Promise<void> {
     const db = await this.getDb();
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -68,6 +89,9 @@ export class BrowserStorage implements ActivityStorage {
     await tx.done;
   }
 
+  /**
+   * Retrieves an activity by ID.
+   */
   async get(activityId: string): Promise<Activity | undefined> {
     const db = await this.getDb();
     const activity = await db.get(STORE_NAME, activityId);
@@ -78,6 +102,13 @@ export class BrowserStorage implements ActivityStorage {
     return activity as Activity | undefined;
   }
 
+  /**
+   * Retrieves the latest activity for the current session.
+   *
+   * **Logic:**
+   * - Uses the `sessionTimestamp` index to query efficiently.
+   * - Opens a cursor in 'prev' direction to find the last entry first.
+   */
   async latest(): Promise<Activity | undefined> {
     const db = await this.getDb();
     const tx = db.transaction(STORE_NAME, 'readonly');
@@ -102,6 +133,9 @@ export class BrowserStorage implements ActivityStorage {
     return activity as Activity | undefined;
   }
 
+  /**
+   * Yields all activities for the current session.
+   */
   async *scan(): AsyncIterable<Activity> {
     const db = await this.getDb();
     const tx = db.transaction(STORE_NAME, 'readonly');

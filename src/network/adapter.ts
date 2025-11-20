@@ -6,6 +6,10 @@ import { mapRestActivityToSdkActivity } from '../mappers.js';
 
 import { Platform } from '../platform/types.js';
 
+/**
+ * Concrete implementation of NetworkClient that communicates with the Jules API.
+ * Handles fetching activities and streaming them via polling.
+ */
 export class NetworkAdapter implements NetworkClient {
   constructor(
     private apiClient: ApiClient,
@@ -14,6 +18,9 @@ export class NetworkAdapter implements NetworkClient {
     private platform: Platform,
   ) {}
 
+  /**
+   * Fetches a single activity from the API.
+   */
   async fetchActivity(activityId: string): Promise<Activity> {
     const restActivity = await this.apiClient.request<any>(
       `sessions/${this.sessionId}/activities/${activityId}`,
@@ -21,6 +28,9 @@ export class NetworkAdapter implements NetworkClient {
     return mapRestActivityToSdkActivity(restActivity, this.platform);
   }
 
+  /**
+   * Lists activities from the API with pagination.
+   */
   async listActivities(
     options?: ListOptions,
   ): Promise<{ activities: Activity[]; nextPageToken?: string }> {
@@ -45,6 +55,10 @@ export class NetworkAdapter implements NetworkClient {
     };
   }
 
+  /**
+   * Polls the API for new activities and yields them.
+   * This stream never ends unless the process is terminated.
+   */
   async *rawStream(): AsyncIterable<Activity> {
     while (true) {
       let pageToken: string | undefined = undefined;

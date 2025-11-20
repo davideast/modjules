@@ -20,6 +20,10 @@ import {
   SessionState,
 } from './types.js';
 
+/**
+ * Implementation of the SessionClient interface.
+ * Manages an interactive session with the Jules agent.
+ */
 export class SessionClientImpl implements SessionClient {
   readonly id: string;
   private apiClient: ApiClient;
@@ -28,6 +32,15 @@ export class SessionClientImpl implements SessionClient {
   // The new client instance
   private _activities: ActivityClient;
 
+  /**
+   * Creates a new instance of SessionClientImpl.
+   *
+   * @param sessionId The ID of the session.
+   * @param apiClient The API client to use for network requests.
+   * @param config The configuration options.
+   * @param storage The storage engine for activities.
+   * @param platform The platform adapter.
+   */
   constructor(
     sessionId: string,
     apiClient: ApiClient,
@@ -50,18 +63,32 @@ export class SessionClientImpl implements SessionClient {
     this._activities = new DefaultActivityClient(storage, network);
   }
 
+  /**
+   * COLD STREAM: Yields all known past activities from local storage.
+   */
   history(): AsyncIterable<Activity> {
     return this._activities.history();
   }
 
+  /**
+   * HOT STREAM: Yields ONLY future activities as they arrive from the network.
+   */
   updates(): AsyncIterable<Activity> {
     return this._activities.updates();
   }
 
+  /**
+   * LOCAL QUERY: Performs rich filtering against local storage only.
+   */
   select(options?: SelectOptions): Promise<Activity[]> {
     return this._activities.select(options);
   }
 
+  /**
+   * Provides a real-time stream of activities for the session.
+   *
+   * @param options Options to control the stream.
+   */
   async *stream(
     options: StreamActivitiesOptions = {},
   ): AsyncIterable<Activity> {
@@ -78,6 +105,20 @@ export class SessionClientImpl implements SessionClient {
     }
   }
 
+  /**
+   * Approves the currently pending plan.
+   * Only valid if the session state is `awaitingPlanApproval`.
+   *
+   * **Side Effects:**
+   * - Sends a POST request to `sessions/{id}:approvePlan`.
+   * - Transitions the session state from `awaitingPlanApproval` to `inProgress` (eventually).
+   *
+   * @throws {InvalidStateError} If the session is not in the `awaitingPlanApproval` state.
+   *
+   * @example
+   * await session.waitFor('awaitingPlanApproval');
+   * await session.approve();
+   */
   async approve(): Promise<void> {
     const currentState = (await this.info()).state;
     if (currentState !== 'awaitingPlanApproval') {
@@ -91,6 +132,19 @@ export class SessionClientImpl implements SessionClient {
     });
   }
 
+  /**
+   * Sends a message (prompt) to the agent in the context of the current session.
+   * This is a fire-and-forget operation. To see the response, use `stream()` or `ask()`.
+   *
+   * **Side Effects:**
+   * - Sends a POST request to `sessions/{id}:sendMessage`.
+   * - Appends a new `userMessaged` activity to the session history.
+   *
+   * @param prompt The message to send.
+   *
+   * @example
+   * await session.send("Please clarify step 2.");
+   */
   async send(prompt: string): Promise<void> {
     await this.apiClient.request(`sessions/${this.id}:sendMessage`, {
       method: 'POST',
@@ -98,6 +152,23 @@ export class SessionClientImpl implements SessionClient {
     });
   }
 
+  /**
+   * Sends a message to the agent and waits specifically for the agent's immediate reply.
+   * This provides a convenient request/response flow for conversational interactions.
+   *
+   * **Behavior:**
+   * - Sends the prompt using `send()`.
+   * - Subscribes to the activity stream.
+   * - Resolves with the first `agentMessaged` activity that appears *after* the prompt was sent.
+   *
+   * @param prompt The message to send.
+   * @returns The agent's reply activity.
+   * @throws {JulesError} If the session terminates before the agent replies.
+   *
+   * @example
+   * const reply = await session.ask("What is the status?");
+   * console.log(reply.message);
+   */
   async ask(prompt: string): Promise<ActivityAgentMessaged> {
     const startTime = new Date();
     await this.send(prompt);
@@ -121,6 +192,16 @@ export class SessionClientImpl implements SessionClient {
     throw new JulesError('Session ended before the agent replied.');
   }
 
+  /**
+   * Waits for the session to reach a terminal state and returns the result.
+   *
+   * **Behavior:**
+   * - Polls the session API until state is 'completed' or 'failed'.
+   * - Maps the final session resource to a friendly `Outcome` object.
+   *
+   * @returns The final outcome of the session.
+   * @throws {AutomatedSessionFailedError} If the session ends in a 'failed' state.
+   */
   async result(): Promise<Outcome> {
     const finalSession = await pollUntilCompletion(
       this.id,
@@ -130,6 +211,20 @@ export class SessionClientImpl implements SessionClient {
     return mapSessionResourceToOutcome(finalSession);
   }
 
+  /**
+   * Pauses execution and waits until the session reaches a specific state.
+   * Also returns if the session reaches a terminal state ('completed' or 'failed')
+   * to prevent infinite waiting.
+   *
+   * **Behavior:**
+   * - Polls the session API at the configured interval.
+   * - Resolves immediately if the session is already in the target state (or terminal).
+   *
+   * @param targetState The target state to wait for.
+   *
+   * @example
+   * await session.waitFor('awaitingPlanApproval');
+   */
   async waitFor(targetState: SessionState): Promise<void> {
     await pollSession(
       this.id,
@@ -145,6 +240,9 @@ export class SessionClientImpl implements SessionClient {
     );
   }
 
+  /**
+   * Retrieves the latest state of the underlying session resource from the API.
+   */
   async info(): Promise<SessionResource> {
     return this.apiClient.request<SessionResource>(`sessions/${this.id}`);
   }

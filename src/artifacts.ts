@@ -8,6 +8,10 @@ const isNode =
 
 import { Platform } from './platform/types.js';
 
+/**
+ * Represents a media artifact (e.g. image) produced by an activity.
+ * Provides helper methods for saving and viewing the media.
+ */
 export class MediaArtifact {
   public readonly type = 'media';
   public readonly data: string;
@@ -26,6 +30,15 @@ export class MediaArtifact {
     this.activityId = activityId;
   }
 
+  /**
+   * Saves the media artifact to a file.
+   *
+   * **Side Effects:**
+   * - Node.js: Writes the file to disk (overwrites if exists).
+   * - Browser: Saves the file to the 'artifacts' object store in IndexedDB.
+   *
+   * @param filepath The path where the file should be saved.
+   */
   async save(filepath: string): Promise<void> {
     await this.platform.saveFile(
       filepath,
@@ -35,11 +48,23 @@ export class MediaArtifact {
     );
   }
 
+  /**
+   * Converts the media artifact to a data URL.
+   * Useful for displaying images in a browser.
+   *
+   * **Data Transformation:**
+   * - Prefixes the base64 data with `data:<mimeType>;base64,`.
+   *
+   * @returns A valid Data URI string.
+   */
   toUrl(): string {
     return this.platform.createDataUrl(this.data, this.format);
   }
 }
 
+/**
+ * Represents the output of a bash command executed by the agent.
+ */
 export class BashArtifact {
   public readonly type = 'bashOutput';
   public readonly command: string;
@@ -54,6 +79,14 @@ export class BashArtifact {
     this.exitCode = artifact.exitCode;
   }
 
+  /**
+   * Formats the bash output as a string, mimicking a terminal session.
+   *
+   * **Data Transformation:**
+   * - Combines `stdout` and `stderr`.
+   * - Formats the command with a `$` prompt.
+   * - Appends the exit code.
+   */
   toString(): string {
     const output = [this.stdout, this.stderr].filter(Boolean).join('');
     const commandLine = `$ ${this.command}`;

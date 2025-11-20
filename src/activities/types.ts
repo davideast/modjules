@@ -1,12 +1,16 @@
 import { Activity } from '../types.js';
 
-// Define standard pagination options for the honest network list()
+/**
+ * Standard pagination options for network requests.
+ */
 export interface ListOptions {
   pageSize?: number;
   pageToken?: string;
 }
 
-// Define rich query options for local select()
+/**
+ * Options for filtering activities locally.
+ */
 export interface SelectOptions {
   after?: string; // Activity ID
   before?: string; // Activity ID
@@ -14,6 +18,10 @@ export interface SelectOptions {
   limit?: number;
 }
 
+/**
+ * Interface for managing session activities.
+ * This interface handles both local caching and network synchronization.
+ */
 export interface ActivityClient {
   /**
    * COLD STREAM: Yields all known past activities from local storage.

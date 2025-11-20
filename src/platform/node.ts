@@ -3,7 +3,17 @@ import { Buffer } from 'node:buffer';
 import { setTimeout } from 'node:timers/promises';
 import { Platform } from './types.js';
 
+/**
+ * Node.js implementation of the Platform interface.
+ */
 export class NodePlatform implements Platform {
+  /**
+   * Saves a file to the local filesystem using `node:fs/promises`.
+   *
+   * **Side Effects:**
+   * - Writes a file to disk.
+   * - Overwrites the file if it already exists.
+   */
   async saveFile(
     filepath: string,
     data: string,

@@ -11,15 +11,6 @@ import {
 } from './types.js';
 
 /**
- * Maps a raw REST API Activity resource to the SDK's discriminated union `Activity` type.
- * This function acts as a transformer, converting the API's structure (with union fields)
- * into a more idiomatic TypeScript structure (with a 'type' discriminator).
- *
- * @param restActivity The raw activity object from the REST API.
- * @returns A structured `Activity` object for the SDK.
- * @internal
- */
-/**
  * Maps a raw REST API Artifact resource to the SDK's `Artifact` type.
  * This now instantiates rich classes for certain artifact types.
  *
@@ -45,6 +36,20 @@ export function mapRestArtifactToSdkArtifact(
   throw new Error(`Unknown artifact type: ${JSON.stringify(restArtifact)}`);
 }
 
+/**
+ * Maps a raw REST API Activity resource to the SDK's discriminated union `Activity` type.
+ *
+ * **Data Transformation:**
+ * - Flattens nested union fields (e.g., `agentMessaged`) into a top-level `type` property.
+ * - Extracts the short ID from the full resource `name`.
+ * - Recursively maps all artifacts within the activity.
+ *
+ * @param restActivity The raw activity object from the REST API.
+ * @param platform The platform adapter (needed for artifact mapping).
+ * @returns A structured `Activity` object for the SDK.
+ * @throws {Error} If the activity type is unknown.
+ * @internal
+ */
 export function mapRestActivityToSdkActivity(
   restActivity: any,
   platform: any,
