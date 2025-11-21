@@ -10,14 +10,48 @@ Local-first applications store and manage data on the local device first, and th
 - **Reliability:** The application can continue to function even if the network connection is slow, intermittent, or completely unavailable.
 - **Offline Capabilities:** Users can interact with the application and its data even when they are offline. Changes are queued and synchronized once a connection is re-established.
 
-## The `ActivityClient`
+## Accessing Session Data
 
-The local-first synchronization engine is exposed through the `ActivityClient`, which is accessible via the `session.activities()` method. The `ActivityClient` automatically caches all session activities to your local disk, providing a fast and resilient way to interact with session data.
+The SDK provides three primary methods for accessing session data, each tailored to a different use case.
 
-This design shifts the SDK from a simple API wrapper to a stateful client that keeps a local replica of your session's activity history.
+### `session.stream()`
 
-### Key Features:
+This is the recommended method for most applications. It provides a robust, restart-safe stream of all session activities. It seamlessly combines a complete history of locally cached activities with live updates from the network.
 
-- **Automatic Caching:** All activities are written to a local database, ensuring that you have a complete history of the session, even across application restarts.
-- **Robust Streaming:** The `.stream()` method provides a hybrid stream that combines historical data from the local cache with live updates from the network, offering a seamless and restart-safe way to observe session progress.
-- **Rich Local Querying:** The `.select()` method allows you to perform complex queries on the local cache without any network latency, enabling you to build powerful, data-driven features.
+```typescript
+for await (const activity of session.stream()) {
+  console.log(activity.type);
+}
+```
+
+### `session.select()`
+
+The local cache can be queried instantly without network latency using the `session.select()` method. This is a powerful feature for building applications that need to quickly access and analyze historical session data.
+
+```typescript
+// Query your local cache instantly without network latency.
+const errors = await session.select({
+  type: 'sessionFailed',
+  limit: 10,
+});
+```
+
+### `session.history()`
+
+If you only need to access the activities that are already stored in the local cache, you can use the `session.history()` method. This is useful for quickly replaying the history of a session without waiting for live updates.
+
+```typescript
+for await (const activity of session.history()) {
+  console.log(activity.type);
+}
+```
+
+### `session.updates()`
+
+For applications that only need to react to new, live events, the `session.updates()` method provides a stream of activities from the network. This is ideal for building real-time user interfaces or services that don't need to process historical data.
+
+```typescript
+for await (const activity of session.updates()) {
+  console.log(activity.type);
+}
+```
