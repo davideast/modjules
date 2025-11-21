@@ -2,14 +2,14 @@
 import { JulesClientImpl } from './client.js';
 import { BrowserStorage } from './storage/browser.js';
 import { BrowserPlatform } from './platform/browser.js';
-import { JulesClient } from './types.js';
+import { JulesClient, JulesOptions } from './types.js';
 
 /**
  * The main entry point for the Jules SDK for browser environments.
  * This is a pre-initialized client that can be used immediately with default settings.
  *
  * @example
- * import { jules } from 'julets/browser';
+ * import { jules } from 'modjules/browser';
  * const session = await jules.session({ ... });
  */
 export const jules: JulesClient = new JulesClientImpl(
@@ -17,6 +17,20 @@ export const jules: JulesClient = new JulesClientImpl(
   (sessionId) => new BrowserStorage(sessionId),
   new BrowserPlatform(),
 );
+
+/**
+ * Factory function to create a new Jules client with custom configuration (Browser).
+ *
+ * @example
+ * import { Jules } from 'modjules/browser';
+ * const jules = Jules({ apiKey: '...' });
+ */
+export const Jules = (options: JulesOptions = {}): JulesClient =>
+  new JulesClientImpl(
+    options,
+    (sessionId) => new BrowserStorage(sessionId),
+    new BrowserPlatform(),
+  );
 
 // Re-export all the types for convenience
 export * from './errors.js';

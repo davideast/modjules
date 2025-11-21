@@ -8,7 +8,7 @@ export default defineConfig({
         index: 'src/index.ts',
         browser: 'src/browser.ts',
       },
-      name: 'julets',
+      name: 'modjules',
       formats: ['es'],
       fileName: (format, entryName) => `${entryName}.${format}.js`,
     },

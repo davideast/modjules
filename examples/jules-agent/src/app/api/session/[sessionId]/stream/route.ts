@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Jules } from 'julets';
+import { Jules } from 'modjules';
 
 export async function GET(
   req: Request,

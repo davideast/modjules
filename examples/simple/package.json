@@ -1,8 +1,8 @@
 {
-  "name": "julets-example",
+  "name": "modjules-example",
   "version": "1.0.0",
   "private": true,
-  "description": "A simple example demonstrating the julets SDK.",
+  "description": "A simple example demonstrating the modjules SDK.",
   "main": "main.ts",
   "scripts": {
     "start": "tsx main.ts",
@@ -12,7 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "julets": "*",
+    "modjules": "*",
     "tsx": "latest",
     "typescript": "latest"
   }

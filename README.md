@@ -1,10 +1,10 @@
-# julets - the agent-ready SDK for Jules
+# modjules - the agent-ready SDK for Jules
 
 > **Disclaimer:** This is a 100% total, absolute, **just-for-fun** prototype.
 
 ## Making Jules Agent-Ready
 
-Agents thrive on simple actions, persistent memory, and reactive updates. `julets` provides an tool and memory agent toolkit on top of the Jules REST API.
+Agents thrive on simple actions, persistent memory, and reactive updates. `modjules` provides an tool and memory agent toolkit on top of the Jules REST API.
 
 - **Tool Oriented:** Abstracts multi-step API choreographies into single, awaitable tool calls that an agent can easily execute. (e.g., `create session → poll for status → fetch result`)
 - **Persistent State:** Provides external memory, retaining conversational context across turns without burdening your agent's context window.
@@ -13,7 +13,7 @@ Agents thrive on simple actions, persistent memory, and reactive updates. `julet
 ## Core Usage
 
 ```ts
-import { jules } from 'julets';
+import { jules } from 'modjules';
 
 const session = jules.run({
   prompt: `Fix visibility issues in the examples/nextjs app. 
@@ -25,7 +25,7 @@ const session = jules.run({
   **Instructions**
   - Update the global styles and page components to a dark theme with the shadcn zinc palette.
 `,
-  source: { github: 'davideast/julets', branch: 'main' },
+  source: { github: 'davideast/modjules', branch: 'main' },
 });
 
 for await (const activity of session.stream()) {
@@ -94,14 +94,14 @@ const errors = await session.select({
 ## Installation
 
 ```bash
-npm i julets
+npm i modjules
 # OR
-bun add julets
+bun add modjules
 ```
 
 ## Cross-Platform Usage
 
-The `julets` SDK is designed to work seamlessly in both Node.js and browser environments. It uses conditional exports in its `package.json` to automatically provide the correct implementation for your platform.
+The `modjules` SDK is designed to work seamlessly in both Node.js and browser environments. It uses conditional exports in its `package.json` to automatically provide the correct implementation for your platform.
 
 ### Node.js (Default)
 
@@ -109,7 +109,7 @@ In a Node.js environment, the SDK defaults to using the local filesystem for cac
 
 ```typescript
 // Imports the Node.js version by default
-import { jules } from 'julets';
+import { jules } from 'modjules';
 
 const session = await jules.session({
   prompt: 'Refactor the user authentication module.',
@@ -127,7 +127,7 @@ To use the browser version, you can explicitly import it:
 
 ```typescript
 // Explicitly import the browser-optimized version
-import { jules } from 'julets/browser';
+import { jules } from 'modjules/browser';
 
 // The rest of your code remains the same
 const session = await jules.session({
@@ -138,27 +138,27 @@ const session = await jules.session({
 
 ### Bundler Resolution vs. Explicit Imports
 
-There are two primary strategies for handling platform-specific code, and `julets` is designed to support both.
+There are two primary strategies for handling platform-specific code, and `modjules` is designed to support both.
 
 1.  **Automatic Resolution (Recommended for most cases):** Modern bundlers that support the `exports` field in `package.json` can automatically select the correct file based on the environment. For example, Vite, when building for the browser, will see the `browser` condition in the `exports` map and use the `dist/browser.es.js` file. This is the ideal scenario, as it requires no changes to your import statements.
 
     ```typescript
     // In a browser environment, the bundler will automatically
     // resolve this to the browser-specific build.
-    import { jules } from 'julets';
+    import { jules } from 'modjules';
     ```
 
 2.  **Explicit Imports:** In some cases, you may want to be explicit about which version you are using, or your tooling may not fully support conditional exports. In these situations, you can use a direct import path.
 
     ```typescript
     // Always imports the browser version, regardless of bundler configuration
-    import { jules } from 'julets/browser';
+    import { jules } from 'modjules/browser';
     ```
 
 **When to choose which?**
 
-- Use the **default import (`julets`)** whenever possible. It's cleaner and relies on the standard module resolution features of the JavaScript ecosystem.
-- Use the **explicit import (`julets/browser`)** if you need to override the bundler's resolution, if you are working in an environment that doesn't support conditional exports, or if you want to be very clear in your code that you are using the browser-specific version.
+- Use the **default import (`modjules`)** whenever possible. It's cleaner and relies on the standard module resolution features of the JavaScript ecosystem.
+- Use the **explicit import (`modjules/browser`)** if you need to override the bundler's resolution, if you are working in an environment that doesn't support conditional exports, or if you want to be very clear in your code that you are using the browser-specific version.
 
 ## Authentication / API Key
 
@@ -171,7 +171,7 @@ export JULES_API_KEY=<api-key>
 Use `jules.session()` for interactive workflows to observe, provide feedback, and guide the process. The `SessionClient` object maintains state across multiple interactions.
 
 ```typescript
-import { jules } from 'julets';
+import { jules } from 'modjules';
 
 const session = await jules.session({
   prompt: 'Refactor the user authentication module.',
@@ -251,7 +251,7 @@ You can configure timeouts and polling intervals by creating a configured client
 #### Multiple API Keys
 
 ```typescript
-import { jules } from 'julets';
+import { jules } from 'modjules';
 
 // The default jules client initialized with process.env.JULES_API_KEY
 const session = jules.session('<session-id-here>');
@@ -264,7 +264,7 @@ const session = customJules.session('<session-id-here>');
 #### Polling & Timeouts
 
 ```typescript
-import { jules } from 'julets';
+import { jules } from 'modjules';
 
 const customJules = jules.with({
   pollingIntervalMs: 2000, // Poll every 2 seconds
@@ -280,7 +280,7 @@ const session = jules.session('<session-id-here>');
 The SDK throws custom errors that extend a base `JulesError`. This makes it easy to catch all SDK-related exceptions.
 
 ```typescript
-import { jules, JulesError } from 'julets';
+import { jules, JulesError } from 'modjules';
 
 try {
   const session = await jules.session({ ... });

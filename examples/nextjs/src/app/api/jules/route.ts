@@ -1,4 +1,4 @@
-import { Jules } from 'julets';
+import { Jules } from 'modjules';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**

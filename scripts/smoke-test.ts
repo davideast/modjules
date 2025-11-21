@@ -61,7 +61,7 @@ async function main() {
     const isLocal = !version;
     console.log(`\n📋 Smoke Test Configuration:`);
     console.log(
-      `   Mode: ${isLocal ? 'LOCAL (build & pack)' : `REMOTE (install julets@${version})`}`,
+      `   Mode: ${isLocal ? 'LOCAL (build & pack)' : `REMOTE (install modjules@${version})`}`,
     );
     console.log(`   Tool: ${tool}`);
 
@@ -104,7 +104,7 @@ async function main() {
     }
 
     console.log('\n=== 3. Functional Verification ===');
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'julets-smoke-'));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'modjules-smoke-'));
     console.log(`Created temporary directory: ${tmpDir}`);
 
     // 3a. Initialize temp project
@@ -121,7 +121,7 @@ async function main() {
     );
 
     // 3b. Install dependencies
-    const installTarget = isLocal ? tarballPath! : `julets@${version}`;
+    const installTarget = isLocal ? tarballPath! : `modjules@${version}`;
     console.log(`Installing ${installTarget} using ${tool}...`);
 
     if (tool === 'npm') {
@@ -133,15 +133,15 @@ async function main() {
       // Bun needs explicit package name mapping for local tarballs sometimes,
       // and prefers file URLs.
       const bunPackage = isLocal
-        ? `julets@${pathToFileURL(tarballPath!).href}`
-        : `julets@${version}`;
+        ? `modjules@${pathToFileURL(tarballPath!).href}`
+        : `modjules@${version}`;
       await runCommand(`bun add ${bunPackage} typescript @types/node`, tmpDir);
     }
 
     // 3c. Type Check
     console.log('\n--- Running Type Check ---');
     const testTs = `
-import { jules } from 'julets';
+import { jules } from 'modjules';
 async function test() {
   // Verify types resolve and we can access methods
   if (typeof jules.run !== 'function') {
@@ -176,7 +176,7 @@ async function test() {
     // 3d. Runtime Check
     console.log('\n--- Running Runtime Check ---');
     const testJs = `
-import { jules } from 'julets';
+import { jules } from 'modjules';
 import assert from 'node:assert';
 
 console.log('Testing runtime import...');

@@ -2,7 +2,7 @@
 import { JulesClientImpl } from './client.js';
 import { NodeFileStorage } from './storage/node-fs.js';
 import { NodePlatform } from './platform/node.js';
-import { JulesClient } from './types.js';
+import { JulesClient, JulesOptions } from './types.js';
 
 /**
  * The main entry point for the Jules SDK.
@@ -10,7 +10,7 @@ import { JulesClient } from './types.js';
  * (e.g., reading API keys from environment variables).
  *
  * @example
- * import { jules } from 'julets';
+ * import { jules } from 'modjules';
  * const session = await jules.session({ ... });
  */
 export const jules: JulesClient = new JulesClientImpl(
@@ -18,6 +18,20 @@ export const jules: JulesClient = new JulesClientImpl(
   (sessionId) => new NodeFileStorage(sessionId),
   new NodePlatform(),
 );
+
+/**
+ * Factory function to create a new Jules client with custom configuration.
+ *
+ * @example
+ * import { Jules } from 'modjules';
+ * const jules = Jules({ apiKey: '...' });
+ */
+export const Jules = (options: JulesOptions = {}): JulesClient =>
+  new JulesClientImpl(
+    options,
+    (sessionId) => new NodeFileStorage(sessionId),
+    new NodePlatform(),
+  );
 
 // Re-export all the types for convenience
 export * from './errors.js';

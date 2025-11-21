@@ -23,7 +23,7 @@ export type StorageFactory = (sessionId: string) => ActivityStorage;
  * Configuration options for the Jules SDK client.
  *
  * @example
- * import { Jules } from 'julets';
+ * import { Jules } from 'modjules';
  *
  * const jules = Jules({
  *   apiKey: 'YOUR_API_KEY',
@@ -926,7 +926,7 @@ export interface JulesClient {
  * (e.g., reading API keys from environment variables).
  *
  * @example
- * import { jules } from 'julets';
+ * import { jules } from 'modjules';
  * const session = await jules.session({ ... });
  */
 export declare const jules: JulesClient;

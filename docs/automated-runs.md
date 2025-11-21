@@ -9,7 +9,7 @@ This is the perfect mode for integrations into CI/CD pipelines, automated bug-fi
 You can start an automated run using the `jules.run()` method. It takes a `SessionConfig` object that defines the task.
 
 ```typescript
-import { jules } from 'julets';
+import { jules } from 'modjules';
 
 async function runMyTask() {
   const automatedSession = jules.run({

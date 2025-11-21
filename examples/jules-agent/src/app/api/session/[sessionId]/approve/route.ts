@@ -1,4 +1,4 @@
-import { Jules, SessionClient } from 'julets';
+import { Jules, SessionClient } from 'modjules';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(

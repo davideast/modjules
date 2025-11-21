@@ -9,7 +9,7 @@ import {
   Suspense,
 } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Activity } from 'julets';
+import { Activity } from 'modjules';
 
 // Define the structure of a chat message
 interface Message {
@@ -36,7 +36,7 @@ function Chat() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [repo, setRepo] = useState<string>('davideast/julets');
+  const [repo, setRepo] = useState<string>('davideast/modjules');
   const [prompt, setPrompt] = useState<string>('');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -263,7 +263,7 @@ function Chat() {
                   value={repo}
                   onChange={(e) => setRepo(e.target.value)}
                   className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-zinc-100 placeholder:text-zinc-500"
-                  placeholder="e.g., davideast/julets"
+                  placeholder="e.g., davideast/modjules"
                   disabled={isLoading}
                 />
               </div>

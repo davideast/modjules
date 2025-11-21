@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plan } from 'julets';
+import { Plan } from 'modjules';
 
 interface PlanCardProps {
   plan: Plan;

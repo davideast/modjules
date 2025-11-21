@@ -1,6 +1,6 @@
 # Jules SDK Feature Roadmap
 
-This document outlines a proposed roadmap of 15 new features for the `julets` SDK. The features are designed to improve developer experience, add powerful new abstractions, and provide better tooling, all while working within the constraints of the existing Jules REST API.
+This document outlines a proposed roadmap of 15 new features for the `modjules` SDK. The features are designed to improve developer experience, add powerful new abstractions, and provide better tooling, all while working within the constraints of the existing Jules REST API.
 
 ---
 
@@ -15,7 +15,7 @@ This document outlines a proposed roadmap of 15 new features for the `julets` SD
 ```typescript
 const session = await jules
   .createSession()
-  .withGithubRepo('julets/julets')
+  .withGithubRepo('modjules/modjules')
   .withBranch('main')
   .withPrompt('Refactor the streaming logic.')
   .withTitle('Streaming Logic Refactor')
@@ -34,7 +34,7 @@ console.log(`Session started: ${session.id}`);
 - **API Example:**
 
 ```typescript
-import { isPlanGenerated, isProgressUpdated } from 'julets';
+import { isPlanGenerated, isProgressUpdated } from 'modjules';
 
 for await (const activity of session.stream()) {
   if (isPlanGenerated(activity)) {
@@ -100,7 +100,7 @@ return validatedData;
 - **API Example:**
 
 ```typescript
-import { SessionState } from 'julets';
+import { SessionState } from 'modjules';
 
 // Instead of:
 await session.waitFor('awaitingPlanApproval');
@@ -187,7 +187,7 @@ const jules = new JulesClient({
 - **API Example:**
 
 ```typescript
-import { applyPatch } from 'julets/patch';
+import { applyPatch } from 'modjules/patch';
 
 // Assuming `changeSet` is an artifact from an activity
 if (changeSet.type === 'changeSet') {
@@ -209,7 +209,7 @@ if (changeSet.type === 'changeSet') {
 - **API Example (Command Line):**
 
 ```bash
-$ npx julets-cli dashboard
+$ npx modjules-cli dashboard
 
 # UI would show:
 #
@@ -233,7 +233,7 @@ $ npx julets-cli dashboard
 - **API Example (in a GitHub Action):**
 
 ```typescript
-import { runJulesOnPR } from 'julets/ci';
+import { runJulesOnPR } from 'modjules/ci';
 
 await runJulesOnPR({
   prompt: 'Review this PR for potential bugs and suggest improvements.',
@@ -270,7 +270,7 @@ if (media.length > 0) {
 - **API Example:**
 
 ```typescript
-import { estimateSession } from 'julets';
+import { estimateSession } from 'modjules';
 
 const { warnings } = estimateSession({
   source: { github: 'my/repo' }, // Missing branch
@@ -289,7 +289,7 @@ const { warnings } = estimateSession({
 - **API Example:**
 
 ```typescript
-import { createCommandRunner } from 'julets/exec';
+import { createCommandRunner } from 'modjules/exec';
 
 const runner = createCommandRunner({ askBeforeRun: true });
 
@@ -311,7 +311,7 @@ for await (const activity of session.stream()) {
 
 ```typescript
 // In a test file
-import { testWithSnapshot } from 'julets/testing';
+import { testWithSnapshot } from 'modjules/testing';
 
 test('handles boba app creation session', async () => {
   await testWithSnapshot('fixtures/boba-app-session.json', async (session) => {
@@ -381,7 +381,7 @@ await session.result();
 - **API Example:**
 
 ```typescript
-import { PromptBuilder } from 'julets/prompt';
+import { PromptBuilder } from 'modjules/prompt';
 
 // Utility would need access to filesystem (Node.js)
 const prompt = await new PromptBuilder()

@@ -1,11 +1,12 @@
 {
-  "name": "julets",
+  "name": "modjules",
   "version": "0.1.1",
   "workspaces": [
     ".",
     "examples/*"
   ],
   "description": "The agent-ready SDK for Jules.",
+  "repository": "davideast/modjules",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {

@@ -6,7 +6,7 @@ import {
   Activity,
   ActivityPlanGenerated,
   ActivityProgressUpdated,
-} from 'julets';
+} from 'modjules';
 import PlanCard from './PlanCard';
 import { ProgressUpdated } from './ProgressUpdated';
 
