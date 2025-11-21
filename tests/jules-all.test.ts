@@ -136,4 +136,22 @@ describe('pMap utility', () => {
     await promise;
     vi.useRealTimers();
   });
+
+  it('should use a default concurrency of 3', async () => {
+    const items = [1, 2, 3, 4, 5, 6];
+    let running = 0;
+    let maxRunning = 0;
+
+    const mapper = async (item: number) => {
+      running++;
+      maxRunning = Math.max(maxRunning, running);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      running--;
+      return item;
+    };
+
+    await pMap(items, mapper);
+
+    expect(maxRunning).toBe(3);
+  });
 });
