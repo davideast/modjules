@@ -132,7 +132,8 @@ export class BrowserPlatform implements Platform {
       for (let i = 0; i < bytes.byteLength; i++) {
         binary += String.fromCharCode(bytes[i]);
       }
-      return window.btoa(binary)
+      return window
+        .btoa(binary)
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=+$/, '');

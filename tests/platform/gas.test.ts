@@ -25,7 +25,8 @@ const mockUtilities = {
   },
   newBlob: (data: any) => {
     // Mock GAS Blob
-    const buffer = typeof data === 'string' ? Buffer.from(data) : Buffer.from(data);
+    const buffer =
+      typeof data === 'string' ? Buffer.from(data) : Buffer.from(data);
     return {
       getBytes: () => Array.from(buffer),
       getDataAsString: () => buffer.toString('utf-8'),

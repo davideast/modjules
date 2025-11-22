@@ -8,7 +8,9 @@ const mockCrypto = {
 };
 
 const mockEncoding = {
-  base64Encode: vi.fn((text: string) => Buffer.from(text).toString('base64url')),
+  base64Encode: vi.fn((text: string) =>
+    Buffer.from(text).toString('base64url'),
+  ),
   base64Decode: vi.fn((text: string) =>
     Buffer.from(text, 'base64url').toString('utf-8'),
   ),
