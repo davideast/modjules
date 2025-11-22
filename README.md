@@ -1,6 +1,6 @@
 # modjules - the agent-ready SDK for Jules
 
-> **Disclaimer:** This is a 100% total, absolute, **just-for-fun** prototype.
+> Status: Useful tool but still experimental. Supported and moving fast to improve.
 
 ## Making Jules Agent-Ready
 
