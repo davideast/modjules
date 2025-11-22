@@ -7,6 +7,13 @@ const mockCrypto = {
   verify: vi.fn(() => Promise.resolve(true)),
 };
 
+const mockEncoding = {
+  base64Encode: vi.fn((text: string) => Buffer.from(text).toString('base64url')),
+  base64Decode: vi.fn((text: string) =>
+    Buffer.from(text, 'base64url').toString('utf-8'),
+  ),
+};
+
 export const mockPlatform: Platform = {
   saveFile: vi.fn(),
   sleep: vi.fn(),
@@ -20,4 +27,5 @@ export const mockPlatform: Platform = {
     } as PlatformResponse),
   ),
   crypto: mockCrypto,
+  encoding: mockEncoding,
 };

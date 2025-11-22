@@ -69,5 +69,40 @@ export function runPlatformTests(platformName: string, platform: Platform) {
         expect(res.status).toBe(404);
       });
     });
+
+    describe('Encoding Subsystem', () => {
+      it('encodes strings to Base64URL', () => {
+        const input = 'Hello World';
+        // Base64 for "Hello World" is "SGVsbG8gV29ybGQ="
+        // Base64URL strips padding '='
+        const expected = 'SGVsbG8gV29ybGQ';
+        expect(platform.encoding.base64Encode(input)).toBe(expected);
+      });
+
+      it('decodes Base64URL strings', () => {
+        const input = 'SGVsbG8gV29ybGQ';
+        const expected = 'Hello World';
+        expect(platform.encoding.base64Decode(input)).toBe(expected);
+      });
+
+      it('handles URL-safe characters (- and _)', () => {
+        // Standard Base64:  + and /
+        // Base64URL:        - and _
+        // Input that produces + and / in standard Base64:
+        // "subjects?_d" -> "c3ViamVjdHM/X2Q="
+        // "subjects?_d" -> URL Safe: "c3ViamVjdHM_X2Q"
+        // Let's use a known vector:
+        // \xff\xff -> "//8=" (standard) -> "__8" (URL Safe)
+        // Since our interface takes strings, we rely on platform handling.
+        // Let's try a string that results in + or /
+        // ">>??" -> "Pj4/Pw==" -> "Pj4_Pw"
+        const input = '>>??';
+        const encoded = platform.encoding.base64Encode(input);
+        expect(encoded).not.toContain('+');
+        expect(encoded).not.toContain('/');
+        expect(encoded).not.toContain('=');
+        expect(platform.encoding.base64Decode(encoded)).toBe(input);
+      });
+    });
   });
 }

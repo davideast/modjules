@@ -60,4 +60,19 @@ export class GasPlatform implements Platform {
       return expected === signature;
     },
   };
+
+  encoding = {
+    base64Encode: (text: string): string => {
+      // Utilities.base64EncodeWebSafe(byte[]) returns a string.
+      // We must first convert the input string to bytes (UTF-8 by default in GAS).
+      const bytes = Utilities.newBlob(text).getBytes();
+      return Utilities.base64EncodeWebSafe(bytes);
+    },
+
+    base64Decode: (text: string): string => {
+      // Utilities.base64DecodeWebSafe(string) returns byte[].
+      const bytes = Utilities.base64DecodeWebSafe(text);
+      return Utilities.newBlob(bytes).getDataAsString();
+    },
+  };
 }

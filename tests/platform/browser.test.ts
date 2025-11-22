@@ -10,20 +10,22 @@ describe('BrowserPlatform', () => {
   const originalFetch = window.fetch;
 
   beforeEach(() => {
-    window.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = input.toString();
-      if (url.includes('/json')) {
-        // jsdom's Response implementation
-        return new Response(JSON.stringify({ slideshow: {} }), {
+    window.fetch = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = input.toString();
+        if (url.includes('/json')) {
+          // jsdom's Response implementation
+          return new Response(JSON.stringify({ slideshow: {} }), {
             status: 200,
-            headers: { 'Content-Type': 'application/json' }
-        });
-      }
-      if (url.includes('/status/404')) {
-        return new Response(null, { status: 404 });
-      }
-      return new Response(null, { status: 500 });
-    });
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        if (url.includes('/status/404')) {
+          return new Response(null, { status: 404 });
+        }
+        return new Response(null, { status: 500 });
+      },
+    );
   });
 
   afterEach(() => {

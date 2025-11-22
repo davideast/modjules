@@ -58,4 +58,20 @@ export interface Platform {
      */
     verify(text: string, signature: string, secret: string): Promise<boolean>;
   };
+
+  /**
+   * Unified encoding/decoding operations.
+   */
+  encoding: {
+    /**
+     * Encodes a string to Base64URL format.
+     * (URL-safe: '-' instead of '+', '_' instead of '/', no padding)
+     */
+    base64Encode(text: string): string;
+
+    /**
+     * Decodes a Base64URL encoded string.
+     */
+    base64Decode(text: string): string;
+  };
 }

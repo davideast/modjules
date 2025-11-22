@@ -138,4 +138,33 @@ export class BrowserPlatform implements Platform {
         .replace(/=+$/, '');
     },
   };
+
+  encoding = {
+    base64Encode: (text: string): string => {
+      // Use TextEncoder for proper UTF-8 handling before Base64
+      const encoder = new TextEncoder();
+      const bytes = encoder.encode(text);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return window
+        .btoa(binary)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    },
+
+    base64Decode: (text: string): string => {
+      const base64 = text.replace(/-/g, '+').replace(/_/g, '/');
+      // Standard atob handles the Base64 decode, then we must interpret the bytes as UTF-8
+      const binary = window.atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const decoder = new TextDecoder();
+      return decoder.decode(bytes);
+    },
+  };
 }

@@ -19,6 +19,18 @@ const mockUtilities = {
     // GAS Utilities.base64EncodeWebSafe takes byte[] and returns string
     return Buffer.from(bytes).toString('base64url');
   },
+  base64DecodeWebSafe: (text: string) => {
+    // GAS Utilities.base64DecodeWebSafe takes string and returns byte[]
+    return Array.from(Buffer.from(text, 'base64url'));
+  },
+  newBlob: (data: any) => {
+    // Mock GAS Blob
+    const buffer = typeof data === 'string' ? Buffer.from(data) : Buffer.from(data);
+    return {
+      getBytes: () => Array.from(buffer),
+      getDataAsString: () => buffer.toString('utf-8'),
+    };
+  },
   sleep: vi.fn(),
 };
 
@@ -32,22 +44,22 @@ describe('GasPlatform', () => {
     // Default network mock behavior for GAS
     // UrlFetchApp.fetch returns an object with getResponseCode, getContentText, etc.
     mockUrlFetch.mockImplementation((url: string) => {
-        if (url.includes('/json')) {
-            return {
-                getResponseCode: () => 200,
-                getContentText: () => JSON.stringify({ slideshow: {} })
-            };
-        }
-        if (url.includes('/status/404')) {
-             return {
-                getResponseCode: () => 404,
-                getContentText: () => 'Not Found'
-            };
-        }
+      if (url.includes('/json')) {
         return {
-             getResponseCode: () => 500,
-             getContentText: () => 'Error'
+          getResponseCode: () => 200,
+          getContentText: () => JSON.stringify({ slideshow: {} }),
         };
+      }
+      if (url.includes('/status/404')) {
+        return {
+          getResponseCode: () => 404,
+          getContentText: () => 'Not Found',
+        };
+      }
+      return {
+        getResponseCode: () => 500,
+        getContentText: () => 'Error',
+      };
     });
   });
 

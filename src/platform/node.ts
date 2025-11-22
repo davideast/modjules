@@ -64,4 +64,14 @@ export class NodePlatform implements Platform {
       return a.length === b.length && crypto.timingSafeEqual(a, b);
     },
   };
+
+  encoding = {
+    base64Encode: (text: string): string => {
+      return Buffer.from(text).toString('base64url');
+    },
+
+    base64Decode: (text: string): string => {
+      return Buffer.from(text, 'base64url').toString('utf-8');
+    },
+  };
 }
