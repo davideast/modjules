@@ -1,2 +1,2 @@
-import { Jules } from 'modjules';
+import { jules } from 'modjules';
 console.log('Julets imported successfully');

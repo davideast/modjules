@@ -1,4 +1,4 @@
-import { Jules } from 'modjules';
+import { jules } from 'modjules';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
@@ -9,8 +9,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
     }
 
-    const jules = Jules({ apiKey: process.env.JULES_API_KEY });
-    const session = jules.session(sessionId);
+    const client = jules.with({ apiKey: process.env.JULES_API_KEY });
+    const session = client.session(sessionId);
     const sessionInfo = await session.info();
 
     return NextResponse.json(sessionInfo);

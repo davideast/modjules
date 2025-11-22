@@ -1,4 +1,4 @@
-import { Jules, SessionClient } from 'modjules';
+import { jules, SessionClient } from 'modjules';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(
@@ -15,7 +15,6 @@ export async function POST(
   }
 
   try {
-    const jules = Jules();
     const session: SessionClient = jules.session(sessionId);
     await session.approve();
 

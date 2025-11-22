@@ -1,4 +1,4 @@
-import { Jules, JulesError, SessionClient } from 'modjules';
+import { jules, JulesError, SessionClient } from 'modjules';
 
 // This is the GitHub repository the agent will work on.
 // PLEASE REPLACE THIS with a repository you have connected to your Jules project.
@@ -9,7 +9,7 @@ const GITHUB_REPO = 'davideast/modjules'; // e.g., 'your-org/your-repo'
 // =============================================================================
 async function main() {
   // The SDK automatically finds the API key from the JULES_API_KEY environment variable.
-  const jules = Jules();
+  // No need to call a factory anymore, just use 'jules' directly or jules.with()
 
   console.log('Welcome to the julets example!');
   console.log('---------------------------------');
@@ -95,7 +95,7 @@ async function main() {
 
 async function lookup() {
   // The SDK automatically finds the API key from the JULES_API_KEY environment variable.
-  const jules = Jules();
+  // const jules = Jules(); // Removed factory
 
   // Check for a session ID argument from the command line
   const existingSessionId = process.argv[2];
