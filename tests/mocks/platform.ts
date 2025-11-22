@@ -1,8 +1,23 @@
 import { vi } from 'vitest';
-import { Platform } from '../../src/platform/types.js';
+import { Platform, PlatformResponse } from '../../src/platform/types.js';
+
+const mockCrypto = {
+  randomUUID: vi.fn(() => 'mock-uuid'),
+  sign: vi.fn(() => Promise.resolve('mock-signature')),
+  verify: vi.fn(() => Promise.resolve(true)),
+};
 
 export const mockPlatform: Platform = {
   saveFile: vi.fn(),
   sleep: vi.fn(),
   createDataUrl: vi.fn(),
+  fetch: vi.fn(() =>
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({}),
+      text: () => Promise.resolve(''),
+    } as PlatformResponse),
+  ),
+  crypto: mockCrypto,
 };

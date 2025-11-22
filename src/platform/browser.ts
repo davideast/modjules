@@ -1,5 +1,5 @@
 import { openDB, IDBPDatabase } from 'idb';
-import { Platform } from './types.js';
+import { Platform, PlatformResponse } from './types.js';
 
 const DB_NAME = 'jules-activities';
 const ARTIFACTS_STORE_NAME = 'artifacts';
@@ -85,4 +85,57 @@ export class BrowserPlatform implements Platform {
     const byteArray = new Uint8Array(byteNumbers);
     return new Blob([byteArray], mimeType ? { type: mimeType } : undefined);
   }
+
+  async fetch(input: string, init?: any): Promise<PlatformResponse> {
+    const res = await window.fetch(input, init);
+    return {
+      ok: res.ok,
+      status: res.status,
+      json: () => res.json(),
+      text: () => res.text(),
+    };
+  }
+
+  crypto = {
+    randomUUID: () => self.crypto.randomUUID(),
+
+    async sign(text: string, secret: string): Promise<string> {
+      const enc = new TextEncoder();
+      const key = await window.crypto.subtle.importKey(
+        'raw',
+        enc.encode(secret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign'],
+      );
+      const signature = await window.crypto.subtle.sign(
+        'HMAC',
+        key,
+        enc.encode(text),
+      );
+      return this.arrayBufferToBase64Url(signature);
+    },
+
+    async verify(
+      text: string,
+      signature: string,
+      secret: string,
+    ): Promise<boolean> {
+      const expected = await this.sign(text, secret);
+      return expected === signature;
+    },
+
+    // Helper for Base64URL encoding in browser
+    arrayBufferToBase64Url(buffer: ArrayBuffer): string {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return window.btoa(binary)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    },
+  };
 }
