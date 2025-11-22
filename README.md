@@ -59,7 +59,7 @@ Process multiple items in parallel with `jules.all()`. This method is designed t
 ```javascript
 const todos = ['Fix login bug', 'Update README', 'Refactor tests'];
 
-// Processes items concurrently (default: 4 at a time)
+// Processes items concurrently (default: 3 at a time)
 const sessions = await jules.all(todos, (task) => ({
   prompt: task,
   source: { github: 'user/repo', branch: 'main' },
