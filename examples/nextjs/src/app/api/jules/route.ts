@@ -1,4 +1,4 @@
-import { Jules } from 'julets';
+import { jules } from 'modjules';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     // For simplicity, we initialize the client on each request.
     // In a production app, you'd likely initialize this once.
-    const jules = Jules({ apiKey: process.env.JULES_API_KEY });
+    const client = jules.with({ apiKey: process.env.JULES_API_KEY });
 
     switch (action) {
       case 'start': {
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
         }
         console.log(`Starting session for repo: ${repo}`);
         console.log(`Starting session with prompt: ${prompt}`);
-        const session = await jules.session({
+        const session = await client.session({
           prompt,
           source: {
             github: repo,
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
         }
         console.log(`Rehydrating session for chat: ${sessionId}`);
         // Cast sessionId to string to ensure the correct overload is chosen.
-        const session = jules.session(sessionId as string);
+        const session = client.session(sessionId as string);
         // Use session.send() which is fire-and-forget. The response will
         // be delivered via the stream.
         await session.send(message);

@@ -11,7 +11,7 @@ You can start a new interactive session or get a client for an existing one usin
 To start a new session, provide a `SessionConfig` object. By default, new interactive sessions will require you to approve the agent's plan before it begins work.
 
 ```typescript
-import { jules } from 'julets';
+import { jules } from 'modjules';
 
 async function createNewSession() {
   const session = await jules.session({

@@ -9,7 +9,7 @@ import { JulesClient } from './types.js';
  * This is a pre-initialized client that can be used immediately with default settings.
  *
  * @example
- * import { jules } from 'julets/browser';
+ * import { jules } from 'modjules/browser';
  * const session = await jules.session({ ... });
  */
 export const jules: JulesClient = new JulesClientImpl(

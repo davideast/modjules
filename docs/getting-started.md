@@ -3,9 +3,9 @@
 ## Installation
 
 ```bash
-npm install julets
+npm install modjules
 # OR
-bun add julets
+bun add modjules
 ```
 
 ## Initialization
@@ -13,7 +13,7 @@ bun add julets
 The library provides a default `JulesClient` that initializes with the `process.env.JULES_API_KEY` environment variable. If you need to use multiple keys you can customize the client through the `.with()` method.
 
 ```typescript
-import { jules } from 'julets';
+import { jules } from 'modjules';
 
 console.log(jules); // default client automatically initializes with `process.env.JULES_API_KEY`
 const custom = jules.with({ apiKey: '<other-api-key>' }); // create a custom client

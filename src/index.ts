@@ -10,7 +10,7 @@ import { JulesClient } from './types.js';
  * (e.g., reading API keys from environment variables).
  *
  * @example
- * import { jules } from 'julets';
+ * import { jules } from 'modjules';
  * const session = await jules.session({ ... });
  */
 export const jules: JulesClient = new JulesClientImpl(

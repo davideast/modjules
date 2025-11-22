@@ -1,4 +1,4 @@
-import { Jules } from 'julets';
+import { jules } from 'modjules';
 import { NextRequest } from 'next/server';
 
 export async function GET(req: NextRequest) {
@@ -8,7 +8,6 @@ export async function GET(req: NextRequest) {
     return new Response('Missing sessionId', { status: 400 });
   }
 
-  const jules = Jules();
   const session = jules.session(sessionId);
 
   const stream = new ReadableStream({

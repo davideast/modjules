@@ -1,15 +1,15 @@
-import { Jules, JulesError, SessionClient } from 'julets';
+import { jules, JulesError, SessionClient } from 'modjules';
 
 // This is the GitHub repository the agent will work on.
 // PLEASE REPLACE THIS with a repository you have connected to your Jules project.
-const GITHUB_REPO = 'davideast/julets'; // e.g., 'your-org/your-repo'
+const GITHUB_REPO = 'davideast/modjules'; // e.g., 'your-org/your-repo'
 
 // =============================================================================
 // Main Application Logic
 // =============================================================================
 async function main() {
   // The SDK automatically finds the API key from the JULES_API_KEY environment variable.
-  const jules = Jules();
+  // No need to call a factory anymore, just use 'jules' directly or jules.with()
 
   console.log('Welcome to the julets example!');
   console.log('---------------------------------');
@@ -31,9 +31,9 @@ async function main() {
     // 2. Start an interactive session.
     console.log('\n🚀 Starting a new session...');
     const session = await jules.session({
-      prompt: `Analyze this library 'julets', which is a TypeScript SDK client for the Jules REST API.
+      prompt: `Analyze this library 'modjules', which is a TypeScript SDK client for the Jules REST API.
 
-  Your task is to act as a Product Manager for the 'julets' SDK and propose a roadmap of new features.
+  Your task is to act as a Product Manager for the 'modjules' SDK and propose a roadmap of new features.
   
   IMPORTANT CONSTRAINTS:
   1. The underlying Jules REST API is FIXED and cannot be changed. DO NOT suggest features that require new backend API endpoints (like new ML models, backend usage tracking, or server-side multi-repo support).
@@ -95,7 +95,7 @@ async function main() {
 
 async function lookup() {
   // The SDK automatically finds the API key from the JULES_API_KEY environment variable.
-  const jules = Jules();
+  // const jules = Jules(); // Removed factory
 
   // Check for a session ID argument from the command line
   const existingSessionId = process.argv[2];

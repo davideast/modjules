@@ -19,7 +19,7 @@ Instead of manually managing a loop, concurrency limits, and result mapping, `ju
 The simplest usage takes an array of data and a mapper function.
 
 ```javascript
-import { jules } from 'julets';
+import { jules } from 'modjules';
 
 const issues = [
   { id: 1, title: 'Fix login page' },

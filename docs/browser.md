@@ -1,19 +1,19 @@
 # Browser Usage
 
-The `julets/browser` module is optimized for use in browser environments, providing the same powerful features as the Node.js version but tailored for the client-side. It leverages `IndexedDB` for local caching, enabling fast, offline-capable agentic applications.
+The `modjules/browser` module is optimized for use in browser environments, providing the same powerful features as the Node.js version but tailored for the client-side. It leverages `IndexedDB` for local caching, enabling fast, offline-capable agentic applications.
 
 > **Warning:** Never expose your `JULES_API_KEY` in a production or public-facing application. The browser module is designed for trusted client environments like Electron apps or websites running exclusively on a local machine where the key is not accessible to unauthorized users.
 
 ## Installation and Bundling
 
-Most modern bundlers like Vite, Turbopack, or Webpack will automatically resolve the correct module (`julets` or `julets/browser`) based on the environment. However, you can also import it explicitly.
+Most modern bundlers like Vite, Turbopack, or Webpack will automatically resolve the correct module (`modjules` or `modjules/browser`) based on the environment. However, you can also import it explicitly.
 
 ### Explicit Import
 
 To ensure you are using the browser-specific build, you can import it directly:
 
 ```typescript
-import { jules } from 'julets/browser';
+import { jules } from 'modjules/browser';
 
 const session = jules.run({
   prompt: 'Generate a new logo for our brand.',
@@ -31,7 +31,7 @@ The browser module integrates with the standard `AbortController` API, allowing 
 All methods that initiate a network request accept an `options` object with an `AbortSignal`.
 
 ```typescript
-import { jules } from 'julets/browser';
+import { jules } from 'modjules/browser';
 
 const controller = new AbortController();
 const { signal } = controller;
@@ -70,7 +70,7 @@ Artifacts like images, logs, or code changes can be directly manipulated and dis
 The `artifact.toUrl()` method is especially useful in the browser. It returns a `data:` URL, which can be assigned directly to the `src` attribute of an `<img>` tag to render an image without needing to save it first.
 
 ```typescript
-import { jules } from 'julets/browser';
+import { jules } from 'modjules/browser';
 
 const session = jules.session('your-session-id');
 const imageContainer = document.getElementById('image-container');

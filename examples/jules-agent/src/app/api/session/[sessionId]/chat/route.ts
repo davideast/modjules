@@ -1,4 +1,4 @@
-import { Jules } from 'julets';
+import { jules } from 'modjules';
 import { NextResponse } from 'next/server';
 
 export async function POST(
@@ -16,8 +16,8 @@ export async function POST(
     return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
   }
 
-  const jules = Jules({ apiKey: process.env.JULES_API_KEY });
-  const session = jules.session(sessionId);
+  const client = jules.with({ apiKey: process.env.JULES_API_KEY });
+  const session = client.session(sessionId);
   const sessionInfo = await session.info();
 
   return NextResponse.json(sessionInfo);

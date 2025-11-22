@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Jules } from 'julets';
+import { jules } from 'modjules';
 
 export async function GET(
   req: Request,
@@ -15,13 +15,13 @@ export async function GET(
     return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
   }
 
-  const jules = Jules({
+  const client = jules.with({
     apiKey: process.env.JULES_API_KEY,
   });
 
   const stream = new ReadableStream({
     async start(controller) {
-      const session = await jules.session(sessionId);
+      const session = await client.session(sessionId);
 
       for await (const activity of session.stream()) {
         const chunk = `data: ${JSON.stringify(activity)}\n\n`;
