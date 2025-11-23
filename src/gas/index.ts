@@ -2,10 +2,6 @@ import { createHandlerCore } from '../server/core.js';
 import { GasPlatform } from '../platform/gas.js';
 import { ServerConfig } from '../server/types.js';
 
-// Global declaration for GAS
-declare const ContentService: any;
-declare const Utilities: any;
-
 export function createGasHandler(config: ServerConfig) {
   const platform = new GasPlatform();
   const coreHandler = createHandlerCore(config, platform);
