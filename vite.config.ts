@@ -8,6 +8,7 @@ export default defineConfig({
         index: 'src/index.ts',
         browser: 'src/browser.ts',
         'gas/index': 'src/gas/index.ts',
+        'node/proxy': 'src/node/proxy.ts',
       },
       name: 'modjules',
       formats: ['es'],
