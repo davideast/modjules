@@ -16,7 +16,10 @@ export default defineConfig({
     },
     rollupOptions: {
       external: [
+        // Runtime dependencies (keep bundled for Node, external for Browser if provided by platform)
         'idb',
+
+        // Node.js Built-ins (Bare specifiers)
         '_http_agent',
         '_http_client',
         '_http_common',
@@ -85,10 +88,18 @@ export default defineConfig({
         'wasi',
         'worker_threads',
         'zlib',
-        // Add explicit node: prefixed modules
+
+        // Node.js Built-ins (Explicit node: prefix)
+        // CRITICAL: These must match the source code imports exactly
         'node:buffer',
+        'node:crypto',
+        'node:fs',
         'node:fs/promises',
+        'node:path',
+        'node:process',
+        'node:stream',
         'node:timers/promises',
+        'node:util',
       ],
     },
   },

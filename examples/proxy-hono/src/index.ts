@@ -38,6 +38,7 @@ app.use('/*', cors());
  * * Hono exposes the standard Fetch API Request object via `c.req.raw`.
  * Our handler processes it and returns a standard Response.
  */
+
 app.all('/api/jules', (c) => handler(c.req.raw));
 
 console.log(`Proxy running on http://localhost:${PORT}`);
