@@ -24,6 +24,10 @@
       "types": "./dist/gas/index.d.ts",
       "import": "./dist/gas/index.es.js"
     },
+    "./proxy": {
+      "types": "./dist/node/proxy.d.ts",
+      "import": "./dist/node/proxy.es.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
