@@ -22,7 +22,7 @@ export function createNodeHandler(config: ServerConfig) {
   return async (req: Request): Promise<Response> => {
     // 1. Adapt Request -> PlatformRequest
     // We need to safely parse the body, as it might be empty or invalid JSON
-    let body = {};
+    let body: any = undefined;
     if (req.method === 'POST' || req.method === 'PUT') {
       try {
         body = await req.json();
