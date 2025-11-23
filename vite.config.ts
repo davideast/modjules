@@ -7,6 +7,7 @@ export default defineConfig({
       entry: {
         index: 'src/index.ts',
         browser: 'src/browser.ts',
+        'gas/index': 'src/gas/index.ts',
       },
       name: 'modjules',
       formats: ['es'],
