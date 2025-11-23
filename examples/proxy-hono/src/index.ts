@@ -26,7 +26,7 @@ const handler = createNodeHandler({
       return { uid: 'user_123', email: 'demo@example.com' };
     }
     throw new Error('Invalid Auth Token');
-  }
+  },
 });
 
 // 2. Configuration
