@@ -1,0 +1,21 @@
+{
+  "name": "proxy-gas",
+  "version": "0.0.1",
+  "private": true,
+  "description": "A Serverless Jules Proxy running on Google Apps Script",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "esbuild src/main.ts --bundle --outfile=dist/Code.js --format=iife --target=es2020",
+    "deploy": "npm run build && clasp push",
+    "open": "clasp open"
+  },
+  "dependencies": {
+    "modjules": "*"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2",
+    "@types/google-apps-script": "^1.0.56",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  }
+}
