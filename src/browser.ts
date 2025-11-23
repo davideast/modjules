@@ -2,7 +2,22 @@
 import { JulesClientImpl } from './client.js';
 import { BrowserStorage } from './storage/browser.js';
 import { BrowserPlatform } from './platform/browser.js';
-import { JulesClient } from './types.js';
+import { JulesClient, JulesOptions } from './types.js';
+
+const defaultPlatform = new BrowserPlatform();
+const defaultStorageFactory = (sessionId: string) =>
+  new BrowserStorage(sessionId);
+
+/**
+ * Connects to the Jules service with the provided configuration.
+ * Acts as a factory method for creating a new client instance.
+ *
+ * @param options Configuration options for the client.
+ * @returns A new JulesClient instance.
+ */
+export function connect(options: JulesOptions = {}): JulesClient {
+  return new JulesClientImpl(options, defaultStorageFactory, defaultPlatform);
+}
 
 /**
  * The main entry point for the Jules SDK for browser environments.
@@ -12,11 +27,7 @@ import { JulesClient } from './types.js';
  * import { jules } from 'modjules/browser';
  * const session = await jules.session({ ... });
  */
-export const jules: JulesClient = new JulesClientImpl(
-  {},
-  (sessionId) => new BrowserStorage(sessionId),
-  new BrowserPlatform(),
-);
+export const jules: JulesClient = connect();
 
 // Re-export all the types for convenience
 export * from './errors.js';

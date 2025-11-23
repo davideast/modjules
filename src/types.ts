@@ -32,6 +32,16 @@ export type StorageFactory = (sessionId: string) => ActivityStorage;
  *   }
  * });
  */
+export interface ProxyConfig {
+  /** The full URL to your GAS or Node.js proxy endpoint */
+  url: string;
+  /**
+   * Async callback to retrieve the User Identity Token (e.g. Firebase ID Token).
+   * Or a static string for "Shared Secret" mode.
+   */
+  auth?: () => Promise<string> | string;
+}
+
 export interface JulesOptions {
   /**
    * The API key used for authentication.
@@ -39,6 +49,12 @@ export interface JulesOptions {
    * Authenticates requests via the `X-Goog-Api-Key` header.
    */
   apiKey?: string;
+  /**
+   * Proxy Configuration (Browser / Client Mode).
+   * Allows the SDK to communicate via a trusted proxy (e.g. Google Apps Script)
+   * to handle authentication securely without exposing API keys.
+   */
+  proxy?: ProxyConfig;
   /**
    * The base URL for the Jules API.
    * @default 'https://jules.googleapis.com/v1alpha'
@@ -880,6 +896,15 @@ export interface JulesClient {
    * const specialized = jules.with({ apiKey: 'NEW_KEY' });
    */
   with(options: JulesOptions): JulesClient;
+
+  /**
+   * Connects to the Jules service with the provided configuration.
+   * Acts as a factory method for creating a new client instance.
+   *
+   * @param options Configuration options for the client.
+   * @returns A new JulesClient instance.
+   */
+  connect(options: JulesOptions): JulesClient;
 
   /**
    * Executes a batch of automated sessions in parallel, with concurrency control.

@@ -30,6 +30,19 @@ export type InternalConfig = {
 import { Platform } from './platform/types.js';
 import { StorageFactory } from './types.js';
 
+// Helper to check standard env vars
+function getEnv(key: string): string | undefined {
+  if (typeof process !== 'undefined' && process.env) {
+    return (
+      process.env[`NEXT_PUBLIC_${key}`] ||
+      process.env[`REACT_APP_${key}`] ||
+      process.env[`VITE_${key}`] ||
+      process.env[key]
+    );
+  }
+  return undefined;
+}
+
 /**
  * Implementation of the main JulesClient interface.
  * This class acts as the central hub for creating and managing sessions,
@@ -61,6 +74,19 @@ export class JulesClientImpl implements JulesClient {
     this.options = options;
     this.storageFactory = options.storageFactory ?? defaultStorageFactory;
     this.platform = options.platform ?? defaultPlatform;
+
+    // 1. Resolve Proxy Configuration
+    const envProxyUrl = getEnv('JULES_PROXY');
+    const envSecret = getEnv('JULES_SECRET');
+
+    // Priority: Options > Env > Default (Node Only)
+    if (!options.proxy && envProxyUrl) {
+      options.proxy = {
+        url: envProxyUrl,
+        auth: envSecret ? () => envSecret : undefined,
+      };
+    }
+
     const apiKey = options.apiKey ?? process.env.JULES_API_KEY;
     const baseUrl = options.baseUrl ?? 'https://jules.googleapis.com/v1alpha';
 
@@ -74,6 +100,7 @@ export class JulesClientImpl implements JulesClient {
       apiKey,
       baseUrl,
       requestTimeoutMs: this.config.requestTimeoutMs,
+      proxy: options.proxy,
     });
     this.sources = createSourceManager(this.apiClient);
   }
@@ -94,6 +121,24 @@ export class JulesClientImpl implements JulesClient {
           ...this.options.config,
           ...options.config,
         },
+      },
+      this.storageFactory,
+      this.platform,
+    );
+  }
+
+  /**
+   * Connects to the Jules service with the provided configuration.
+   * Acts as a factory method for creating a new client instance.
+   *
+   * @param options Configuration options for the client.
+   * @returns A new JulesClient instance.
+   */
+  connect(options: JulesOptions): JulesClient {
+    return new JulesClientImpl(
+      {
+        ...this.options,
+        ...options,
       },
       this.storageFactory,
       this.platform,

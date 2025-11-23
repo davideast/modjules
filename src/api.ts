@@ -1,5 +1,6 @@
 // src/api.ts
 
+import { ProxyConfig } from './types.js';
 import {
   JulesApiError,
   JulesAuthenticationError,
@@ -12,12 +13,15 @@ export type ApiClientOptions = {
   apiKey: string | undefined;
   baseUrl: string;
   requestTimeoutMs: number;
+  proxy?: ProxyConfig;
 };
 
 export type ApiRequestOptions = {
   method?: 'GET' | 'POST';
   body?: Record<string, unknown>;
   params?: Record<string, string>;
+  headers?: Record<string, string>;
+  _isRetry?: boolean; // Internal flag to prevent infinite loops
 };
 
 /**
@@ -28,23 +32,31 @@ export class ApiClient {
   private readonly apiKey: string | undefined;
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
+  private readonly proxy?: ProxyConfig;
+  private capabilityToken: string | null = null;
+  // Cache the handshake promise to prevent parallel handshakes (thundering herd)
+  private handshakePromise: Promise<string> | null = null;
 
   constructor(options: ApiClientOptions) {
     this.apiKey = options.apiKey;
     this.baseUrl = options.baseUrl;
     this.requestTimeoutMs = options.requestTimeoutMs;
+    this.proxy = options.proxy;
   }
 
   async request<T>(
     endpoint: string,
     options: ApiRequestOptions = {},
   ): Promise<T> {
-    if (!this.apiKey) {
-      throw new MissingApiKeyError();
-    }
+    const {
+      method = 'GET',
+      body,
+      params,
+      headers: customHeaders,
+      _isRetry,
+    } = options;
+    const url = this.resolveUrl(endpoint);
 
-    const { method = 'GET', body, params } = options;
-    const url = new URL(`${this.baseUrl}/${endpoint}`);
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         url.searchParams.append(key, value);
@@ -52,32 +64,43 @@ export class ApiClient {
     }
 
     const headers: Record<string, string> = {
-      'X-Goog-Api-Key': this.apiKey,
       'Content-Type': 'application/json',
+      ...customHeaders,
     };
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      this.requestTimeoutMs,
-    );
+    // 1. Inject Credentials
+    if (this.apiKey) {
+      // Direct Mode
+      headers['X-Goog-Api-Key'] = this.apiKey;
+    } else if (this.proxy) {
+      // Proxy Mode
+      const token = await this.ensureToken();
+      headers['Authorization'] = `Bearer ${token}`;
+    } else {
+      throw new MissingApiKeyError();
+    }
 
-    let response: Response;
-    try {
-      response = await fetch(url.toString(), {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : undefined,
-        signal: controller.signal,
-      });
-    } catch (error) {
-      // This catches fetch failures (e.g., network error, DNS resolution failure)
-      // and timeouts from the AbortController.
-      throw new JulesNetworkError(url.toString(), {
-        cause: error as Error,
-      });
-    } finally {
-      clearTimeout(timeoutId);
+    // 2. Execute Request
+    const response = await this.fetchWithTimeout(url.toString(), {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    // 3. Auto-Retry on 401/403 (Token Expiration)
+    if (this.proxy && (response.status === 401 || response.status === 403)) {
+      if (_isRetry) {
+        throw new JulesAuthenticationError(
+          url.toString(),
+          response.status,
+          'Authentication failed even after token refresh',
+        );
+      }
+
+      // Force a fresh handshake
+      this.capabilityToken = null;
+      // Recursive call with retry flag
+      return this.request<T>(endpoint, { ...options, _isRetry: true });
     }
 
     if (!response.ok) {
@@ -117,5 +140,80 @@ export class ApiClient {
     }
 
     return JSON.parse(responseText) as T;
+  }
+
+  /**
+   * Ensures we have a valid Capability Token.
+   * If not, performs the Handshake.
+   */
+  private async ensureToken(): Promise<string> {
+    if (this.capabilityToken) return this.capabilityToken;
+    if (!this.proxy) throw new Error('Missing Proxy Configuration');
+
+    // Deduplicate concurrent handshake requests
+    if (!this.handshakePromise) {
+      this.handshakePromise = this.performHandshake();
+    }
+
+    try {
+      this.capabilityToken = await this.handshakePromise;
+      return this.capabilityToken;
+    } finally {
+      this.handshakePromise = null;
+    }
+  }
+
+  private async performHandshake(): Promise<string> {
+    if (!this.proxy) throw new Error('No proxy config');
+
+    // 1. Get Identity Token (e.g. Firebase)
+    const authToken = this.proxy.auth ? await this.proxy.auth() : '';
+
+    // 2. Call Proxy Handshake Endpoint
+    const res = await this.fetchWithTimeout(this.proxy.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        intent: 'resume',
+        authToken,
+      }),
+    });
+
+    const data: any = await res.json();
+    if (!data.success) throw new Error(data.error || 'Handshake failed');
+    return data.token;
+  }
+
+  private resolveUrl(path: string): URL {
+    if (this.proxy) {
+      // When using Proxy, the path is appended to the proxy URL
+      const url = new URL(this.proxy.url);
+      url.searchParams.append('path', `/${path}`);
+      return url;
+    }
+    // Direct Mode
+    return new URL(`${this.baseUrl}/${path}`);
+  }
+
+  private async fetchWithTimeout(url: string, opts: any): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      this.requestTimeoutMs,
+    );
+
+    try {
+      const response = await fetch(url, {
+        ...opts,
+        signal: controller.signal,
+      });
+      return response;
+    } catch (error) {
+      throw new JulesNetworkError(url, {
+        cause: error as Error,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 }
