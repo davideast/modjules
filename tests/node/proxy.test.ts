@@ -71,7 +71,7 @@ describe('Node Proxy Adapter', () => {
 
     expect(mockCoreHandler).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: {}, // Fallback to empty object
+        body: undefined, // Malformed JSON results in no body
       }),
     );
   });
