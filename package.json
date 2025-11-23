@@ -35,7 +35,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && echo '{\"type\":\"module\"}' > dist/package.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest --exclude tests/storage/browser.test.ts",
