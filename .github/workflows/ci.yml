@@ -5,7 +5,8 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # Run on all PRs targeting any branch
+    types: [opened, synchronize, reopened]
 
 # Cancel previous runs if a new commit is pushed to the same PR
 concurrency:
