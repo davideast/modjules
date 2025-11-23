@@ -10,7 +10,9 @@ const PORT = 3000;
 
 // 1. Configuration
 const JULES_API_KEY = process.env.JULES_API_KEY!;
-const CLIENT_SECRET = new TextEncoder().encode(process.env.JULES_CLIENT_SECRET!);
+const CLIENT_SECRET = new TextEncoder().encode(
+  process.env.JULES_CLIENT_SECRET!,
+);
 
 // Enable CORS so your frontend (localhost:5173) can hit this
 app.use('/*', cors());
@@ -106,13 +108,15 @@ app.all('/api/jules', async (c) => {
       const upstream = await fetch(googleUrl, {
         method: c.req.method,
         headers,
-        body: c.req.method !== 'GET' ? JSON.stringify(await c.req.json()) : undefined,
+        body:
+          c.req.method !== 'GET'
+            ? JSON.stringify(await c.req.json())
+            : undefined,
       });
 
       // Return Google's response directly
       const data = await upstream.json();
       return c.json(data, upstream.status as any);
-
     } catch (err: any) {
       console.error(err);
       return c.json({ error: 'Proxy Error' }, 500);
