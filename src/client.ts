@@ -223,6 +223,11 @@ export class JulesClientImpl implements JulesClient {
               : 'AUTO_CREATE_PR',
           requirePlanApproval: config.requireApproval ?? false,
         },
+        // ✅ PASS CONTEXT: I want to CREATE
+        handshake: {
+          intent: 'create',
+          sessionConfig: { prompt: config.prompt, source: config.source },
+        },
       },
     );
 
@@ -312,6 +317,11 @@ export class JulesClientImpl implements JulesClient {
             ...body,
             automationMode: 'AUTOMATION_MODE_UNSPECIFIED',
             requirePlanApproval: config.requireApproval ?? true,
+          },
+          // ✅ PASS CONTEXT
+          handshake: {
+            intent: 'create',
+            sessionConfig: { prompt: config.prompt, source: config.source },
           },
         },
       );

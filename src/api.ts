@@ -16,11 +16,16 @@ export type ApiClientOptions = {
   proxy?: ProxyConfig;
 };
 
+export type HandshakeContext =
+  | { intent: 'create'; sessionConfig: any }
+  | { intent: 'resume'; sessionId: string };
+
 export type ApiRequestOptions = {
   method?: 'GET' | 'POST';
   body?: Record<string, unknown>;
   params?: Record<string, string>;
   headers?: Record<string, string>;
+  handshake?: HandshakeContext;
   _isRetry?: boolean; // Internal flag to prevent infinite loops
 };
 
@@ -53,6 +58,7 @@ export class ApiClient {
       body,
       params,
       headers: customHeaders,
+      handshake,
       _isRetry,
     } = options;
     const url = this.resolveUrl(endpoint);
@@ -74,7 +80,7 @@ export class ApiClient {
       headers['X-Goog-Api-Key'] = this.apiKey;
     } else if (this.proxy) {
       // Proxy Mode
-      const token = await this.ensureToken();
+      const token = await this.ensureToken(handshake);
       headers['Authorization'] = `Bearer ${token}`;
     } else {
       throw new MissingApiKeyError();
@@ -146,13 +152,21 @@ export class ApiClient {
    * Ensures we have a valid Capability Token.
    * If not, performs the Handshake.
    */
-  private async ensureToken(): Promise<string> {
+  private async ensureToken(context?: HandshakeContext): Promise<string> {
+    // If we are explicitly asking to create a session, we must ensure the token
+    // carries the 'create' intent. Existing cached tokens might be 'resume' tokens
+    // or generic ones, which might not be authorized for creation.
+    // Therefore, we invalidate the cache for 'create' intent to force a fresh handshake.
+    if (context?.intent === 'create') {
+      this.capabilityToken = null;
+    }
+
     if (this.capabilityToken) return this.capabilityToken;
     if (!this.proxy) throw new Error('Missing Proxy Configuration');
 
     // Deduplicate concurrent handshake requests
     if (!this.handshakePromise) {
-      this.handshakePromise = this.performHandshake();
+      this.handshakePromise = this.performHandshake(context);
     }
 
     try {
@@ -163,20 +177,31 @@ export class ApiClient {
     }
   }
 
-  private async performHandshake(): Promise<string> {
+  private async performHandshake(context?: HandshakeContext): Promise<string> {
     if (!this.proxy) throw new Error('No proxy config');
 
     // 1. Get Identity Token (e.g. Firebase)
     const authToken = this.proxy.auth ? await this.proxy.auth() : '';
 
-    // 2. Call Proxy Handshake Endpoint
+    // 2. Construct the Body based on Context
+    const body: any = { authToken };
+
+    if (context?.intent === 'create') {
+      body.intent = 'create';
+      body.context = context.sessionConfig; // Pass prompt/source
+    } else {
+      // Default to resume if unspecified, or explicitly resume
+      body.intent = 'resume';
+      if (context?.intent === 'resume') {
+        body.sessionId = context.sessionId;
+      }
+    }
+
+    // 3. Call Proxy Handshake Endpoint
     const res = await this.fetchWithTimeout(this.proxy.url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        intent: 'resume',
-        authToken,
-      }),
+      body: JSON.stringify(body),
     });
 
     const data: any = await res.json();
