@@ -50,6 +50,7 @@ describe('ApiClient (Unit)', () => {
     const handshakeCall = mockFetch.mock.calls.find(
       (call) => call[0] === 'https://proxy.com/api',
     );
+    if (!handshakeCall) throw new Error('Handshake call not found');
     const body = JSON.parse(handshakeCall[1].body);
 
     expect(body).toMatchObject({
@@ -82,6 +83,7 @@ describe('ApiClient (Unit)', () => {
     const handshakeCall = mockFetch.mock.calls.find(
       (call) => call[0] === 'https://proxy.com/api',
     );
+    if (!handshakeCall) throw new Error('Handshake call not found');
     const body = JSON.parse(handshakeCall[1].body);
 
     expect(body).toMatchObject({
@@ -105,6 +107,7 @@ describe('ApiClient (Unit)', () => {
     const handshakeCall = mockFetch.mock.calls.find(
       (call) => call[0] === 'https://proxy.com/api',
     );
+    if (!handshakeCall) throw new Error('Handshake call not found');
     const body = JSON.parse(handshakeCall[1].body);
 
     expect(body.intent).toBe('resume');
