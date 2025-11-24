@@ -20,7 +20,13 @@ export function createHandlerCore(config: ServerConfig, platform: Platform) {
       // --- FLOW A: HANDSHAKE (Login) ---
       // The client is asking for a Capability Token
       if (req.method === 'POST' && req.body?.intent) {
-        return await handleHandshake(req.body, config, adminClient, tokenizer);
+        return await handleHandshake(
+          req.body,
+          config,
+          adminClient,
+          tokenizer,
+          platform,
+        );
       }
 
       // --- FLOW B: PROXY (Traffic) ---
@@ -79,10 +85,11 @@ async function handleHandshake(
   config: ServerConfig,
   client: JulesClientImpl,
   tokenizer: TokenManager,
+  platform: Platform,
 ): Promise<{ status: number; body: HandshakeResponse }> {
   try {
     // 1. Verify User Identity (e.g. Firebase)
-    const identity = await config.verify(body.authToken || '');
+    const identity = await config.verify(body.authToken || '', platform);
 
     // 2. Execute Intent
     let sessionId: string;

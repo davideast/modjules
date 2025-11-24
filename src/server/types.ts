@@ -5,7 +5,10 @@ export interface Identity {
   email?: string;
 }
 
-export type VerifyCallback = (authToken: string) => Promise<Identity | string>;
+export type VerifyCallback = (
+  authToken: string,
+  platform: Platform,
+) => Promise<Identity | string>;
 
 export interface ServerConfig {
   /** The Google API Key for the Jules API */
