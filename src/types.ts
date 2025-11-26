@@ -141,6 +141,43 @@ export interface SessionConfig {
   autoPr?: boolean;
 }
 
+/**
+ * Configuration options for starting a multi-source run.
+ * This is the primary input for `jules.allSources()`.
+ */
+export interface MultiSourceSessionConfig {
+  /**
+   * The initial instruction or task description for the agent.
+   * Required. Maps to `prompt` in the REST API `POST /sessions` payload.
+   */
+  prompt: string;
+  /**
+   * The source code contexts for the session.
+   * Required. The SDK constructs the `sourceContext` payload from this input for each source.
+   */
+  sources: SourceInput[];
+  /**
+   * Optional title for the session. If not provided, the system will generate one.
+   * Maps to `title` in the REST API.
+   */
+  title?: string;
+  /**
+   * If true, the agent will pause and wait for explicit approval (via `session.approve()`)
+   * before executing any generated plan.
+   *
+   * @default false for `jules.run()`
+   */
+  requireApproval?: boolean;
+  /**
+   * If true, the agent will automatically create a Pull Request when the task is completed.
+   * Maps to `automationMode: AUTO_CREATE_PR` in the REST API.
+   * If false, maps to `AUTOMATION_MODE_UNSPECIFIED`.
+   *
+   * @default true for `jules.run()`
+   */
+  autoPr?: boolean;
+}
+
 // =============================================================================
 // Core Resource Types (REST API Mappings)
 // =============================================================================
@@ -899,6 +936,40 @@ export interface JulesClient {
   all<T>(
     items: T[],
     mapper: (item: T) => SessionConfig | Promise<SessionConfig>,
+    options?: {
+      /**
+       * The maximum number of concurrent sessions to run.
+       * @default 4
+       */
+      concurrency?: number;
+      /**
+       * If true, the batch operation will stop immediately if any session fails to start.
+       * If false, it will continue processing the remaining items.
+       * @default true
+       */
+      stopOnError?: boolean;
+    },
+  ): Promise<AutomatedSession[]>;
+
+  /**
+   * Executes a batch of automated sessions against multiple sources for a single prompt.
+   *
+   * @param config The configuration for the multi-source run.
+   * @param options Configuration for the batch operation.
+   * @returns A Promise resolving to an array of `AutomatedSession` objects, preserving the order of the input sources.
+   *
+   * @example
+   * const sources = [
+   *   { github: 'user/repo1', branch: 'main' },
+   *   { github: 'user/repo2', branch: 'dev' }
+   * ];
+   * const sessions = await jules.allSources({
+   *   prompt: 'Refactor the auth module in all repos',
+   *   sources
+   * });
+   */
+  allSources(
+    config: MultiSourceSessionConfig,
     options?: {
       /**
        * The maximum number of concurrent sessions to run.
