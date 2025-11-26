@@ -20,10 +20,16 @@ export async function pMap<T, R>(
 
   const results = new Array<R>(items.length);
   const errors = new Array<Error | unknown>();
-  const iterator = items.entries();
+  let nextIndex = 0;
 
-  const workers = new Array(concurrency).fill(iterator).map(async (i) => {
-    for (const [index, item] of i) {
+  const workers = new Array(concurrency).fill(0).map(async () => {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= items.length) {
+        break;
+      }
+      const item = items[index];
+
       if (delayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       }

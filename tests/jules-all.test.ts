@@ -154,4 +154,19 @@ describe('pMap utility', () => {
 
     expect(maxRunning).toBe(3);
   });
+
+  it('should process each item exactly once', async () => {
+    const items = Array.from({ length: 100 }, (_, i) => i);
+    const processedItems = new Set();
+    const mapper = async (item: number) => {
+      expect(processedItems.has(item)).toBe(false);
+      processedItems.add(item);
+      await new Promise((resolve) => setTimeout(resolve, Math.random() * 10));
+      return item;
+    };
+
+    await pMap(items, mapper, { concurrency: 10 });
+
+    expect(processedItems.size).toBe(items.length);
+  });
 });
