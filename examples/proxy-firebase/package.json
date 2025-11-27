@@ -1,0 +1,23 @@
+{
+  "name": "modjules-example-proxy-firebase",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "start": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/node": "^8.2.0",
+    "astro": "^4.0.0",
+    "dotenv": "^16.4.0",
+    "firebase": "^10.7.0",
+    "firebase-admin": "^12.0.0",
+    "modjules": "file:../.."
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0"
+  }
+}
