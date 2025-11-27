@@ -23,17 +23,17 @@ export async function pMap<T, R>(
   const delayMs = options.delayMs ?? 0;
 
   const results = new Array<R>(items.length);
-  const errors: unknown[] = [];
-  let currentIndex = 0;
+  const errors = new Array<Error | unknown>();
+  let nextIndex = 0;
 
-  const worker = async () => {
+  const workers = new Array(concurrency).fill(0).map(async () => {
     while (true) {
-      const index = currentIndex++;
+      const index = nextIndex++;
       if (index >= items.length) {
-        break; // All items have been taken.
+        break;
       }
+      const item = items[index];
 
-      // This creates a delay before each batch of concurrent tasks.
       if (delayMs > 0) {
         await sleep(delayMs);
       }
