@@ -10,7 +10,8 @@ export default function Home() {
         </h1>
         <p className="text-lg text-gray-600">
           A visual guide to the different activity types in the Modjules SDK.
-          Each card below represents a real activity object and explains its purpose.
+          Each card below represents a real activity object and explains its
+          purpose.
         </p>
       </header>
 

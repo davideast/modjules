@@ -53,7 +53,8 @@ export const activities: Activity[] = [
     id: '2',
     createTime: timestamp,
     originator: 'agent',
-    message: 'I can help with that. I will start by analyzing the current header implementation.',
+    message:
+      'I can help with that. I will start by analyzing the current header implementation.',
     artifacts: [],
   } as ActivityAgentMessaged,
   {
@@ -81,7 +82,8 @@ export const activities: Activity[] = [
     createTime: timestamp,
     originator: 'agent',
     title: 'Implementing feature',
-    description: 'Working on step 2: Implement feature. Added Button component.',
+    description:
+      'Working on step 2: Implement feature. Added Button component.',
     artifacts: [],
   } as ActivityProgressUpdated,
   {
