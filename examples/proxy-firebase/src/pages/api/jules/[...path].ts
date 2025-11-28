@@ -9,6 +9,11 @@ const handler = createFetchHandler({
   apiKey: import.meta.env.JULES_API_KEY,
   clientSecret: import.meta.env.JULES_CLIENT_SECRET,
   verify: verifyFirebaseAdmin(), // Enforces server-side token verification
+  authorize: async (user, sessionId) => {
+    // In a real app, fetch session metadata from Firestore here.
+    // Return the resource to verify ownership (resource.ownerId === user.uid).
+    return { ownerId: user.uid, id: sessionId };
+  },
 });
 
 // 2. Define the POST Route

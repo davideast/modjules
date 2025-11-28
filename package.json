@@ -14,19 +14,27 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.es.js"
+      "import": "./dist/index.mjs"
     },
     "./browser": {
       "types": "./dist/browser.d.ts",
-      "import": "./dist/browser.es.js"
+      "import": "./dist/browser.mjs"
     },
     "./gas": {
       "types": "./dist/gas/index.d.ts",
-      "import": "./dist/gas/index.es.js"
+      "import": "./dist/gas/index.mjs"
     },
     "./proxy": {
       "types": "./dist/node/proxy.d.ts",
-      "import": "./dist/node/proxy.es.js"
+      "import": "./dist/node/proxy.mjs"
+    },
+    "./proxy/web": {
+      "types": "./dist/node/proxy.d.ts",
+      "import": "./dist/proxy/web.mjs"
+    },
+    "./proxy/strategies/node": {
+      "types": "./dist/auth/strategies/node.d.ts",
+      "import": "./dist/proxy/strategies/node.mjs"
     },
     "./package.json": "./package.json"
   },
@@ -35,7 +43,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "vite build && echo '{\"type\":\"module\"}' > dist/package.json",
+    "build": "vite build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest --exclude tests/storage/browser.test.ts",
