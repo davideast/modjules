@@ -9,6 +9,7 @@ import {
   Activity,
   Plan,
 } from 'modjules/types';
+import { mediaData } from './media-data';
 
 const timestamp = new Date().toISOString();
 
@@ -119,17 +120,54 @@ index 83a0429..92b3c4d 100644
     ],
   } as ActivityAgentMessaged,
   {
-    type: 'sessionCompleted',
+    type: 'agentMessaged',
     name: 'sessions/123/activities/7',
     id: '7',
+    createTime: timestamp,
+    originator: 'agent',
+    message: 'I ran the tests and they passed.',
+    artifacts: [
+      {
+        type: 'bashOutput',
+        command: 'npm test',
+        stdout:
+          'Test Suites: 1 passed, 1 total\nTests:       5 passed, 5 total',
+        stderr: '',
+        exitCode: 0,
+        toString: () =>
+          'npm test\nTest Suites: 1 passed, 1 total\nTests:       5 passed, 5 total',
+      },
+    ],
+  } as ActivityAgentMessaged,
+  {
+    type: 'agentMessaged',
+    name: 'sessions/123/activities/8',
+    id: '8',
+    createTime: timestamp,
+    originator: 'agent',
+    message: 'Here is a screenshot of the new button.',
+    artifacts: [
+      {
+        type: 'media',
+        format: 'image/png',
+        data: mediaData,
+        toUrl: () => `data:image/png;base64,${mediaData}`,
+        save: async () => {},
+      },
+    ],
+  } as ActivityAgentMessaged,
+  {
+    type: 'sessionCompleted',
+    name: 'sessions/123/activities/9',
+    id: '9',
     createTime: timestamp,
     originator: 'system',
     artifacts: [],
   } as ActivitySessionCompleted,
   {
     type: 'sessionFailed',
-    name: 'sessions/123/activities/8',
-    id: '8',
+    name: 'sessions/123/activities/10',
+    id: '10',
     createTime: timestamp,
     originator: 'system',
     reason: 'Connection timed out while waiting for user input.',
