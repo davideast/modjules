@@ -17,6 +17,7 @@ import { pollUntilCompletion } from './polling.js';
 import { mapSessionResourceToOutcome } from './mappers.js';
 import { SessionClientImpl } from './session.js';
 import { pMap } from './utils.js';
+import { SessionCursor, ListSessionsOptions } from './sessions.js';
 
 /**
  * The fully resolved internal configuration for the SDK.
@@ -98,6 +99,15 @@ export class JulesClientImpl implements JulesClient {
       this.storageFactory,
       this.platform,
     );
+  }
+
+  /**
+   * Lists sessions with a fluent, pagination-friendly API.
+   * @param options Configuration for pagination (pageSize, limit, pageToken)
+   * @returns A SessionCursor that can be awaited (first page) or iterated (all pages).
+   */
+  sessions(options?: ListSessionsOptions): SessionCursor {
+    return new SessionCursor(this.apiClient, options);
   }
 
   async all<T>(

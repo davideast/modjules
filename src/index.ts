@@ -53,3 +53,6 @@ export type {
   SourceInput,
   SourceManager,
 } from './types.js';
+
+export { SessionCursor } from './sessions.js';
+export type { ListSessionsOptions, ListSessionsResponse } from './sessions.js';
