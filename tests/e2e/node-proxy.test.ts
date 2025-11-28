@@ -78,6 +78,9 @@ describe('E2E: Node Proxy Architecture', () => {
         if (token === PROXY_PASS) return { uid: 'test-user' };
         throw new Error('Unauthorized');
       },
+      authorize: async (user, sessionId) => {
+        return { ownerId: user.uid, id: sessionId };
+      },
     });
 
     proxyServer = createServer(async (req, res) => {

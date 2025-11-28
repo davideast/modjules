@@ -4,6 +4,7 @@ import { HandshakeRequest, HandshakeResponse } from '../auth/protocol.js';
 import { ServerConfig, ServerRequest } from './types.js';
 import { JulesClientImpl } from '../client.js'; // Admin Client
 import { ActivityStorage } from '../storage/types.js';
+import { Identity } from '../auth/types.js';
 
 export function createHandlerCore(config: ServerConfig, platform: Platform) {
   const tokenizer = new TokenManager(platform, config.clientSecret);
@@ -88,25 +89,34 @@ async function handleHandshake(
   platform: Platform,
 ): Promise<{ status: number; body: HandshakeResponse }> {
   try {
-    // 1. Verify User Identity (e.g. Firebase)
-    const identity = await config.verify(body.authToken || '', platform);
+    // 1. Verify Identity (e.g. Firebase)
+    const identityOrUid = await config.verify(body.authToken || '', platform);
+
+    let identity: Identity;
+    if (typeof identityOrUid === 'string') {
+      // Legacy support if needed, or simple UID
+      identity = { uid: identityOrUid };
+    } else {
+      identity = identityOrUid;
+    }
 
     // 2. Execute Intent
     let sessionId: string;
 
     if (body.intent === 'create') {
-      // Create new session via Admin SDK
-      // (Simplified: In real code, map body.context to SessionConfig)
+      // Creation Flow: User BECOMES the owner
       // Ensure body.context has prompt and source
       const session = await client.run({
-        prompt: body.context.prompt,
-        source: body.context.source,
+        ...(body.context as any),
+        ownerId: identity.uid, // <--- CRITICAL: Stamping ownership on creation
       });
       sessionId = session.id;
     } else {
-      // Resume existing
-      // TODO: Add ownership check here in Phase 4
+      // Resume Flow: User MUST BE AUTHORIZED
       sessionId = body.sessionId;
+
+      // This throws if unauthorized
+      await config.authorize(identity, sessionId);
     }
 
     // 3. Mint Capability Token
