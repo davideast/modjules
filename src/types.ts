@@ -12,6 +12,7 @@
 
 import { SelectOptions } from './activities/types.js';
 import { ActivityStorage } from './storage/types.js';
+import { ListSessionsOptions, SessionCursor } from './sessions.js';
 
 /**
  * A factory function that creates an ActivityStorage instance for a given session ID.
@@ -880,6 +881,23 @@ export interface JulesClient {
    * const specialized = jules.with({ apiKey: 'NEW_KEY' });
    */
   with(options: JulesOptions): JulesClient;
+
+  /**
+   * Lists sessions with a fluent, pagination-friendly API.
+   *
+   * @param options Configuration for pagination (pageSize, limit, pageToken)
+   * @returns A SessionCursor that can be awaited (first page) or iterated (all pages).
+   *
+   * @example
+   * // Get the first page
+   * const page = await jules.sessions({ pageSize: 10 });
+   *
+   * // Stream all sessions
+   * for await (const session of jules.sessions()) {
+   *   console.log(session.id);
+   * }
+   */
+  sessions(options?: ListSessionsOptions): SessionCursor;
 
   /**
    * Executes a batch of automated sessions in parallel, with concurrency control.
