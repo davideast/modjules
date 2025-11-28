@@ -59,3 +59,8 @@ export function createNodeHandler(config: ServerConfig) {
     });
   };
 }
+
+/**
+ * Alias for createNodeHandler, typically used in Web/Edge environments.
+ */
+export const createFetchHandler = createNodeHandler;

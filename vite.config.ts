@@ -9,15 +9,18 @@ export default defineConfig({
         browser: 'src/browser.ts',
         'gas/index': 'src/gas/index.ts',
         'node/proxy': 'src/node/proxy.ts',
+        'proxy/web': 'src/node/proxy.ts',
+        'proxy/strategies/node': 'src/auth/strategies/node.ts',
       },
       name: 'modjules',
       formats: ['es'],
-      fileName: (format, entryName) => `${entryName}.${format}.js`,
+      fileName: (format, entryName) => `${entryName}.mjs`,
     },
     rollupOptions: {
       external: [
         // Runtime dependencies (keep bundled for Node, external for Browser if provided by platform)
         'idb',
+        'firebase-admin',
 
         // Node.js Built-ins (Bare specifiers)
         '_http_agent',
