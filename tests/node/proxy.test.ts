@@ -13,6 +13,10 @@ describe('Node Proxy Adapter', () => {
     apiKey: 'key',
     clientSecret: 'secret',
     verify: async () => 'user',
+    authorize: async (user: any, sessionId: string) => ({
+      ownerId: 'user',
+      id: sessionId,
+    }),
   };
 
   it('parses JSON body and passes it to core', async () => {

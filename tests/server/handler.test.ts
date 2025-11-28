@@ -12,6 +12,10 @@ describe('Server Core (The Vendor)', () => {
     apiKey: 'GOOG_KEY',
     clientSecret: 'SERVER_SECRET',
     verify: vi.fn().mockResolvedValue({ uid: 'user_1' }),
+    authorize: async (user: any, sessionId: string) => ({
+      ownerId: user.uid,
+      id: sessionId,
+    }),
   };
 
   const handler = createHandlerCore(config, platform);

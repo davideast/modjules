@@ -155,6 +155,11 @@ export interface SessionConfig {
    * @default true for `jules.run()`
    */
   autoPr?: boolean;
+  /**
+   * The ID of the user who owns this session.
+   * This is primarily used by the Proxy/Authorization layer to enforce permissions.
+   */
+  ownerId?: string;
 }
 
 // =============================================================================
