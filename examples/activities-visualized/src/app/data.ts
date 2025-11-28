@@ -8,10 +8,38 @@ import {
   ActivitySessionFailed,
   Activity,
   Plan,
+  SessionResource,
 } from 'modjules/types';
 import { mediaData } from './media-data';
 
 const timestamp = new Date().toISOString();
+
+export const mockSessionResource: SessionResource = {
+  name: 'sessions/123',
+  id: '123',
+  prompt: 'Please add a new login button to the header.',
+  sourceContext: {
+    source: 'sources/github/owner/repo',
+    githubRepoContext: {
+      startingBranch: 'main',
+    },
+  },
+  title: 'Add Login Button',
+  createTime: timestamp,
+  updateTime: timestamp,
+  state: 'completed',
+  url: 'https://jules.app/sessions/123',
+  outputs: [
+    {
+      type: 'pullRequest',
+      pullRequest: {
+        url: 'https://github.com/owner/repo/pull/42',
+        title: 'feat: add login button',
+        description: 'Adds a login button to the header component.',
+      },
+    },
+  ],
+};
 
 const mockPlan: Plan = {
   id: 'plan-123',
