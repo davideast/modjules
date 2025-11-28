@@ -1,8 +1,10 @@
-import { activities } from './data';
+import { activities, mockSessionResource } from './data';
 import { sources } from './sources-data';
 import { ActivityCard } from './components/ActivityCard';
 import { SourcesList } from './components/SourcesList';
 import { SourceCard } from './components/SourceCard';
+import { SessionList } from './components/SessionList';
+import { SessionDetail } from './components/SessionDetail';
 
 export default function Home() {
   const singleSource = sources[0];
@@ -15,7 +17,7 @@ export default function Home() {
         </h1>
         <p className="text-lg text-gray-600">
           A visual guide to the data structures in the Modjules SDK, including
-          Activities and Sources.
+          Activities, Sources, and Sessions.
         </p>
       </header>
 
@@ -32,6 +34,51 @@ export default function Home() {
             <ActivityCard key={activity.id} activity={activity} />
           ))}
         </div>
+      </section>
+
+      <section className="mb-20">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">
+          Listing Sessions
+        </h2>
+        <p className="text-gray-600 mb-8">
+          The <code className="bg-gray-100 px-1 rounded">jules.sessions()</code>{' '}
+          method returns a cursor (async iterable) of past sessions.
+        </p>
+        <SessionList sessions={[mockSessionResource]} />
+      </section>
+
+      <section className="mb-20">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">
+          Getting a Single Session
+        </h2>
+        <p className="text-gray-600 mb-8">
+          You can retrieve a specific session by its ID using{' '}
+          <code className="bg-gray-100 px-1 rounded">
+            jules.session(&apos;ID&apos;).info()
+          </code>
+          .
+        </p>
+
+        <div className="bg-gray-800 text-gray-200 p-4 rounded-lg font-mono text-sm overflow-x-auto shadow-inner mb-6">
+          <span className="text-purple-400">const</span> session =
+          jules.session( &apos;{mockSessionResource.id}&apos;);
+          <br />
+          <span className="text-purple-400">const</span> info ={' '}
+          <span className="text-purple-400">await</span> session.info();
+        </div>
+
+        <SessionDetail
+          session={mockSessionResource}
+          title="Single Session Info"
+          explanation={
+            <span>
+              <strong>Session Info:</strong> The <code>info()</code> method
+              returns the full <code>SessionResource</code> object, which
+              contains metadata about the session, including its current state,
+              original prompt, and any outputs like Pull Requests.
+            </span>
+          }
+        />
       </section>
 
       <section className="mb-20">
