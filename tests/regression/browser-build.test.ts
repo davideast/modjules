@@ -8,7 +8,9 @@ describe('Browser Build Regression', () => {
     const distPath = path.resolve(__dirname, '../../dist/browser.mjs');
 
     if (!fs.existsSync(distPath)) {
-      throw new Error(`Browser build artifact not found at ${distPath}. Run npm run build first.`);
+      throw new Error(
+        `Browser build artifact not found at ${distPath}. Run npm run build first.`,
+      );
     }
 
     const content = fs.readFileSync(distPath, 'utf-8');
@@ -31,7 +33,9 @@ describe('Browser Build Regression', () => {
       const start = Math.max(0, match.index - 30);
       const end = Math.min(content.length, match.index + 30);
       const snippet = content.slice(start, end);
-      console.error(`\n❌ Found 'process' variable usage in browser bundle:\n...${snippet}...\n`);
+      console.error(
+        `\n❌ Found 'process' variable usage in browser bundle:\n...${snippet}...\n`,
+      );
     }
 
     expect(match).toBeNull();

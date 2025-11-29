@@ -22,7 +22,7 @@ describe('BrowserPlatform - Environment Fallback', () => {
 
     // Ensure process.env doesn't have it
     if (typeof process !== 'undefined' && process.env) {
-       delete process.env.TEST_KEY;
+      delete process.env.TEST_KEY;
     }
 
     const value = platform.getEnv('TEST_KEY');
@@ -37,23 +37,24 @@ describe('BrowserPlatform - Environment Fallback', () => {
 
     // We assume JSDOM environment has process
     if (typeof process !== 'undefined' && process.env) {
-       process.env.TEST_KEY = 'process-value';
+      process.env.TEST_KEY = 'process-value';
     } else {
-        // If no process in test env, this test might not be meaningful for precedence,
-        // but verify fallback still works?
-        // We'll skip or just warn? JSDOM should have it.
+      // If no process in test env, this test might not be meaningful for precedence,
+      // but verify fallback still works?
+      // We'll skip or just warn? JSDOM should have it.
     }
 
     const value = platform.getEnv('TEST_KEY');
     // If process exists, it should match process-value.
     // If not, it falls back (but we expect process in JSDOM).
     if (typeof process !== 'undefined') {
-        expect(value).toBe('process-value');
+      expect(value).toBe('process-value');
     }
 
     // Cleanup
     if (typeof process !== 'undefined' && process.env) {
-       delete process.env.TEST_KEY;
+      delete process.env.TEST_KEY;
     }
   });
 });
+// test
