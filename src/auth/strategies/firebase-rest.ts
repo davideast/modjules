@@ -1,22 +1,8 @@
-import { VerifyCallback, Identity } from '../../server/types.js';
+import type { VerifyCallback } from '../../server/types.js';
+import type { Identity } from '../types.js';
 
 export interface FirebaseRestConfig {
   apiKey: string; // Firebase Web API Key
-}
-
-/**
- * Strategy: Shared Secret
- * Simple equality check. Retained for testing/internal tools.
- */
-export function verifySharedSecret(config: { secret: string }): VerifyCallback {
-  return async (token: string) => {
-    if (!config.secret)
-      throw new Error("Strategy Config Error: 'secret' is missing");
-    if (token === config.secret) {
-      return { uid: 'admin_user' } as Identity; // Return Identity object
-    }
-    throw new Error('Unauthorized: Invalid Secret');
-  };
 }
 
 /**

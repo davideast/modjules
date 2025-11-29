@@ -1,8 +1,6 @@
 import { Identity } from '../auth/types.js';
 import { Platform } from '../platform/types.js';
 
-export { Identity };
-
 /**
  * 1. The Resource Shape
  * Any data object returned by a database strategy must at least

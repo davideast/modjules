@@ -1,9 +1,13 @@
 ---
 // Server-Side Frontmatter
 const firebaseConfig = {
-  apiKey: import.meta.env.PUBLIC_FIREBASE_API_KEY,
-  authDomain: import.meta.env.PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.PUBLIC_FIREBASE_PROJECT_ID,
+  apiKey: 'AIzaSyCbQc7q4XIFGUIJWVrgzwHop27TYPyhPz8',
+  authDomain: 'slack-budget.firebaseapp.com',
+  databaseURL: 'https://slack-budget.firebaseio.com',
+  projectId: 'slack-budget',
+  storageBucket: 'slack-budget.firebasestorage.app',
+  messagingSenderId: '954036860282',
+  appId: '1:954036860282:web:b5ad263a1457f7002092c3',
 };
 ---
 
@@ -13,13 +17,52 @@ const firebaseConfig = {
     <meta name="viewport" content="width=device-width" />
     <title>Modjules + Firebase Proxy</title>
     <style>
-      :root { --bg: #0f172a; --text: #f8fafc; --primary: #3b82f6; --error: #ef4444; }
-      body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; padding: 2rem; max-width: 800px; margin-left: auto; margin-right: auto; }
-      .card { background: #1e293b; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid #334155; }
-      button { background: var(--primary); color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.25rem; cursor: pointer; font-weight: bold; }
-      button:disabled { opacity: 0.5; cursor: not-allowed; }
-      pre { background: #000; padding: 1rem; overflow-x: auto; border-radius: 0.25rem; font-size: 0.85rem; color: #4ade80; }
-      .hidden { display: none; }
+      :root {
+        --bg: #0f172a;
+        --text: #f8fafc;
+        --primary: #3b82f6;
+        --error: #ef4444;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, sans-serif;
+        padding: 2rem;
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .card {
+        background: #1e293b;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        border: 1px solid #334155;
+      }
+      button {
+        background: var(--primary);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      pre {
+        background: #000;
+        padding: 1rem;
+        overflow-x: auto;
+        border-radius: 0.25rem;
+        font-size: 0.85rem;
+        color: #4ade80;
+      }
+      .hidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -31,52 +74,99 @@ const firebaseConfig = {
       <button id="login-btn">Sign In with Google</button>
       <div id="user-info" class="hidden">
         <p>Logged in as: <strong id="user-email"></strong></p>
-        <button id="logout-btn" style="background: var(--error)">Sign Out</button>
+        <button id="logout-btn" style="background: var(--error)"
+          >Sign Out</button
+        >
       </div>
     </div>
 
     <div class="card hidden" id="action-section">
       <h2>2. Proxy Request</h2>
       <p>Send a secure handshake to <code>/api/jules</code>.</p>
-      <button id="start-session-btn">Start Session</button>
+      <button id="start-session-btn">Get Session</button>
 
       <h3>Logs</h3>
       <pre id="logs">Waiting for action...</pre>
     </div>
 
-    <script define:vars={{ firebaseConfig }}>
-      import { initializeApp } from "firebase/app";
-      import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
-      import { jules } from "modjules";
+    <script>
+      import { initializeApp } from 'firebase/app';
+      import {
+        getAuth,
+        signInWithPopup,
+        GoogleAuthProvider,
+        signOut,
+        onAuthStateChanged,
+      } from 'firebase/auth';
+      import { connect } from 'modjules/browser';
 
       // 1. Initialize Firebase Client
-      const app = initializeApp(firebaseConfig);
+      const app = initializeApp({
+        apiKey: 'AIzaSyCbQc7q4XIFGUIJWVrgzwHop27TYPyhPz8',
+        authDomain: 'slack-budget.firebaseapp.com',
+        databaseURL: 'https://slack-budget.firebaseio.com',
+        projectId: 'slack-budget',
+        storageBucket: 'slack-budget.firebasestorage.app',
+        messagingSenderId: '954036860282',
+        appId: '1:954036860282:web:b5ad263a1457f7002092c3',
+      });
       const auth = getAuth(app);
       const provider = new GoogleAuthProvider();
 
       // UI References
-      const loginBtn = document.getElementById('login-btn');
-      const logoutBtn = document.getElementById('logout-btn');
-      const startSessionBtn = document.getElementById('start-session-btn');
-      const userInfo = document.getElementById('user-info');
-      const userEmail = document.getElementById('user-email');
-      const authSection = document.getElementById('auth-section');
-      const actionSection = document.getElementById('action-section');
-      const logs = document.getElementById('logs');
+      const loginBtn = document.getElementById(
+        'login-btn',
+      ) as HTMLButtonElement;
+      const logoutBtn = document.getElementById(
+        'logout-btn',
+      ) as HTMLButtonElement;
+      const startSessionBtn = document.getElementById(
+        'start-session-btn',
+      ) as HTMLButtonElement;
+      const userInfo = document.getElementById('user-info') as HTMLDivElement;
+      const userEmail = document.getElementById(
+        'user-email',
+      ) as HTMLParagraphElement;
+      const authSection = document.getElementById(
+        'auth-section',
+      ) as HTMLDivElement;
+      const actionSection = document.getElementById(
+        'action-section',
+      ) as HTMLDivElement;
+      const logs = document.getElementById('logs') as HTMLPreElement;
 
-      let currentToken = null;
+      let currentToken: string | null = null;
 
-      function log(msg) {
+      function log(msg: string) {
         logs.textContent = `> ${msg}\n` + logs.textContent;
       }
 
       // 2. Auth Handlers
       loginBtn.addEventListener('click', async () => {
-        try { await signInWithPopup(auth, provider); }
-        catch (e) { log(`Auth Error: ${e.message}`); }
+        try {
+          await signInWithPopup(auth, provider);
+        } catch (e: any) {
+          log(`Auth Error: ${e.message}`);
+        }
       });
 
       logoutBtn.addEventListener('click', () => signOut(auth));
+
+      const curentIdTokenPromise = () => {
+        return new Promise<string | null>((resolve, reject) => {
+          onAuthStateChanged(
+            auth,
+            async (user) => {
+              if (user) {
+                resolve(user.getIdToken());
+              }
+            },
+            (error) => {
+              reject(error);
+            },
+          );
+        });
+      };
 
       onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -86,7 +176,7 @@ const firebaseConfig = {
           actionSection.classList.remove('hidden');
 
           // Get the ID Token (JWT)
-          currentToken = await user.getIdToken();
+          currentToken = await curentIdTokenPromise();
           log(`Authenticated. Token acquired.`);
         } else {
           userInfo.classList.add('hidden');
@@ -105,20 +195,26 @@ const firebaseConfig = {
 
         // Initialize pointing to our LOCAL Astro proxy
         // The token is passed in the header automatically by the client
-        const client = jules({
+        const jules = connect({
           baseUrl: '/api/jules',
-          authToken: currentToken,
+          proxy: {
+            url: window.location.origin + '/api/jules',
+            auth: () => currentToken!,
+          },
         });
 
         try {
           log('Sending Handshake to Proxy...');
-          const session = await client.createSession({
-            model: 'jules-2025',
-            messages: [{ role: 'user', content: 'Hello via Proxy!' }]
-          });
+          const session = jules.session('3756050493082673130');
+          log(`Checking session: ${session.id}`);
+          const info = await session.info();
+          log(JSON.stringify(info, null, 2));
+          for await (let activity of session.stream()) {
+            log(JSON.stringify(activity, null, 2));
+          }
 
-          log(`✅ Success! Session Created: ${session.id}`);
-        } catch (err) {
+          // log(`✅ Success! Session Created: ${session.id}`);
+        } catch (err: any) {
           log(`❌ Proxy Error: ${err.message}`);
           console.error(err);
         }

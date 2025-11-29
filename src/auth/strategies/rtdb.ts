@@ -1,12 +1,8 @@
-import { Database } from 'firebase-admin/database';
-import { createPolicy, PolicyConfig, ProtectedResource } from '../policy.js';
-
+import { createPolicy, type PolicyConfig } from '../policy.js';
+import type { ProtectedResource } from '../../server/types.js';
+import { type Database } from 'firebase-admin/database';
 type FirebasePolicyConfig = Omit<PolicyConfig<any>, 'getResource'> & {
   db: Database;
-  /**
-   * The root path where resources are stored.
-   * Example: 'sessions' -> checks 'sessions/{sessionId}'
-   */
   rootPath: string;
   /**
    * The key in the object that holds the owner's UID.
@@ -23,10 +19,8 @@ export function createFirebasePolicy<T extends ProtectedResource>(
   return createPolicy<T>({
     ...rules,
     getResource: async (sessionId: string) => {
-      // Construct path safely ensuring single slash
       const cleanRoot = rootPath.replace(/\/$/, '');
       const ref = db.ref(`${cleanRoot}/${sessionId}`);
-
       const snapshot = await ref.get();
 
       if (!snapshot.exists()) {

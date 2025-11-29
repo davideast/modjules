@@ -3,14 +3,17 @@ import dts from 'vite-plugin-dts';
 
 export default defineConfig({
   build: {
+    minify: false,
+    sourcemap: true,
     lib: {
       entry: {
         index: 'src/index.ts',
         browser: 'src/browser.ts',
         'gas/index': 'src/gas/index.ts',
-        'node/proxy': 'src/node/proxy.ts',
         'proxy/web': 'src/node/proxy.ts',
-        'proxy/strategies/node': 'src/auth/strategies/node.ts',
+        proxy: 'src/node/proxy.ts',
+        'proxy/firebase': 'src/auth/strategies/firebase.ts',
+        'proxy/memory': 'src/auth/strategies/memory.ts',
       },
       name: 'modjules',
       formats: ['es'],
