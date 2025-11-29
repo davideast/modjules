@@ -126,9 +126,7 @@ describe('pMap utility', () => {
 
     // Advance time for first item
     await vi.advanceTimersByTimeAsync(1000);
-    expect(mapper).toHaveBeenCalledTimes(1); // First item starts after delay?
-    // Wait, implementation says: if (delayMs > 0) await sleep.
-    // So yes, it sleeps BEFORE processing.
+    expect(mapper).toHaveBeenCalledTimes(1);
 
     await vi.advanceTimersByTimeAsync(1000);
     expect(mapper).toHaveBeenCalledTimes(2);
@@ -153,5 +151,20 @@ describe('pMap utility', () => {
     await pMap(items, mapper);
 
     expect(maxRunning).toBe(3);
+  });
+
+  it('should process each item exactly once', async () => {
+    const items = Array.from({ length: 100 }, (_, i) => i);
+    const processedItems = new Set();
+    const mapper = async (item: number) => {
+      expect(processedItems.has(item)).toBe(false);
+      processedItems.add(item);
+      await new Promise((resolve) => setTimeout(resolve, Math.random() * 10));
+      return item;
+    };
+
+    await pMap(items, mapper, { concurrency: 10 });
+
+    expect(processedItems.size).toBe(items.length);
   });
 });

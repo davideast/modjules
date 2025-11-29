@@ -5,6 +5,7 @@ import {
   JulesClient,
   JulesOptions,
   SessionConfig,
+  MultiSourceSessionConfig,
   SourceManager,
   AutomatedSession,
   SessionClient,
@@ -162,6 +163,21 @@ export class JulesClientImpl implements JulesClient {
       },
       options,
     );
+  }
+
+  async allSources(
+    config: MultiSourceSessionConfig,
+    options?: {
+      concurrency?: number;
+      stopOnError?: boolean;
+      delayMs?: number;
+    },
+  ): Promise<AutomatedSession[]> {
+    const { sources, ...baseConfig } = config;
+    return pMap(sources, (source) => this.run({ ...baseConfig, source }), {
+      concurrency: 4,
+      ...options,
+    });
   }
 
   private async _prepareSessionCreation(
