@@ -6,11 +6,11 @@ import path from 'node:path';
 console.log('Checking build artifacts...');
 const dist = path.resolve('dist');
 const files = [
-  'index.es.js',
+  'index.mjs',
   'index.d.ts',
-  'browser.es.js',
+  'browser.mjs',
   'browser.d.ts',
-  'gas/index.es.js',
+  'gas/index.mjs',
   'gas/index.d.ts',
 ];
 
@@ -26,7 +26,7 @@ files.forEach((file) => {
 // 2. Verify No Leakage (String Analysis)
 // We grep the browser bundle to ensure no Node.js code leaked in
 console.log('\nChecking for Node.js leakage in Browser bundle...');
-const browserCode = fs.readFileSync(path.join(dist, 'browser.es.js'), 'utf-8');
+const browserCode = fs.readFileSync(path.join(dist, 'browser.mjs'), 'utf-8');
 
 const forbiddenTerms = [
   'require("fs")',
