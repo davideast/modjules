@@ -30,19 +30,6 @@ export type InternalConfig = {
 import { Platform } from './platform/types.js';
 import { StorageFactory } from './types.js';
 
-// Helper to check standard env vars
-function getEnv(key: string): string | undefined {
-  if (typeof process !== 'undefined' && process.env) {
-    return (
-      process.env[`NEXT_PUBLIC_${key}`] ||
-      process.env[`REACT_APP_${key}`] ||
-      process.env[`VITE_${key}`] ||
-      process.env[key]
-    );
-  }
-  return undefined;
-}
-
 /**
  * Implementation of the main JulesClient interface.
  * This class acts as the central hub for creating and managing sessions,
@@ -76,8 +63,8 @@ export class JulesClientImpl implements JulesClient {
     this.platform = options.platform ?? defaultPlatform;
 
     // 1. Resolve Proxy Configuration
-    const envProxyUrl = getEnv('JULES_PROXY');
-    const envSecret = getEnv('JULES_SECRET');
+    const envProxyUrl = this.getEnv('JULES_PROXY');
+    const envSecret = this.getEnv('JULES_SECRET');
 
     // Priority: Options > Env > Default (Node Only)
     if (!options.proxy && envProxyUrl) {
@@ -87,7 +74,7 @@ export class JulesClientImpl implements JulesClient {
       };
     }
 
-    const apiKey = options.apiKey ?? process.env.JULES_API_KEY;
+    const apiKey = options.apiKey ?? this.platform.getEnv('JULES_API_KEY');
     const baseUrl = options.baseUrl ?? 'https://jules.googleapis.com/v1alpha';
 
     // Apply defaults to the user-provided config
@@ -103,6 +90,18 @@ export class JulesClientImpl implements JulesClient {
       proxy: options.proxy,
     });
     this.sources = createSourceManager(this.apiClient);
+  }
+
+  /**
+   * Helper to resolve environment variables with support for frontend prefixes.
+   */
+  private getEnv(key: string): string | undefined {
+    return (
+      this.platform.getEnv(`NEXT_PUBLIC_${key}`) ||
+      this.platform.getEnv(`REACT_APP_${key}`) ||
+      this.platform.getEnv(`VITE_${key}`) ||
+      this.platform.getEnv(key)
+    );
   }
 
   /**

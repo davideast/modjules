@@ -27,6 +27,7 @@ export function createMockPlatform(): Platform {
         Buffer.from(text, 'base64url').toString('utf-8'),
       ),
     },
+    getEnv: vi.fn(),
   };
 }
 

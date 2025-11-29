@@ -1,11 +1,4 @@
 import type { RestMediaArtifact, RestBashOutputArtifact } from './types.js';
-
-// Helper to check if running in a Node.js environment
-const isNode =
-  typeof process !== 'undefined' &&
-  process.versions != null &&
-  process.versions.node != null;
-
 import { Platform } from './platform/types.js';
 
 /**

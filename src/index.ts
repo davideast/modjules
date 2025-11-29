@@ -7,7 +7,7 @@ import { JulesClient, JulesOptions } from './types.js';
 // Define defaults for the Node.js environment
 const defaultPlatform = new NodePlatform();
 const defaultStorageFactory = (sessionId: string) =>
-  new NodeFileStorage(sessionId);
+  new NodeFileStorage(sessionId, process.cwd());
 
 /**
  * Connects to the Jules service using Node.js defaults (File System, Native Crypto).

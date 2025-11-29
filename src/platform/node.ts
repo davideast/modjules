@@ -74,4 +74,8 @@ export class NodePlatform implements Platform {
       return Buffer.from(text, 'base64url').toString('utf-8');
     },
   };
+
+  getEnv(key: string): string | undefined {
+    return process.env[key];
+  }
 }

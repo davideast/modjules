@@ -4,6 +4,7 @@ import { Platform, PlatformResponse } from './types.js';
 declare const Utilities: any;
 declare const UrlFetchApp: any;
 declare const ContentService: any;
+declare const PropertiesService: any;
 
 export class GasPlatform implements Platform {
   async saveFile(): Promise<void> {
@@ -75,4 +76,10 @@ export class GasPlatform implements Platform {
       return Utilities.newBlob(bytes).getDataAsString();
     },
   };
+
+  getEnv(key: string): string | undefined {
+    // In GAS, we use Script Properties for environment configuration.
+    const val = PropertiesService.getScriptProperties().getProperty(key);
+    return val === null ? undefined : val;
+  }
 }
