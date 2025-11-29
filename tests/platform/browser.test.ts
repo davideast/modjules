@@ -32,5 +32,8 @@ describe('BrowserPlatform', () => {
     window.fetch = originalFetch;
   });
 
-  runPlatformTests('Browser', new BrowserPlatform());
+  runPlatformTests('Browser', new BrowserPlatform(), (key, value) => {
+    // jsdom includes a process shim, so we can test the behavior
+    process.env[key] = value;
+  });
 });

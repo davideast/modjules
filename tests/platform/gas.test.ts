@@ -35,13 +35,22 @@ const mockUtilities = {
   sleep: vi.fn(),
 };
 
+const mockProperties = new Map<string, string>();
+const mockPropertiesService = {
+  getScriptProperties: () => ({
+    getProperty: (key: string) => mockProperties.get(key) || null,
+  }),
+};
+
 // Stubbing globals for GAS
 vi.stubGlobal('UrlFetchApp', { fetch: mockUrlFetch });
 vi.stubGlobal('Utilities', mockUtilities);
+vi.stubGlobal('PropertiesService', mockPropertiesService);
 
 describe('GasPlatform', () => {
   beforeEach(() => {
     mockUrlFetch.mockReset();
+    mockProperties.clear();
     // Default network mock behavior for GAS
     // UrlFetchApp.fetch returns an object with getResponseCode, getContentText, etc.
     mockUrlFetch.mockImplementation((url: string) => {
@@ -64,5 +73,7 @@ describe('GasPlatform', () => {
     });
   });
 
-  runPlatformTests('Google Apps Script', new GasPlatform());
+  runPlatformTests('Google Apps Script', new GasPlatform(), (key, value) => {
+    mockProperties.set(key, value);
+  });
 });

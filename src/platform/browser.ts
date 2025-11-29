@@ -168,4 +168,13 @@ export class BrowserPlatform implements Platform {
       return decoder.decode(bytes);
     },
   };
+
+  getEnv(key: string): string | undefined {
+    // In bundler environments (Vite, Webpack, etc.), process.env is often polyfilled or replaced.
+    // We check for its existence safely.
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env[key];
+    }
+    return undefined;
+  }
 }

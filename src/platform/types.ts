@@ -74,4 +74,12 @@ export interface Platform {
      */
     base64Decode(text: string): string;
   };
+
+  /**
+   * Retrieves an environment variable or configuration value.
+   *
+   * @param key The name of the environment variable (e.g., "JULES_API_KEY").
+   * @returns The value of the environment variable, or `undefined` if not set.
+   */
+  getEnv(key: string): string | undefined;
 }

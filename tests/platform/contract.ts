@@ -7,8 +7,27 @@ const TEST_DATA = 'what do ya want for nothing?';
 // We expect Base64Url encoding, not Hex
 const EXPECTED_SIG = 'W9zBRr9gdU5qBCQmCJV1x1oAPwidJzmDnexYuWTsOEM';
 
-export function runPlatformTests(platformName: string, platform: Platform) {
+export function runPlatformTests(
+  platformName: string,
+  platform: Platform,
+  setupEnv?: (key: string, value: string) => void,
+) {
   describe(`Platform Compliance: ${platformName}`, () => {
+    if (setupEnv) {
+      describe('Environment Subsystem', () => {
+        it('retrieves environment variables', () => {
+          const key = 'TEST_ENV_VAR';
+          const value = 'test-value';
+          setupEnv(key, value);
+          expect(platform.getEnv(key)).toBe(value);
+        });
+
+        it('returns undefined for missing variables', () => {
+          expect(platform.getEnv('NON_EXISTENT_VAR')).toBeUndefined();
+        });
+      });
+    }
+
     describe('Crypto Subsystem', () => {
       it('generates valid UUIDs', () => {
         const uuid = platform.crypto.randomUUID();
