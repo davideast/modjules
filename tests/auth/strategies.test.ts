@@ -1,42 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  verifySharedSecret,
-  verifyFirebaseRest,
-} from '../../src/auth/strategies/portable.js';
-import { verifyFirebaseAdmin } from '../../src/auth/strategies/node.js';
+import { verifyFirebaseRest } from '../../src/auth/strategies/firebase-rest.js';
+import { verifySharedSecret } from '../../src/auth/strategies/memory.js';
+import { verifyFirebaseAdmin } from '../../src/auth/strategies/firebase.js';
 import { createMockPlatform } from '../mocks/platform.js';
 
-// Use vi.hoisted to create variables that can be accessed inside vi.mock
 const mocks = vi.hoisted(() => {
   const mockVerifyIdToken = vi.fn();
-  const mockApp = {
-    auth: () => ({ verifyIdToken: mockVerifyIdToken }),
-    options: {},
-    name: 'mock-app',
+  const mockAuth = {
+    verifyIdToken: mockVerifyIdToken,
   };
-  const mockInitializeApp = vi.fn(() => mockApp as any);
   return {
     mockVerifyIdToken,
-    mockApp,
-    mockInitializeApp,
-  };
-});
-
-// Mock the whole admin module
-vi.mock('firebase-admin', async (importOriginal) => {
-  const original = await importOriginal<typeof import('firebase-admin')>();
-  return {
-    ...original,
-    // Mock the named exports
-    initializeApp: mocks.mockInitializeApp,
-    app: vi.fn(() => mocks.mockApp as any),
-    auth: vi.fn(() => ({ verifyIdToken: mocks.mockVerifyIdToken })),
-    // Mock the default export for CJS/ESM compatibility if needed
-    default: {
-      ...(original as any).default,
-      initializeApp: mocks.mockInitializeApp,
-      app: vi.fn(() => mocks.mockApp as any),
-    },
+    mockAuth,
   };
 });
 
@@ -108,8 +83,6 @@ describe('Auth Strategies', () => {
     });
   });
 
-  // -------------------------------------------------------------
-
   describe('Firebase Admin SDK (Node.js Strategy)', () => {
     it('successfully verifies a valid ID token', async () => {
       // Mock the Firebase Admin response
@@ -117,16 +90,16 @@ describe('Auth Strategies', () => {
         uid: 'admin_uid_456',
         email: 'admin@modjules.dev',
       });
-
-      const strategy = verifyFirebaseAdmin();
-      const identity = await strategy('secure_jwt', mockPlatform); // platform is ignored
+      const strategy = verifyFirebaseAdmin({
+        auth: mocks.mockAuth as any,
+      });
+      const identity = await strategy('secure_jwt', mockPlatform);
 
       expect(identity).toEqual({
         uid: 'admin_uid_456',
         email: 'admin@modjules.dev',
       });
       expect(mocks.mockVerifyIdToken).toHaveBeenCalledWith('secure_jwt');
-      expect(mocks.mockInitializeApp).toHaveBeenCalledTimes(1);
     });
 
     it('throws an error for an invalid ID token', async () => {
@@ -135,15 +108,15 @@ describe('Auth Strategies', () => {
         new Error('Firebase ID token has expired.'),
       );
 
-      const strategy = verifyFirebaseAdmin();
+      const strategy = verifyFirebaseAdmin({ auth: mocks.mockAuth as any });
 
       await expect(strategy('expired_jwt', mockPlatform)).rejects.toThrow(
-        /Invalid Firebase ID Token/,
+        /Firebase ID token has expired./,
       );
     });
 
     it('throws an error if token is missing', async () => {
-      const strategy = verifyFirebaseAdmin();
+      const strategy = verifyFirebaseAdmin({ auth: mocks.mockAuth as any });
       await expect(strategy('', mockPlatform)).rejects.toThrow(
         /token is missing/,
       );
