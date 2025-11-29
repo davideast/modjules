@@ -44,3 +44,7 @@ jobs:
       # Ensure the library compiles
       - name: Production Build
         run: npm run build
+
+      # Run smoke test to verify packaging
+      - name: Smoke Test
+        run: npm run test:smoke
