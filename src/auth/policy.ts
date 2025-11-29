@@ -1,10 +1,6 @@
-import {
-  Identity,
-  AuthorizationStrategy,
-  ProtectedResource,
-} from '../server/types.js';
-
-export { ProtectedResource, Identity, AuthorizationStrategy };
+import { AuthorizationStrategy } from '../server/types.js';
+import type { Identity } from './types.js';
+import type { ProtectedResource } from '../server/types.js';
 
 export interface PolicyConfig<T extends ProtectedResource> {
   /** How to fetch the data. Returns null if not found. */

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
+    "dev:debug": "NODE_OPTIONS='--inspect' astro dev -- -p 3001",
     "build": "astro build",
     "start": "astro preview",
     "check": "astro check"
@@ -14,10 +15,10 @@
     "astro": "^4.0.0",
     "dotenv": "^16.4.0",
     "firebase": "^10.7.0",
-    "firebase-admin": "^12.0.0",
-    "modjules": "file:../.."
+    "modjules": "*"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0"
+    "@types/node": "^20.10.0",
+    "firebase-admin": "^13.6.0"
   }
 }

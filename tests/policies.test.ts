@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createFirestorePolicy } from '../src/auth/strategies/firestore';
 import { createFirebasePolicy } from '../src/auth/strategies/rtdb';
-import { ProtectedResource } from '../src/server/types';
 
 // --- MOCKS SETUP ---
 
@@ -45,8 +44,7 @@ describe('Database Policy Helpers', () => {
   describe('Firestore Policy', () => {
     // Setup Helper
     const firestorePolicy = createFirestorePolicy({
-      db: mockFirestore,
-      collection: 'chats',
+      collection: mockFirestore.collection('chats'),
       ownerField: 'author_uid', // Custom field mapping
     });
 

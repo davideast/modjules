@@ -1,0 +1,4 @@
+.astro
+.env
+firebase-service-account.json
+env.d.ts
