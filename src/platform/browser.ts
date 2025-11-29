@@ -171,10 +171,35 @@ export class BrowserPlatform implements Platform {
 
   getEnv(key: string): string | undefined {
     // In bundler environments (Vite, Webpack, etc.), process.env is often polyfilled or replaced.
-    // We check for its existence safely.
-    if (typeof process !== 'undefined' && process.env) {
-      return process.env[key];
+    // We check for its existence safely, but avoid direct usage of the 'process' global
+    // to prevent build tools from assuming a Node.js environment or failing on strict checks.
+    const globalRef =
+      typeof globalThis !== 'undefined'
+        ? globalThis
+        : typeof window !== 'undefined'
+          ? window
+          : typeof self !== 'undefined'
+            ? self
+            : {};
+    const anyGlobal = globalRef as any;
+
+    if (
+      anyGlobal.process &&
+      anyGlobal.process.env &&
+      anyGlobal.process.env[key]
+    ) {
+      return anyGlobal.process.env[key];
     }
+
+    // Fallback to window.__MODJULES__ for manual configuration injection
+    if (
+      typeof window !== 'undefined' &&
+      (window as any).__MODJULES__ &&
+      (window as any).__MODJULES__[key]
+    ) {
+      return (window as any).__MODJULES__[key];
+    }
+
     return undefined;
   }
 }
