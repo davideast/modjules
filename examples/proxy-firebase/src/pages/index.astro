@@ -112,6 +112,32 @@ const firebaseConfig = {
       });
       const auth = getAuth(app);
       const provider = new GoogleAuthProvider();
+      const curentIdTokenPromise = () => {
+        return new Promise<string>((resolve, reject) => {
+          onAuthStateChanged(
+            auth,
+            async (user) => {
+              if (user) {
+                resolve(user.getIdToken());
+              }
+            },
+            (error) => {
+              reject(error);
+            },
+          );
+        });
+      };
+
+      // Initialize pointing to our LOCAL Astro proxy
+      // The token is passed in the header automatically by the client
+      debugger;
+      const jules = connect({
+        baseUrl: '/api/jules',
+        proxy: {
+          url: window.location.origin + '/api/jules',
+          auth: () => curentIdTokenPromise(),
+        },
+      });
 
       // UI References
       const loginBtn = document.getElementById(
@@ -152,22 +178,6 @@ const firebaseConfig = {
 
       logoutBtn.addEventListener('click', () => signOut(auth));
 
-      const curentIdTokenPromise = () => {
-        return new Promise<string | null>((resolve, reject) => {
-          onAuthStateChanged(
-            auth,
-            async (user) => {
-              if (user) {
-                resolve(user.getIdToken());
-              }
-            },
-            (error) => {
-              reject(error);
-            },
-          );
-        });
-      };
-
       onAuthStateChanged(auth, async (user) => {
         if (user) {
           userEmail.textContent = user.email;
@@ -192,16 +202,6 @@ const firebaseConfig = {
         if (!currentToken) return log('Error: No token available.');
 
         log('Initializing Jules Client...');
-
-        // Initialize pointing to our LOCAL Astro proxy
-        // The token is passed in the header automatically by the client
-        const jules = connect({
-          baseUrl: '/api/jules',
-          proxy: {
-            url: window.location.origin + '/api/jules',
-            auth: () => currentToken!,
-          },
-        });
 
         try {
           log('Sending Handshake to Proxy...');

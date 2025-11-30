@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "dev:debug": "NODE_OPTIONS='--inspect' astro dev -- -p 3001",
+    "dev:debug": "NODE_OPTIONS='--inspect' astro dev",
     "build": "astro build",
     "start": "astro preview",
     "check": "astro check"
