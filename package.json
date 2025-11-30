@@ -50,6 +50,7 @@
     "build": "vite build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "pretest": "npm run build",
     "test": "vitest --exclude tests/storage/browser.test.ts",
     "test:browser": "vitest run -c vitest.browser.config.ts",
     "test:integration": "vitest run -c vitest.integration.config.ts",
