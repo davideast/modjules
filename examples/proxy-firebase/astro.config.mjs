@@ -8,6 +8,6 @@ export default defineConfig({
     mode: 'standalone',
   }),
   server: {
-    port: 3000,
+    port: 3001,
   },
 });
