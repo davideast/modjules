@@ -55,18 +55,17 @@ echo "[INFO] Target Snapshot: $SNAPSHOT_VERSION"
 # --force allows downgrading if the nightly version looks "older" semantically
 npm version "$SNAPSHOT_VERSION" --no-git-tag-version --force
 
-# 5. Build (Optional - adjust based on your build script)
-if npm run | grep -q "build"; then
-  echo "[INFO] Running build script..."
-  npm run build
-fi
+# 5. Test and Build
+npm test
+npm run build
+npm run test:smoke
 
 # 6. Publish
 echo "[INFO] Publishing to npm with tag '$DIST_TAG'..."
 # capture output to avoid total noise, but stream it if needed. 
 # For now, we let it flow to stdout so the agent can see progress.
-npm publish --tag "$DIST_TAG"
+# npm publish --tag "$DIST_TAG"
 
 # 7. Success Reporting
-echo "[SUCCESS] Published $SNAPSHOT_VERSION"
-log_json "success" "$SNAPSHOT_VERSION" "null"
+# echo "[SUCCESS] Published $SNAPSHOT_VERSION"
+#log_json "success" "$SNAPSHOT_VERSION" "null"

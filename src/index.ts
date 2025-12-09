@@ -4,21 +4,6 @@ import { NodeFileStorage } from './storage/node-fs.js';
 import { NodePlatform } from './platform/node.js';
 import { JulesClient } from './types.js';
 
-/**
- * The main entry point for the Jules SDK.
- * This is a pre-initialized client that can be used immediately with default settings
- * (e.g., reading API keys from environment variables).
- *
- * @example
- * import { jules } from 'modjules';
- * const session = await jules.session({ ... });
- */
-export const jules: JulesClient = new JulesClientImpl(
-  {},
-  (sessionId) => new NodeFileStorage(sessionId),
-  new NodePlatform(),
-);
-
 // Re-export all the types for convenience
 export * from './errors.js';
 export type {
