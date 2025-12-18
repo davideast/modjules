@@ -187,9 +187,8 @@ describe('Artifacts', () => {
 
     it('should cause MediaArtifact.save() to throw an error', async () => {
       // Dynamically import the class AFTER mocking the environment
-      const { MediaArtifact: BrowserMediaArtifact } = await import(
-        '../src/artifacts.js'
-      );
+      const { MediaArtifact: BrowserMediaArtifact } =
+        await import('../src/artifacts.js');
       const artifact = new BrowserMediaArtifact(
         {
           data: 'SGVsbG8sIFdvcmxkIQ==',
