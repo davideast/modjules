@@ -62,7 +62,10 @@ export class JulesClientImpl implements JulesClient {
     this.options = options;
     this.storageFactory = options.storageFactory ?? defaultStorageFactory;
     this.platform = options.platform ?? defaultPlatform;
-    const apiKey = options.apiKey ?? process.env.JULES_API_KEY;
+    const apiKey =
+      options.apiKey_TEST_ONLY_DO_NOT_USE_IN_PRODUCTION ??
+      options.apiKey ??
+      process.env.JULES_API_KEY;
     const baseUrl = options.baseUrl ?? 'https://jules.googleapis.com/v1alpha';
 
     // Apply defaults to the user-provided config
