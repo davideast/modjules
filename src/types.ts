@@ -41,6 +41,14 @@ export interface JulesOptions {
    */
   apiKey?: string;
   /**
+   * **FOR TEST/DEV USE ONLY.**
+   * Explicitly sets the API key for client-side environments (like browsers).
+   * Do NOT use this in production as it exposes your credentials.
+   *
+   * @deprecated Use `apiKey` in secure server-side environments instead.
+   */
+  apiKey_TEST_ONLY_DO_NOT_USE_IN_PRODUCTION?: string;
+  /**
    * The base URL for the Jules API.
    * @default 'https://jules.googleapis.com/v1alpha'
    */
