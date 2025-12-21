@@ -6,7 +6,6 @@ export default defineConfig({
     lib: {
       entry: {
         index: 'src/index.ts',
-        browser: 'src/browser.ts',
       },
       name: 'modjules',
       formats: ['es'],
@@ -14,7 +13,6 @@ export default defineConfig({
     },
     rollupOptions: {
       external: [
-        'idb',
         '_http_agent',
         '_http_client',
         '_http_common',

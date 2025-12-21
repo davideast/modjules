@@ -39,9 +39,8 @@ describe('SessionClient Activity Methods', () => {
     const historyIterator = session.history()[Symbol.asyncIterator]();
     const result = await historyIterator.next();
 
-    const { DefaultActivityClient } = await import(
-      '../src/activities/client.js'
-    );
+    const { DefaultActivityClient } =
+      await import('../src/activities/client.js');
     const mockActivityClientInstance = (DefaultActivityClient as any).mock
       .instances[0];
 
@@ -53,9 +52,8 @@ describe('SessionClient Activity Methods', () => {
     const updatesIterator = session.updates()[Symbol.asyncIterator]();
     const result = await updatesIterator.next();
 
-    const { DefaultActivityClient } = await import(
-      '../src/activities/client.js'
-    );
+    const { DefaultActivityClient } =
+      await import('../src/activities/client.js');
     const mockActivityClientInstance = (DefaultActivityClient as any).mock
       .instances[0];
 
@@ -66,9 +64,8 @@ describe('SessionClient Activity Methods', () => {
   it('session.select() should delegate to activityClient.select()', async () => {
     const result = await session.select({ type: 'test' });
 
-    const { DefaultActivityClient } = await import(
-      '../src/activities/client.js'
-    );
+    const { DefaultActivityClient } =
+      await import('../src/activities/client.js');
     const mockActivityClientInstance = (DefaultActivityClient as any).mock
       .instances[0];
 
