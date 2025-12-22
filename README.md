@@ -121,16 +121,20 @@ const session = await jules.session({
 
 When used in a browser environment (e.g., in a web application bundled with Vite, Webpack, or Rollup), the SDK automatically uses a browser-specific implementation that leverages IndexedDB for storage. This allows your web application to maintain session state locally.
 
-> **Warning:** Never expose your `JULES_API_KEY` in a production or public-facing application. The browser module is designed for trusted client environments like Electron apps or websites running exclusively on a local machine.
+> **TEST ONLY DO NOT USE IN PRODUCTION:** The browser module is designed for testing and prototyping only. Never expose your `JULES_API_KEY` in a production application.
 
-To use the browser version, you can explicitly import it:
+To use the browser version, you can explicitly import it and must configure it with the test-only API key option:
 
 ```typescript
 // Explicitly import the browser-optimized version
 import { jules } from 'modjules/browser';
 
-// The rest of your code remains the same
-const session = await jules.session({
+// Initialize with the test-only option
+const testJules = jules.with({
+  apiKey_TEST_ONLY_DO_NOT_USE_IN_PRODUCTION: '...',
+});
+
+const session = await testJules.session({
   prompt: 'Refactor the user authentication module.',
   source: { github: 'your-org/your-repo', branch: 'develop' },
 });

@@ -2,7 +2,7 @@
 
 The `modjules/browser` module is optimized for use in browser environments, providing the same powerful features as the Node.js version but tailored for the client-side. It leverages `IndexedDB` for local caching, enabling fast, offline-capable agentic applications.
 
-> **Warning:** Never expose your `JULES_API_KEY` in a production or public-facing application. The browser module is designed for trusted client environments like Electron apps or websites running exclusively on a local machine where the key is not accessible to unauthorized users.
+> **TEST ONLY DO NOT USE IN PRODUCTION:** The browser module is designed for testing and prototyping only. Never expose your `JULES_API_KEY` in a production application.
 
 ## Installation and Bundling
 
@@ -10,12 +10,17 @@ Most modern bundlers like Vite, Turbopack, or Webpack will automatically resolve
 
 ### Explicit Import
 
-To ensure you are using the browser-specific build, you can import it directly:
+To ensure you are using the browser-specific build, you can import it directly and must configure it with the test-only API key option:
 
 ```typescript
 import { jules } from 'modjules/browser';
 
-const session = jules.run({
+// Initialize with the test-only option
+const testJules = jules.with({
+  apiKey_TEST_ONLY_DO_NOT_USE_IN_PRODUCTION: '...',
+});
+
+const session = testJules.run({
   prompt: 'Generate a new logo for our brand.',
 });
 
