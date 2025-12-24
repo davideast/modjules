@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHandlerCore } from '../../src/server/core';
 import { NodePlatform } from '../../src/platform/node';
+import { Scope } from '../../src/server/types';
 
 describe('Server Core (The Vendor)', () => {
   const platform = new NodePlatform();
@@ -13,8 +14,8 @@ describe('Server Core (The Vendor)', () => {
     clientSecret: 'SERVER_SECRET',
     verify: vi.fn().mockResolvedValue({ uid: 'user_1' }),
     authorize: async (user: any, sessionId: string) => ({
-      ownerId: user.uid,
-      id: sessionId,
+      resource: { ownerId: user.uid, id: sessionId },
+      scopes: ['read', 'write', 'admin'] as Scope[],
     }),
   };
 

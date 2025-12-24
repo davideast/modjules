@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createNodeHandler } from '../../src/node/proxy.js';
+import { Scope } from '../../src/server/types.js';
 
 // Mock the dependencies to isolate the Adapter logic
 const mockCoreHandler = vi.fn();
@@ -14,8 +15,8 @@ describe('Node Proxy Adapter', () => {
     clientSecret: 'secret',
     verify: async () => 'user',
     authorize: async (user: any, sessionId: string) => ({
-      ownerId: 'user',
-      id: sessionId,
+      resource: { ownerId: 'user', id: sessionId },
+      scopes: ['read', 'write', 'admin'] as Scope[],
     }),
   };
 
