@@ -1,7 +1,7 @@
 import { Platform } from '../platform/types.js';
 import { TokenManager } from '../auth/tokenizer.js';
 import { HandshakeRequest, HandshakeResponse } from '../auth/protocol.js';
-import { ServerConfig, ServerRequest } from './types.js';
+import { ServerConfig, ServerRequest, Scope } from './types.js';
 import { JulesClientImpl } from '../client.js'; // Admin Client
 import { ActivityStorage } from '../storage/types.js';
 import { Identity } from '../auth/types.js';
@@ -55,7 +55,22 @@ export function createHandlerCore(config: ServerConfig, platform: Platform) {
         };
       }
 
-      // 2. Forwarding (The Proxy)
+      // 2. Permission Check (RBAC)
+      const method = req.method.toUpperCase();
+      const currentScopes = claims.scope.scopes || [];
+
+      // Write Protection
+      if (
+        (method === 'POST' || method === 'PUT' || method === 'DELETE') &&
+        !currentScopes.includes('write')
+      ) {
+        return {
+          status: 403,
+          body: { error: 'Permission Denied: Read-only access' },
+        };
+      }
+
+      // 3. Forwarding (The Proxy)
       // We strip the Capability Token and swap in the real API Key
       const googleUrl = `https://jules.googleapis.com/v1alpha/${req.path.replace(/^\//, '')}`;
 
@@ -102,6 +117,7 @@ async function handleHandshake(
 
     // 2. Execute Intent
     let sessionId: string;
+    let scopes: Scope[];
 
     if (body.intent === 'create') {
       // Creation Flow: User BECOMES the owner
@@ -111,16 +127,19 @@ async function handleHandshake(
         ownerId: identity.uid, // <--- CRITICAL: Stamping ownership on creation
       });
       sessionId = session.id;
+      // Creator gets full access
+      scopes = ['read', 'write', 'admin'];
     } else {
       // Resume Flow: User MUST BE AUTHORIZED
       sessionId = body.sessionId;
 
-      // This throws if unauthorized
-      await config.authorize(identity, sessionId);
+      // This throws if unauthorized, and returns scopes
+      const result = await config.authorize(identity, sessionId);
+      scopes = result.scopes;
     }
 
     // 3. Mint Capability Token
-    const token = await tokenizer.mint({ sessionId });
+    const token = await tokenizer.mint({ sessionId, scopes });
 
     return {
       status: 200,

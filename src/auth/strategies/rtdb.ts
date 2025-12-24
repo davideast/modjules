@@ -1,6 +1,8 @@
 import { createPolicy, type PolicyConfig } from '../policy.js';
-import type { ProtectedResource } from '../../server/types.js';
+import type { ProtectedResource, Identity } from '../../server/types.js';
 import { type Database } from 'firebase-admin/database';
+import { normalizeEmailKey } from './utils.js';
+
 type FirebasePolicyConfig = Omit<PolicyConfig<any>, 'getResource'> & {
   db: Database;
   rootPath: string;
@@ -38,4 +40,17 @@ export function createFirebasePolicy<T extends ProtectedResource>(
       } as T;
     },
   });
+}
+
+export function createRTDBAllowList(db: Database, path: string = 'allowlist') {
+  return async (identity: Identity): Promise<boolean> => {
+    const email = identity.email;
+    if (!email) return false;
+
+    const key = normalizeEmailKey(email, 'rtdb');
+    const snapshot = await db.ref(`${path}/${key}`).get();
+
+    // Checks if value is strictly true
+    return snapshot.exists() && snapshot.val() === true;
+  };
 }

@@ -1,3 +1,5 @@
+import { Scope } from '../server/types.js';
+
 /**
  * Defines the strict permissions granted by a Capability Token.
  */
@@ -12,7 +14,7 @@ export interface TokenScope {
    * Allowed operations (e.g., 'read', 'write').
    * If undefined, assumes full access to the session.
    */
-  permissions?: ('read' | 'write')[];
+  scopes?: Scope[];
 }
 
 /**
