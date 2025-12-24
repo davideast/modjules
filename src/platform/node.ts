@@ -1,7 +1,8 @@
 import { writeFile } from 'node:fs/promises';
 import { Buffer } from 'node:buffer';
 import { setTimeout } from 'node:timers/promises';
-import { Platform } from './types.js';
+import * as crypto from 'node:crypto';
+import { Platform, PlatformResponse } from './types.js';
 
 /**
  * Node.js implementation of the Platform interface.
@@ -30,5 +31,51 @@ export class NodePlatform implements Platform {
 
   createDataUrl(data: string, mimeType: string): string {
     return `data:${mimeType};base64,${data}`;
+  }
+
+  async fetch(input: string, init?: any): Promise<PlatformResponse> {
+    const res = await global.fetch(input, init);
+    return {
+      ok: res.ok,
+      status: res.status,
+      json: () => res.json(),
+      text: () => res.text(),
+    };
+  }
+
+  crypto = {
+    randomUUID: () => crypto.randomUUID(),
+
+    async sign(text: string, secret: string): Promise<string> {
+      const hmac = crypto.createHmac('sha256', secret);
+      hmac.update(text);
+      return hmac.digest('base64url');
+    },
+
+    async verify(
+      text: string,
+      signature: string,
+      secret: string,
+    ): Promise<boolean> {
+      const expected = await this.sign(text, secret);
+      // Use timingSafeEqual to prevent timing attacks
+      const a = Buffer.from(expected);
+      const b = Buffer.from(signature);
+      return a.length === b.length && crypto.timingSafeEqual(a, b);
+    },
+  };
+
+  encoding = {
+    base64Encode: (text: string): string => {
+      return Buffer.from(text).toString('base64url');
+    },
+
+    base64Decode: (text: string): string => {
+      return Buffer.from(text, 'base64url').toString('utf-8');
+    },
+  };
+
+  getEnv(key: string): string | undefined {
+    return process.env[key];
   }
 }

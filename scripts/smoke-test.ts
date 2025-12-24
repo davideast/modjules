@@ -89,7 +89,7 @@ async function main() {
       const REQUIRED_FILES = [
         'package/package.json',
         'package/README.md',
-        'package/dist/index.es.js',
+        'package/dist/index.mjs',
         'package/dist/index.d.ts',
       ];
 

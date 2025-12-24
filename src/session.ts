@@ -1,7 +1,7 @@
 // src/session.ts
 import { DefaultActivityClient } from './activities/client.js';
 import { ActivityClient, SelectOptions } from './activities/types.js';
-import { ApiClient } from './api.js';
+import { ApiClient, ApiRequestOptions } from './api.js';
 import { InternalConfig } from './client.js';
 import { InvalidStateError, JulesError } from './errors.js';
 import { mapSessionResourceToOutcome } from './mappers.js';
@@ -61,6 +61,15 @@ export class SessionClientImpl implements SessionClient {
     );
 
     this._activities = new DefaultActivityClient(storage, network);
+  }
+
+  // Private helper wrapper to enforce resume context
+  private async request<T>(path: string, options: ApiRequestOptions = {}) {
+    return this.apiClient.request<T>(path, {
+      ...options,
+      // Always attach 'resume' context for this session instance
+      handshake: { intent: 'resume', sessionId: this.id },
+    });
   }
 
   /**
@@ -126,7 +135,7 @@ export class SessionClientImpl implements SessionClient {
         `Cannot approve plan because the session is not awaiting approval. Current state: ${currentState}`,
       );
     }
-    await this.apiClient.request(`sessions/${this.id}:approvePlan`, {
+    await this.request(`sessions/${this.id}:approvePlan`, {
       method: 'POST',
       body: {},
     });
@@ -146,7 +155,7 @@ export class SessionClientImpl implements SessionClient {
    * await session.send("Please clarify step 2.");
    */
   async send(prompt: string): Promise<void> {
-    await this.apiClient.request(`sessions/${this.id}:sendMessage`, {
+    await this.request(`sessions/${this.id}:sendMessage`, {
       method: 'POST',
       body: { prompt },
     });
@@ -244,6 +253,6 @@ export class SessionClientImpl implements SessionClient {
    * Retrieves the latest state of the underlying session resource from the API.
    */
   async info(): Promise<SessionResource> {
-    return this.apiClient.request<SessionResource>(`sessions/${this.id}`);
+    return this.request<SessionResource>(`sessions/${this.id}`);
   }
 }

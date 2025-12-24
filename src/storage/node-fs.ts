@@ -13,7 +13,7 @@ export class NodeFileStorage implements ActivityStorage {
   private filePath: string;
   private initialized = false;
 
-  constructor(sessionId: string, rootDir: string = process.cwd()) {
+  constructor(sessionId: string, rootDir: string) {
     this.filePath = path.resolve(
       rootDir,
       '.jules/cache',

@@ -3,18 +3,29 @@ import dts from 'vite-plugin-dts';
 
 export default defineConfig({
   build: {
+    minify: false,
+    sourcemap: true,
     lib: {
       entry: {
         index: 'src/index.ts',
         browser: 'src/browser.ts',
+        'gas/index': 'src/gas/index.ts',
+        'proxy/web': 'src/node/proxy.ts',
+        proxy: 'src/node/proxy.ts',
+        'proxy/firebase': 'src/auth/strategies/firebase.ts',
+        'proxy/memory': 'src/auth/strategies/memory.ts',
       },
       name: 'modjules',
       formats: ['es'],
-      fileName: (format, entryName) => `${entryName}.${format}.js`,
+      fileName: (format, entryName) => `${entryName}.mjs`,
     },
     rollupOptions: {
       external: [
+        // Runtime dependencies (keep bundled for Node, external for Browser if provided by platform)
         'idb',
+        'firebase-admin',
+
+        // Node.js Built-ins (Bare specifiers)
         '_http_agent',
         '_http_client',
         '_http_common',
@@ -83,10 +94,18 @@ export default defineConfig({
         'wasi',
         'worker_threads',
         'zlib',
-        // Add explicit node: prefixed modules
+
+        // Node.js Built-ins (Explicit node: prefix)
+        // CRITICAL: These must match the source code imports exactly
         'node:buffer',
+        'node:crypto',
+        'node:fs',
         'node:fs/promises',
+        'node:path',
+        'node:process',
+        'node:stream',
         'node:timers/promises',
+        'node:util',
       ],
     },
   },

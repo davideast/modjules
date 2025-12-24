@@ -2,7 +2,23 @@
 import { JulesClientImpl } from './client.js';
 import { NodeFileStorage } from './storage/node-fs.js';
 import { NodePlatform } from './platform/node.js';
-import { JulesClient } from './types.js';
+import { JulesClient, JulesOptions } from './types.js';
+
+// Define defaults for the Node.js environment
+const defaultPlatform = new NodePlatform();
+const defaultStorageFactory = (sessionId: string) =>
+  new NodeFileStorage(sessionId, process.cwd());
+
+/**
+ * Connects to the Jules service using Node.js defaults (File System, Native Crypto).
+ * Acts as a factory method for creating a new client instance.
+ *
+ * @param options Configuration options for the client.
+ * @returns A new JulesClient instance.
+ */
+export function connect(options: JulesOptions = {}): JulesClient {
+  return new JulesClientImpl(options, defaultStorageFactory, defaultPlatform);
+}
 
 /**
  * The main entry point for the Jules SDK.
@@ -13,11 +29,7 @@ import { JulesClient } from './types.js';
  * import { jules } from 'modjules';
  * const session = await jules.session({ ... });
  */
-export const jules: JulesClient = new JulesClientImpl(
-  {},
-  (sessionId) => new NodeFileStorage(sessionId),
-  new NodePlatform(),
-);
+export const jules: JulesClient = connect();
 
 // Re-export all the types for convenience
 export * from './errors.js';

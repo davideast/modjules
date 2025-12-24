@@ -62,10 +62,23 @@ export class JulesClientImpl implements JulesClient {
     this.options = options;
     this.storageFactory = options.storageFactory ?? defaultStorageFactory;
     this.platform = options.platform ?? defaultPlatform;
+
+    // 1. Resolve Proxy Configuration
+    const envProxyUrl = this.getEnv('JULES_PROXY');
+    const envSecret = this.getEnv('JULES_SECRET');
+
+    // Priority: Options > Env > Default (Node Only)
+    if (!options.proxy && envProxyUrl) {
+      options.proxy = {
+        url: envProxyUrl,
+        auth: envSecret ? () => envSecret : undefined,
+      };
+    }
+
     const apiKey =
       options.apiKey_TEST_ONLY_DO_NOT_USE_IN_PRODUCTION ??
       options.apiKey ??
-      process.env.JULES_API_KEY;
+      this.platform.getEnv('JULES_API_KEY');
     const baseUrl = options.baseUrl ?? 'https://jules.googleapis.com/v1alpha';
 
     // Apply defaults to the user-provided config
@@ -78,8 +91,21 @@ export class JulesClientImpl implements JulesClient {
       apiKey,
       baseUrl,
       requestTimeoutMs: this.config.requestTimeoutMs,
+      proxy: options.proxy,
     });
     this.sources = createSourceManager(this.apiClient);
+  }
+
+  /**
+   * Helper to resolve environment variables with support for frontend prefixes.
+   */
+  private getEnv(key: string): string | undefined {
+    return (
+      this.platform.getEnv(`NEXT_PUBLIC_${key}`) ||
+      this.platform.getEnv(`REACT_APP_${key}`) ||
+      this.platform.getEnv(`VITE_${key}`) ||
+      this.platform.getEnv(key)
+    );
   }
 
   /**
@@ -98,6 +124,24 @@ export class JulesClientImpl implements JulesClient {
           ...this.options.config,
           ...options.config,
         },
+      },
+      this.storageFactory,
+      this.platform,
+    );
+  }
+
+  /**
+   * Connects to the Jules service with the provided configuration.
+   * Acts as a factory method for creating a new client instance.
+   *
+   * @param options Configuration options for the client.
+   * @returns A new JulesClient instance.
+   */
+  connect(options: JulesOptions): JulesClient {
+    return new JulesClientImpl(
+      {
+        ...this.options,
+        ...options,
       },
       this.storageFactory,
       this.platform,
@@ -192,6 +236,11 @@ export class JulesClientImpl implements JulesClient {
               : 'AUTO_CREATE_PR',
           requirePlanApproval: config.requireApproval ?? false,
         },
+        // ✅ PASS CONTEXT: I want to CREATE
+        handshake: {
+          intent: 'create',
+          sessionConfig: { prompt: config.prompt, source: config.source },
+        },
       },
     );
 
@@ -281,6 +330,11 @@ export class JulesClientImpl implements JulesClient {
             ...body,
             automationMode: 'AUTOMATION_MODE_UNSPECIFIED',
             requirePlanApproval: config.requireApproval ?? true,
+          },
+          // ✅ PASS CONTEXT
+          handshake: {
+            intent: 'create',
+            sessionConfig: { prompt: config.prompt, source: config.source },
           },
         },
       );

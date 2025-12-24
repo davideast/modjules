@@ -5,7 +5,8 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # Run on all PRs targeting any branch
+    types: [opened, synchronize, reopened]
 
 # Cancel previous runs if a new commit is pushed to the same PR
 concurrency:
@@ -43,3 +44,7 @@ jobs:
       # Ensure the library compiles
       - name: Production Build
         run: npm run build
+
+      # Run smoke test to verify packaging
+      - name: Smoke Test
+        run: npm run test:smoke
