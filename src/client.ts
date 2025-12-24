@@ -110,6 +110,7 @@ export class JulesClientImpl implements JulesClient {
    * @returns A SessionCursor that can be awaited (first page) or iterated (all pages).
    */
   sessions(options?: ListSessionsOptions): SessionCursor {
+    // Return a cursor that supports both await (Promise) and for-await (AsyncIterable)
     return new SessionCursor(this.apiClient, options);
   }
 
