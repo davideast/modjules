@@ -19,6 +19,19 @@ export type ListSessionsResponse = {
 /**
  * The SessionCursor handles the complexity of pagination state.
  * It is "Thenable" (acts like a Promise) and "AsyncIterable".
+ *
+ * This allows two usage patterns:
+ * 1. `await jules.sessions()` - Get the first page (Promise behavior).
+ * 2. `for await (const session of jules.sessions())` - Stream all sessions (AsyncIterable behavior).
+ *
+ * **Design Notes:**
+ * - **Pagination:** Handles `nextPageToken` automatically during iteration. For manual control,
+ *   access the `nextPageToken` property on the promised response.
+ * - **Limiting:** The `limit` option hard-stops the iteration after N items, preventing over-fetching.
+ * - **Caching:** This operation is **stateless** and **network-only**. It does NOT read from or write to
+ *   the local activity cache. This prevents directory bloat when listing thousands of sessions
+ *   and ensures the list reflects the authoritative server state.
+ * - **Platform:** Fully platform-agnostic (Node.js/Browser/GAS) via the injected `ApiClient`.
  */
 export class SessionCursor
   implements PromiseLike<ListSessionsResponse>, AsyncIterable<SessionResource>
