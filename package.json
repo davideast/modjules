@@ -40,6 +40,9 @@
       "types": "./dist/auth/strategies/memory.d.ts",
       "import": "./dist/proxy/memory.mjs"
     },
+    "./types": {
+      "types": "./dist/types.d.ts"
+    },
     "./package.json": "./package.json"
   },
   "files": [

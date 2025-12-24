@@ -12,6 +12,7 @@
 
 import { SelectOptions } from './activities/types.js';
 import { ActivityStorage } from './storage/types.js';
+import { ListSessionsOptions, SessionCursor } from './sessions.js';
 
 /**
  * A factory function that creates an ActivityStorage instance for a given session ID.
@@ -55,6 +56,14 @@ export interface JulesOptions {
    * to handle authentication securely without exposing API keys.
    */
   proxy?: ProxyConfig;
+  /**
+   * **FOR TEST/DEV USE ONLY.**
+   * Explicitly sets the API key for client-side environments (like browsers).
+   * Do NOT use this in production as it exposes your credentials.
+   *
+   * @deprecated Use `apiKey` in secure server-side environments instead.
+   */
+  apiKey_TEST_ONLY_DO_NOT_USE_IN_PRODUCTION?: string;
   /**
    * The base URL for the Jules API.
    * @default 'https://jules.googleapis.com/v1alpha'
@@ -910,6 +919,23 @@ export interface JulesClient {
    * @returns A new JulesClient instance.
    */
   connect(options: JulesOptions): JulesClient;
+
+  /**
+   * Lists sessions with a fluent, pagination-friendly API.
+   *
+   * @param options Configuration for pagination (pageSize, limit, pageToken)
+   * @returns A SessionCursor that can be awaited (first page) or iterated (all pages).
+   *
+   * @example
+   * // Get the first page
+   * const page = await jules.sessions({ pageSize: 10 });
+   *
+   * // Stream all sessions
+   * for await (const session of jules.sessions()) {
+   *   console.log(session.id);
+   * }
+   */
+  sessions(options?: ListSessionsOptions): SessionCursor;
 
   /**
    * Executes a batch of automated sessions in parallel, with concurrency control.

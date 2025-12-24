@@ -1,0 +1,109 @@
+import { ApiClient } from './api.js';
+import { SessionResource } from './types.js';
+
+export type ListSessionsOptions = {
+  pageSize?: number;
+  pageToken?: string;
+  /**
+   * Hard limit on the number of items to yield when iterating.
+   * Useful if you want "The last 50" without manual counting.
+   */
+  limit?: number;
+};
+
+export type ListSessionsResponse = {
+  sessions: SessionResource[];
+  nextPageToken?: string;
+};
+
+/**
+ * The SessionCursor handles the complexity of pagination state.
+ * It is "Thenable" (acts like a Promise) and "AsyncIterable".
+ */
+export class SessionCursor
+  implements PromiseLike<ListSessionsResponse>, AsyncIterable<SessionResource>
+{
+  constructor(
+    private apiClient: ApiClient,
+    private options: ListSessionsOptions = {},
+  ) {}
+
+  /**
+   * DX Feature: Promise Compatibility.
+   * Allows `const page = await jules.sessions()` to just get the first page.
+   * This is great for UIs that render a list and a "Load More" button.
+   */
+  then<TResult1 = ListSessionsResponse, TResult2 = never>(
+    onfulfilled?:
+      | ((value: ListSessionsResponse) => TResult1 | PromiseLike<TResult1>)
+      | null,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
+  ): PromiseLike<TResult1 | TResult2> {
+    // When used as a promise, we default to the pageToken from options
+    return this.fetchPage(this.options.pageToken).then(onfulfilled, onrejected);
+  }
+
+  /**
+   * DX Feature: Async Iterator.
+   * Allows `for await (const s of jules.sessions())` to stream ALL items.
+   * Automatically handles page tokens and fetching behind the scenes.
+   */
+  async *[Symbol.asyncIterator](): AsyncIterator<SessionResource> {
+    let currentToken = this.options.pageToken;
+    let itemCount = 0;
+    const limit = this.options.limit ?? Infinity;
+
+    do {
+      // Check limit before fetching a whole new page
+      if (itemCount >= limit) break;
+
+      const response = await this.fetchPage(currentToken);
+
+      // If no sessions returned, break
+      if (!response.sessions || response.sessions.length === 0) {
+        break;
+      }
+
+      for (const session of response.sessions) {
+        if (itemCount >= limit) break;
+        yield session;
+        itemCount++;
+      }
+
+      currentToken = response.nextPageToken;
+    } while (currentToken);
+  }
+
+  /**
+   * Helper to fetch all pages into a single array.
+   * WARNING: Use with caution on large datasets.
+   */
+  async all(): Promise<SessionResource[]> {
+    const results: SessionResource[] = [];
+    for await (const session of this) {
+      results.push(session);
+    }
+    return results;
+  }
+
+  /**
+   * Internal fetcher that maps the options to the REST parameters.
+   */
+  private async fetchPage(pageToken?: string): Promise<ListSessionsResponse> {
+    const params: Record<string, string> = {};
+    if (this.options.pageSize)
+      params.pageSize = this.options.pageSize.toString();
+    if (pageToken) params.pageToken = pageToken;
+
+    // Use the existing ApiClient from your SDK
+    const response = await this.apiClient.request<{
+      sessions?: SessionResource[];
+      nextPageToken?: string;
+    }>('sessions', { params });
+
+    return {
+      sessions: response.sessions || [],
+      nextPageToken: response.nextPageToken,
+    };
+  }
+}
