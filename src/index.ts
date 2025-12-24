@@ -41,3 +41,17 @@ export type {
 
 export { SessionCursor } from './sessions.js';
 export type { ListSessionsOptions, ListSessionsResponse } from './sessions.js';
+
+/**
+ * The main entry point for the Jules SDK for Node.js environments.
+ * This is a pre-initialized client that can be used immediately with default settings.
+ *
+ * @example
+ * import { jules } from 'modjules';
+ * const session = await jules.session({ ... });
+ */
+export const jules: JulesClient = new JulesClientImpl(
+  {},
+  (sessionId) => new NodeFileStorage(sessionId),
+  new NodePlatform(),
+);
