@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SessionCursor, ListSessionsResponse } from '../src/sessions';
 import { ApiClient } from '../src/api';
@@ -19,13 +18,15 @@ describe('jules.sessions()', () => {
     } as unknown as ApiClient;
 
     // Mock storage factory to verify it's NOT called
-    mockStorageFactory = vi.fn().mockImplementation((id) => new NodeFileStorage(id));
+    mockStorageFactory = vi
+      .fn()
+      .mockImplementation((id) => new NodeFileStorage(id));
 
     // Create a client with mocked dependencies
     client = new JulesClientImpl(
-        { apiKey: 'test-key' },
-        mockStorageFactory,
-        new NodePlatform(),
+      { apiKey: 'test-key' },
+      mockStorageFactory,
+      new NodePlatform(),
     );
 
     // Inject the mocked apiClient into the client
@@ -138,7 +139,7 @@ describe('jules.sessions()', () => {
 
   // NEW: Test for manual pagination
   it('should support manual pagination via pageToken', async () => {
-     const page1Response: ListSessionsResponse = {
+    const page1Response: ListSessionsResponse = {
       sessions: [createSession('1')],
       nextPageToken: 'token-1',
     };
@@ -157,13 +158,16 @@ describe('jules.sessions()', () => {
     expect(page1.nextPageToken).toBe('token-1');
 
     // Step 2: Get second page using token from first
-    const page2 = await client.sessions({ pageSize: 1, pageToken: page1.nextPageToken });
+    const page2 = await client.sessions({
+      pageSize: 1,
+      pageToken: page1.nextPageToken,
+    });
     expect(page2.sessions).toHaveLength(1);
     expect(page2.sessions[0].id).toBe('2');
 
     expect(apiClient.request).toHaveBeenCalledTimes(2);
     expect(apiClient.request).toHaveBeenNthCalledWith(2, 'sessions', {
-       params: { pageSize: '1', pageToken: 'token-1' }
+      params: { pageSize: '1', pageToken: 'token-1' },
     });
   });
 
