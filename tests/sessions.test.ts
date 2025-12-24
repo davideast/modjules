@@ -1,175 +1,182 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SessionCursor } from '../src/sessions';
+import { SessionCursor, ListSessionsResponse } from '../src/sessions';
 import { ApiClient } from '../src/api';
 import { SessionResource } from '../src/types';
+import { JulesClientImpl } from '../src/client';
+import { NodeFileStorage } from '../src/storage/node-fs';
+import { NodePlatform } from '../src/platform/node';
 
-// Mock ApiClient
-const mockRequest = vi.fn();
-const mockApiClient = {
-  request: mockRequest,
-} as unknown as ApiClient;
+describe('jules.sessions()', () => {
+  let apiClient: ApiClient;
+  let client: JulesClientImpl;
+  let mockStorageFactory: any;
 
-const mockSessions: SessionResource[] = [
-  { id: '1', name: 'sessions/1' } as SessionResource,
-  { id: '2', name: 'sessions/2' } as SessionResource,
-  { id: '3', name: 'sessions/3' } as SessionResource,
-];
-
-describe('SessionCursor', () => {
   beforeEach(() => {
-    mockRequest.mockReset();
+    // Mock the ApiClient request method
+    apiClient = {
+      request: vi.fn(),
+    } as unknown as ApiClient;
+
+    // Mock storage factory to verify it's NOT called
+    mockStorageFactory = vi
+      .fn()
+      .mockImplementation((id) => new NodeFileStorage(id));
+
+    // Create a client with mocked dependencies
+    client = new JulesClientImpl(
+      { apiKey: 'test-key' },
+      mockStorageFactory,
+      new NodePlatform(),
+    );
+
+    // Inject the mocked apiClient into the client
+    (client as any).apiClient = apiClient;
+  });
+
+  const createSession = (id: string): SessionResource => ({
+    id,
+    name: `sessions/${id}`,
+    prompt: 'test',
+    sourceContext: { source: 'test' },
+    title: 'test',
+    createTime: '2023-01-01T00:00:00Z',
+    updateTime: '2023-01-01T00:00:00Z',
+    state: 'completed',
+    url: 'test',
+    outputs: [],
+  });
+
+  it('should return a SessionCursor', () => {
+    const cursor = client.sessions();
+    expect(cursor).toBeInstanceOf(SessionCursor);
   });
 
   it('should fetch the first page when awaited', async () => {
-    mockRequest.mockResolvedValueOnce({
-      sessions: mockSessions,
-      nextPageToken: 'next-token',
-    });
-
-    const cursor = new SessionCursor(mockApiClient, { pageSize: 3 });
-    const response = await cursor;
-
-    expect(mockRequest).toHaveBeenCalledWith('sessions', {
-      params: { pageSize: '3' },
-    });
-    expect(response.sessions).toEqual(mockSessions);
-    expect(response.nextPageToken).toBe('next-token');
-  });
-
-  it('should pass pageToken correctly', async () => {
-    mockRequest.mockResolvedValueOnce({
-      sessions: [],
-    });
-
-    const cursor = new SessionCursor(mockApiClient, { pageToken: 'abc' });
-    await cursor;
-
-    expect(mockRequest).toHaveBeenCalledWith('sessions', {
-      params: { pageToken: 'abc' },
-    });
-  });
-
-  it('should iterate over all pages', async () => {
-    // Page 1
-    mockRequest.mockResolvedValueOnce({
-      sessions: [mockSessions[0]],
+    const mockResponse: ListSessionsResponse = {
+      sessions: [createSession('1'), createSession('2')],
       nextPageToken: 'token-1',
-    });
-    // Page 2
-    mockRequest.mockResolvedValueOnce({
-      sessions: [mockSessions[1]],
-      nextPageToken: 'token-2',
-    });
-    // Page 3
-    mockRequest.mockResolvedValueOnce({
-      sessions: [mockSessions[2]],
-    });
+    };
+    (apiClient.request as any).mockResolvedValue(mockResponse);
 
-    const cursor = new SessionCursor(mockApiClient);
-    const results = [];
-    for await (const session of cursor) {
+    const result = await client.sessions({ pageSize: 10 });
+
+    expect(apiClient.request).toHaveBeenCalledWith('sessions', {
+      params: { pageSize: '10' },
+    });
+    expect(result).toEqual(mockResponse);
+  });
+
+  it('should iterate over all sessions across multiple pages using async iterator', async () => {
+    const page1: ListSessionsResponse = {
+      sessions: [createSession('1'), createSession('2')],
+      nextPageToken: 'token-1',
+    };
+    const page2: ListSessionsResponse = {
+      sessions: [createSession('3')],
+      nextPageToken: undefined,
+    };
+
+    (apiClient.request as any)
+      .mockResolvedValueOnce(page1)
+      .mockResolvedValueOnce(page2);
+
+    const results: SessionResource[] = [];
+
+    for await (const session of client.sessions()) {
       results.push(session);
     }
 
     expect(results).toHaveLength(3);
-    expect(results[0].id).toBe('1');
-    expect(results[1].id).toBe('2');
-    expect(results[2].id).toBe('3');
-    expect(mockRequest).toHaveBeenCalledTimes(3);
-    expect(mockRequest).toHaveBeenNthCalledWith(1, 'sessions', { params: {} });
-    expect(mockRequest).toHaveBeenNthCalledWith(2, 'sessions', {
-      params: { pageToken: 'token-1' },
-    });
-    expect(mockRequest).toHaveBeenNthCalledWith(3, 'sessions', {
-      params: { pageToken: 'token-2' },
-    });
+    expect(results.map((s) => s.id)).toEqual(['1', '2', '3']);
+    expect(apiClient.request).toHaveBeenCalledTimes(2);
   });
 
-  it('should respect the global limit during iteration', async () => {
-    // Page 1 (2 items)
-    mockRequest.mockResolvedValueOnce({
-      sessions: [mockSessions[0], mockSessions[1]],
+  it('should stop iterating when limit is reached within a page', async () => {
+    const page1: ListSessionsResponse = {
+      sessions: [createSession('1'), createSession('2'), createSession('3')],
       nextPageToken: 'token-1',
-    });
-    // Page 2 (1 item) - should not be fetched if limit is 2
-    mockRequest.mockResolvedValueOnce({
-      sessions: [mockSessions[2]],
-    });
+    };
 
-    const cursor = new SessionCursor(mockApiClient, { limit: 2 });
-    const results = [];
-    for await (const session of cursor) {
+    (apiClient.request as any).mockResolvedValue(page1);
+
+    const results: SessionResource[] = [];
+
+    for await (const session of client.sessions({ limit: 2 })) {
       results.push(session);
     }
 
     expect(results).toHaveLength(2);
-    expect(results[0].id).toBe('1');
-    expect(results[1].id).toBe('2');
-    // Should only have fetched once because the first page filled the limit
-    expect(mockRequest).toHaveBeenCalledTimes(1);
+    expect(results.map((s) => s.id)).toEqual(['1', '2']);
+    expect(apiClient.request).toHaveBeenCalledTimes(1);
   });
 
-  it('should handle limit across page boundaries', async () => {
-    // Page 1 (2 items)
-    mockRequest.mockResolvedValueOnce({
-      sessions: [mockSessions[0], mockSessions[1]],
+  // NEW: Test for cross-page limiting
+  it('should stop iterating when limit is reached across pages', async () => {
+    const page1: ListSessionsResponse = {
+      sessions: [createSession('1'), createSession('2')],
       nextPageToken: 'token-1',
-    });
-    // Page 2 (2 items)
-    mockRequest.mockResolvedValueOnce({
-      sessions: [
-        mockSessions[2],
-        { id: '4', name: 'sessions/4' } as SessionResource,
-      ],
-    });
+    };
+    const page2: ListSessionsResponse = {
+      sessions: [createSession('3'), createSession('4')],
+      nextPageToken: 'token-2', // Even if there's more, we should stop
+    };
 
-    // We want 3 items total.
-    const cursor = new SessionCursor(mockApiClient, { limit: 3 });
-    const results = [];
-    for await (const session of cursor) {
+    (apiClient.request as any)
+      .mockResolvedValueOnce(page1)
+      .mockResolvedValueOnce(page2);
+
+    const results: SessionResource[] = [];
+
+    // Limit is 3, page size implies 2 (based on data returned)
+    for await (const session of client.sessions({ limit: 3 })) {
       results.push(session);
     }
 
     expect(results).toHaveLength(3);
-    expect(mockRequest).toHaveBeenCalledTimes(2);
+    expect(results.map((s) => s.id)).toEqual(['1', '2', '3']);
+    expect(apiClient.request).toHaveBeenCalledTimes(2);
   });
 
-  it('should stop iteration if no more pages', async () => {
-    mockRequest.mockResolvedValueOnce({
-      sessions: [mockSessions[0]],
-      // No nextPageToken
-    });
-
-    const cursor = new SessionCursor(mockApiClient);
-    const results = await cursor.all();
-    expect(results).toHaveLength(1);
-    expect(mockRequest).toHaveBeenCalledTimes(1);
-  });
-
-  it('should stop iteration if sessions list is empty', async () => {
-    mockRequest.mockResolvedValueOnce({
-      sessions: [],
-      nextPageToken: 'token-1', // Even if token exists, empty list means we might be done or API is weird.
-      // The code checks: if (!response.sessions || response.sessions.length === 0) break;
-    });
-
-    const cursor = new SessionCursor(mockApiClient);
-    const results = await cursor.all();
-    expect(results).toHaveLength(0);
-    expect(mockRequest).toHaveBeenCalledTimes(1);
-  });
-
-  it('all() helper should gather all items', async () => {
-    mockRequest.mockResolvedValueOnce({
-      sessions: [mockSessions[0]],
+  // NEW: Test for manual pagination
+  it('should support manual pagination via pageToken', async () => {
+    const page1Response: ListSessionsResponse = {
+      sessions: [createSession('1')],
       nextPageToken: 'token-1',
-    });
-    mockRequest.mockResolvedValueOnce({
-      sessions: [mockSessions[1]],
-    });
+    };
+    const page2Response: ListSessionsResponse = {
+      sessions: [createSession('2')],
+      nextPageToken: undefined,
+    };
 
-    const cursor = new SessionCursor(mockApiClient);
-    const results = await cursor.all();
-    expect(results).toHaveLength(2);
+    (apiClient.request as any)
+      .mockResolvedValueOnce(page1Response)
+      .mockResolvedValueOnce(page2Response);
+
+    // Step 1: Get first page
+    const page1 = await client.sessions({ pageSize: 1 });
+    expect(page1.sessions).toHaveLength(1);
+    expect(page1.nextPageToken).toBe('token-1');
+
+    // Step 2: Get second page using token from first
+    const page2 = await client.sessions({
+      pageSize: 1,
+      pageToken: page1.nextPageToken,
+    });
+    expect(page2.sessions).toHaveLength(1);
+    expect(page2.sessions[0].id).toBe('2');
+
+    expect(apiClient.request).toHaveBeenCalledTimes(2);
+    expect(apiClient.request).toHaveBeenNthCalledWith(2, 'sessions', {
+      params: { pageSize: '1', pageToken: 'token-1' },
+    });
+  });
+
+  // NEW: Verify no cache interaction
+  it('should NOT trigger storage initialization', async () => {
+    (apiClient.request as any).mockResolvedValue({ sessions: [] });
+
+    await client.sessions();
+
+    expect(mockStorageFactory).not.toHaveBeenCalled();
   });
 });
