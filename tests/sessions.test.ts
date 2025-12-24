@@ -20,7 +20,7 @@ describe('jules.sessions()', () => {
     // Mock storage factory to verify it's NOT called
     mockStorageFactory = vi
       .fn()
-      .mockImplementation((id) => new NodeFileStorage(id));
+      .mockImplementation((id) => new NodeFileStorage(id, '/tmp'));
 
     // Create a client with mocked dependencies
     client = new JulesClientImpl(
