@@ -1,6 +1,7 @@
 import { createPolicy, PolicyConfig } from '../policy.js';
-import type { ProtectedResource } from '../../server/types.js';
+import type { ProtectedResource, Identity } from '../../server/types.js';
 import type { CollectionReference } from 'firebase-admin/firestore';
+import { normalizeEmailKey } from './utils.js';
 
 export type FirestorePolicyConfig = Omit<PolicyConfig<any>, 'getResource'> & {
   collection: CollectionReference;
@@ -26,4 +27,19 @@ export function createFirestorePolicy<T extends ProtectedResource>(
       return { ...data, ownerId: data[ownerField] } as T;
     },
   });
+}
+
+export function createFirestoreAllowList(
+  collection: CollectionReference,
+  // We don't necessarily need a path argument since we have the collection reference
+) {
+  return async (identity: Identity): Promise<boolean> => {
+    const email = identity.email;
+    if (!email) return false;
+
+    const key = normalizeEmailKey(email, 'firestore');
+    const doc = await collection.doc(key).get();
+
+    return doc.exists && doc.data()?.allowed === true;
+  };
 }

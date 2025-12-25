@@ -6,6 +6,7 @@ import { connect } from '../../src/index.js';
 import { createNodeHandler } from '../../src/node/proxy.js';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
+import { Scope } from '../../src/server/types.js';
 
 // 1. Configuration
 const API_KEY = 'test-api-key';
@@ -79,7 +80,10 @@ describe('E2E: Node Proxy Architecture', () => {
         throw new Error('Unauthorized');
       },
       authorize: async (user, sessionId) => {
-        return { ownerId: user.uid, id: sessionId };
+        return {
+          resource: { ownerId: user.uid, id: sessionId },
+          scopes: ['read', 'write', 'admin'] as Scope[],
+        };
       },
     });
 

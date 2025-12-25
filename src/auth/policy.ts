@@ -1,4 +1,4 @@
-import { AuthorizationStrategy } from '../server/types.js';
+import { AuthorizationStrategy, Scope } from '../server/types.js';
 import type { Identity } from './types.js';
 import type { ProtectedResource } from '../server/types.js';
 
@@ -9,8 +9,8 @@ export interface PolicyConfig<T extends ProtectedResource> {
   /** Optional: List of UIDs or Emails with God Mode */
   admins?: string[];
 
-  /** Optional: Complex logic (e.g. check team membership) */
-  canAccess?: (user: Identity, resource: T) => Promise<boolean>;
+  /** Optional: Custom logic to determine scopes (e.g. check team membership) */
+  getScopes?: (user: Identity, resource: T) => Promise<Scope[]>;
 }
 
 /**
@@ -31,13 +31,17 @@ export function createPolicy<T extends ProtectedResource>(
     if (config.admins) {
       const isUidAdmin = config.admins.includes(user.uid);
       const isEmailAdmin = user.email && config.admins.includes(user.email);
-      if (isUidAdmin || isEmailAdmin) return resource;
+      if (isUidAdmin || isEmailAdmin) {
+        return { resource, scopes: ['read', 'write', 'admin'] };
+      }
     }
 
     // 3. Custom Rules (RBAC / Teams)
-    if (config.canAccess) {
-      const allowed = await config.canAccess(user, resource);
-      if (allowed) return resource;
+    if (config.getScopes) {
+      const scopes = await config.getScopes(user, resource);
+      if (scopes && scopes.length > 0) {
+        return { resource, scopes };
+      }
     }
 
     // 4. Default Fallback (Strict Ownership)
@@ -45,6 +49,6 @@ export function createPolicy<T extends ProtectedResource>(
       throw new Error('Access Denied: You do not own this session.');
     }
 
-    return resource;
+    return { resource, scopes: ['read', 'write', 'admin'] };
   };
 }

@@ -55,7 +55,7 @@ describe('Database Policy Helpers', () => {
         title: 'Hello',
       };
 
-      const resource = await firestorePolicy(alice, 'chat_1');
+      const { resource } = await firestorePolicy(alice, 'chat_1');
 
       expect(resource).toBeDefined();
       expect(resource.title).toBe('Hello');
@@ -93,7 +93,7 @@ describe('Database Policy Helpers', () => {
         state: 'active',
       };
 
-      const resource = await firebasePolicy(bob, 'sess_A');
+      const { resource } = await firebasePolicy(bob, 'sess_A');
 
       expect(resource).toBeDefined();
       expect(resource.state).toBe('active');
@@ -104,7 +104,7 @@ describe('Database Policy Helpers', () => {
       mockFirebaseData['sessions/sess_A'] = { userId: 'bob_456' };
       const admin = { uid: '999', email: 'admin@test.com' };
 
-      const resource = await firebasePolicy(admin, 'sess_A');
+      const { resource } = await firebasePolicy(admin, 'sess_A');
       expect(resource).toBeDefined(); // Access granted despite not being owner
     });
 
@@ -112,7 +112,7 @@ describe('Database Policy Helpers', () => {
       // Ensure the helper constructs 'sessions/sess_B' correctly
       mockFirebaseData['sessions/sess_B'] = { userId: 'alice_123' };
 
-      const resource = await firebasePolicy(alice, 'sess_B');
+      const { resource } = await firebasePolicy(alice, 'sess_B');
       expect(resource).toBeDefined();
     });
 

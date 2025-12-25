@@ -11,15 +11,18 @@ const db = {
 const policy = createMemoryPolicy({
   data: db,
   admins: ['admin@test.com'],
-  canAccess: async (user, resource) => {
+  getScopes: async (user, resource) => {
     // Custom Rule: Anyone can access 'public' sessions
-    return resource.type === 'public';
+    if (resource.type === 'public') {
+      return ['read'];
+    }
+    return [];
   },
 });
 
 describe('Authorization Logic', () => {
   it('allows owner to access their resource', async () => {
-    const result = await policy({ uid: 'alice' }, 'session-A');
+    const { resource: result } = await policy({ uid: 'alice' }, 'session-A');
     expect(result).toBeDefined();
     expect(result.ownerId).toBe('alice');
   });
@@ -32,12 +35,12 @@ describe('Authorization Logic', () => {
 
   it('allows non-owner to access public resource via Custom Rule', async () => {
     // Alice accessing Bob's session (Allowed because it is public)
-    const result = await policy({ uid: 'alice' }, 'session-B');
+    const { resource: result } = await policy({ uid: 'alice' }, 'session-B');
     expect(result).toBeDefined();
   });
 
   it('allows admin to access anything', async () => {
-    const result = await policy(
+    const { resource: result } = await policy(
       { uid: 'unknown', email: 'admin@test.com' },
       'session-A',
     );
