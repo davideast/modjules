@@ -1,93 +1,63 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createHandlerCore } from '../../src/server/core';
-import { NodePlatform } from '../../src/platform/node';
-import { Scope } from '../../src/server/types';
+import { createHandlerCore } from '../../src/server/core.js';
+import { ServerConfig } from '../../src/server/types.js';
+import { NodePlatform } from '../../src/platform/node.js';
 
-describe('Server Core (The Vendor)', () => {
+describe('Server Core Handler', () => {
+  const mockFetch = vi.fn();
+  global.fetch = mockFetch as any; // For ApiClient usage inside core
+
   const platform = new NodePlatform();
+  const mockPlatformFetch = vi.fn();
+  platform.fetch = mockPlatformFetch; // For Proxy flow
 
-  // Mock the platform's network layer
-  platform.fetch = vi.fn();
-
-  const config = {
-    apiKey: 'GOOG_KEY',
-    clientSecret: 'SERVER_SECRET',
-    verify: vi.fn().mockResolvedValue({ uid: 'user_1' }),
-    authorize: async (user: any, sessionId: string) => ({
-      resource: { ownerId: user.uid, id: sessionId },
-      scopes: ['read', 'write', 'admin'] as Scope[],
-    }),
+  const config: ServerConfig = {
+    apiKey: 'test-api-key',
+    clientSecret: 'test-secret',
+    verify: async (token) => {
+      if (token === 'valid-token') return { uid: 'user-1' };
+      throw new Error('Invalid Token');
+    },
+    authorize: async (user, sessionId) => {
+      if (sessionId === 'allowed-session') {
+        return {
+          scopes: ['read', 'write'],
+          resource: { id: sessionId },
+        };
+      }
+      throw new Error('Unauthorized');
+    },
   };
 
   const handler = createHandlerCore(config, platform);
-
-  // Mock implementation for fetch
-  const mockFetchImpl = async (url: string, init: any) => {
-    if (url.includes('/sources/github/owner/repo')) {
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({
-          name: 'sources/github/owner/repo',
-          id: 'src_123',
-          githubRepo: { owner: 'owner', repo: 'repo' },
-        }),
-        text: async () =>
-          JSON.stringify({
-            name: 'sources/github/owner/repo',
-            id: 'src_123',
-            githubRepo: { owner: 'owner', repo: 'repo' },
-          }),
-      };
-    }
-    if (url.includes('/sessions')) {
-      // Check if it's creating a session or fetching one
-      if (init?.method === 'POST') {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            id: 'sess_123',
-            name: 'sessions/sess_123',
-            state: 'inProgress',
-            createTime: new Date().toISOString(),
-          }),
-          text: async () =>
-            JSON.stringify({
-              id: 'sess_123',
-              name: 'sessions/sess_123',
-              state: 'inProgress',
-              createTime: new Date().toISOString(),
-            }),
-        };
-      }
-      // Proxy request or other GETs
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ data: 'proxy_success' }),
-        text: async () => JSON.stringify({ data: 'proxy_success' }),
-      };
-    }
-    return {
-      ok: false,
-      status: 404,
-      statusText: 'Not Found',
-      text: async () => 'Not Found',
-      json: async () => ({}),
-    };
-  };
-
   const originalFetch = global.fetch;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+
+    const mockFetchImpl = async (url: string, opts: any) => {
+      if (url.includes('google.com')) {
+        return {
+          status: 200,
+          json: async () => ({ data: 'proxy-response' }),
+        };
+      }
+      // Mock create session response
+      if (url.includes('/sessions') && opts.method === 'POST') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ id: 'new-session-id' }),
+        };
+      }
+      return { status: 404, json: async () => ({}) };
+    };
 
     // Mock platform.fetch (used by Proxy flow)
     (platform.fetch as any).mockImplementation(mockFetchImpl);
 
     // Mock global.fetch (used by ApiClient in Handshake flow)
-    global.fetch = vi.fn().mockImplementation(mockFetchImpl as any);
+    global.fetch = vi.fn().mockImplementation(mockFetchImpl as any) as any;
   });
 
   afterEach(() => {
@@ -97,83 +67,115 @@ describe('Server Core (The Vendor)', () => {
   it('Handshake: Creates session and returns token', async () => {
     const res = await handler({
       method: 'POST',
-      path: '/',
-      headers: {},
       body: {
         intent: 'create',
-        authToken: 'valid_firebase_token',
+        authToken: 'valid-token',
         context: {
-          prompt: 'hi',
-          source: { github: 'owner/repo', branch: 'main' },
+          prompt: 'test',
+          source: { type: 'githubRepo', owner: 'o', repo: 'r' },
         },
       },
+      headers: {},
+      path: '',
     });
-
-    if (res.status !== 200) {
-      console.error('Handshake failed:', res.body);
-    }
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.sessionId).toBe('sess_123');
-    expect(typeof res.body.token).toBe('string');
+    expect(res.body.sessionId).toBe('new-session-id');
+    expect(res.body.token).toBeDefined();
+
+    // Verify session creation called with ownerId
+    const createCall = (global.fetch as any).mock.calls.find((c: any) =>
+      c[0].includes('/sessions'),
+    );
+    const body = JSON.parse(createCall[1].body);
+    expect(body.ownerId).toBe('user-1');
   });
 
-  it('Proxy: Forwards request if token is valid', async () => {
+  it('Handshake: Resumes session if authorized', async () => {
+    const res = await handler({
+      method: 'POST',
+      body: {
+        intent: 'resume',
+        authToken: 'valid-token',
+        sessionId: 'allowed-session',
+      },
+      headers: {},
+      path: '',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.sessionId).toBe('allowed-session');
+  });
+
+  it('Handshake: Fails resume if unauthorized', async () => {
+    const res = await handler({
+      method: 'POST',
+      body: {
+        intent: 'resume',
+        authToken: 'valid-token',
+        sessionId: 'forbidden-session',
+      },
+      headers: {},
+      path: '',
+    });
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('Proxy: Forwards allowed request with API Key', async () => {
     // 1. Get a valid token first
     const handshake = await handler({
       method: 'POST',
-      path: '/',
-      headers: {},
       body: {
-        intent: 'create',
-        authToken: 'valid',
-        context: {
-          prompt: 'hi',
-          source: { github: 'owner/repo', branch: 'main' },
-        },
+        intent: 'resume',
+        authToken: 'valid-token',
+        sessionId: 'allowed-session',
       },
+      headers: {},
+      path: '',
     });
     const token = handshake.body.token;
 
-    // 2. Use token to access the SPECIFIC session
+    // 2. Make proxy request
     const res = await handler({
       method: 'GET',
-      path: '/sessions/sess_123/activities',
+      path: '/sessions/allowed-session/activities',
       headers: { Authorization: `Bearer ${token}` },
     });
 
     expect(res.status).toBe(200);
+    expect(res.body).toEqual({ data: 'proxy-response' });
+
     // Verify upstream call
-    expect(platform.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/sessions/sess_123/activities'),
+    expect(mockPlatformFetch).toHaveBeenCalledWith(
+      expect.stringContaining('google.com'),
       expect.objectContaining({
-        headers: expect.objectContaining({ 'X-Goog-Api-Key': 'GOOG_KEY' }),
+        headers: expect.objectContaining({
+          'X-Goog-Api-Key': 'test-api-key',
+        }),
       }),
     );
   });
 
-  it('Proxy: Blocks access to wrong session (Scope Violation)', async () => {
-    // Token is for sess_123
+  it('Proxy: Blocks request to different session (Scope Guard)', async () => {
     const handshake = await handler({
       method: 'POST',
-      path: '/',
-      headers: {},
       body: {
-        intent: 'create',
-        authToken: 'valid',
-        context: {
-          prompt: 'hi',
-          source: { github: 'owner/repo', branch: 'main' },
-        },
+        intent: 'resume',
+        authToken: 'valid-token',
+        sessionId: 'allowed-session',
       },
+      headers: {},
+      path: '',
     });
     const token = handshake.body.token;
 
-    // Try to access sess_999
     const res = await handler({
       method: 'GET',
-      path: '/sessions/sess_999/activities',
+      path: '/sessions/other-session/activities', // Mismatch!
       headers: { Authorization: `Bearer ${token}` },
     });
 

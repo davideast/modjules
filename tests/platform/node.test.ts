@@ -1,6 +1,6 @@
-import { describe, vi, beforeEach, afterEach } from 'vitest';
-import { NodePlatform } from '../../src/platform/node';
-import { runPlatformTests } from './contract';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { NodePlatform } from '../../src/platform/node.js';
+import { runPlatformTests } from './contract.js';
 
 describe('NodePlatform', () => {
   // Mock global fetch
@@ -21,7 +21,7 @@ describe('NodePlatform', () => {
         }
         return new Response(null, { status: 500 });
       },
-    );
+    ) as any;
   });
 
   afterEach(() => {
