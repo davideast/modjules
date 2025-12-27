@@ -19,12 +19,20 @@ interface SessionData {
 }
 
 const USERS: Record<string, User> = {
-  'user_admin': { id: 'user_admin', email: 'admin@example.com', role: 'admin' },
-  'user_viewer': { id: 'user_viewer', email: 'viewer@example.com', role: 'viewer' },
+  user_admin: { id: 'user_admin', email: 'admin@example.com', role: 'admin' },
+  user_viewer: {
+    id: 'user_viewer',
+    email: 'viewer@example.com',
+    role: 'viewer',
+  },
 };
 
 const SESSIONS: Record<string, SessionData> = {
-  'session_123': { id: 'session_123', ownerId: 'user_admin', title: 'Top Secret Plan' },
+  session_123: {
+    id: 'session_123',
+    ownerId: 'user_admin',
+    title: 'Top Secret Plan',
+  },
 };
 
 // ----------------------------------------------------------------------
@@ -51,7 +59,7 @@ const rbacPolicy = createRBACPolicy<SessionData>({
   // Define what scopes each role gets
   roles: {
     admin: ['read', 'write', 'admin'], // Full access
-    viewer: ['read'],                  // Read-only access
+    viewer: ['read'], // Read-only access
   },
 });
 
@@ -106,7 +114,7 @@ app.all('/api/jules', async (req, res) => {
     const headers = new Headers();
     for (const [key, value] of Object.entries(req.headers)) {
       if (Array.isArray(value)) {
-        value.forEach(v => headers.append(key, v));
+        value.forEach((v) => headers.append(key, v));
       } else if (typeof value === 'string') {
         headers.set(key, value);
       }
@@ -116,7 +124,8 @@ app.all('/api/jules', async (req, res) => {
     // Express 'req' is an IncomingMessage (ReadableStream).
     // Node 18+ and Bun support passing it directly as the body.
     // However, for GET/HEAD, body must be null/undefined.
-    const body = (req.method === 'GET' || req.method === 'HEAD') ? undefined : req;
+    const body =
+      req.method === 'GET' || req.method === 'HEAD' ? undefined : req;
 
     const request = new Request(fullUrl, {
       method: req.method,
@@ -156,7 +165,6 @@ app.all('/api/jules', async (req, res) => {
     } else {
       res.end();
     }
-
   } catch (error) {
     console.error('Proxy Error:', error);
     res.status(500).json({ error: 'Internal Proxy Error' });
@@ -166,5 +174,7 @@ app.all('/api/jules', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Express RBAC Proxy listening on http://localhost:${PORT}`);
   console.log(`Try it:`);
-  console.log(`  1. Login (Admin): curl -X POST -H "Content-Type: application/json" -d '{"intent":"create","authToken":"user_admin","context":{"source":{"type":"githubRepo","owner":"foo","repo":"bar"},"prompt":"hi"}}' http://localhost:3000/api/jules`);
+  console.log(
+    `  1. Login (Admin): curl -X POST -H "Content-Type: application/json" -d '{"intent":"create","authToken":"user_admin","context":{"source":{"type":"githubRepo","owner":"foo","repo":"bar"},"prompt":"hi"}}' http://localhost:3000/api/jules`,
+  );
 });
