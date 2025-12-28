@@ -31,7 +31,9 @@ describe('JulesMCPClient', () => {
   it('should throw error if apiKey is missing', () => {
     const originalEnv = process.env.JULES_API_KEY;
     delete process.env.JULES_API_KEY;
-    expect(() => new JulesMCPClient({})).toThrow("JulesMCPClient requires 'apiKey'.");
+    expect(() => new JulesMCPClient({})).toThrow(
+      "JulesMCPClient requires 'apiKey'.",
+    );
     process.env.JULES_API_KEY = originalEnv;
   });
 
@@ -54,9 +56,12 @@ describe('JulesMCPClient', () => {
 
     await client.connect();
 
-    expect(StreamableHTTPClientTransport).toHaveBeenCalledWith(new URL(baseUrl));
+    expect(StreamableHTTPClientTransport).toHaveBeenCalledWith(
+      new URL(baseUrl),
+    );
     // Verify client.connect was called with the transport instance
-    const transportInstance = (StreamableHTTPClientTransport as any).mock.instances[0];
+    const transportInstance = (StreamableHTTPClientTransport as any).mock
+      .instances[0];
     expect(mockConnect).toHaveBeenCalledWith(transportInstance);
 
     // Verify fetch interceptor
@@ -65,100 +70,102 @@ describe('JulesMCPClient', () => {
   });
 
   it('should intercept requests and add headers', async () => {
-      // Mock fetch
-      const mockFetch = vi.fn().mockResolvedValue(new Response('{}'));
-      globalThis.fetch = mockFetch as any;
-      (globalThis.fetch as any).__julesMcpPatched = false; // reset patch status
+    // Mock fetch
+    const mockFetch = vi.fn().mockResolvedValue(new Response('{}'));
+    globalThis.fetch = mockFetch as any;
+    (globalThis.fetch as any).__julesMcpPatched = false; // reset patch status
 
-      client = new JulesMCPClient({ apiKey });
-      await client.connect(); // Installs interceptor
+    client = new JulesMCPClient({ apiKey });
+    await client.connect(); // Installs interceptor
 
-      await fetch(`${baseUrl}/something`, { method: 'POST', body: '{}' });
+    await fetch(`${baseUrl}/something`, { method: 'POST', body: '{}' });
 
-      const lastCall = mockFetch.mock.calls[0];
-      const url = lastCall[0];
-      const init = lastCall[1];
+    const lastCall = mockFetch.mock.calls[0];
+    const url = lastCall[0];
+    const init = lastCall[1];
 
-      expect(url).toBe(`${baseUrl}/something`);
-      expect(init.headers.get('X-Goog-Api-Key')).toBe(apiKey);
-      expect(init.headers.get('Content-Type')).toBe('application/json');
+    expect(url).toBe(`${baseUrl}/something`);
+    expect(init.headers.get('X-Goog-Api-Key')).toBe(apiKey);
+    expect(init.headers.get('Content-Type')).toBe('application/json');
   });
 
-    it('should NOT intercept non-Jules requests', async () => {
-        // Mock fetch
-        const mockFetch = vi.fn().mockResolvedValue(new Response('{}'));
-        globalThis.fetch = mockFetch as any;
-        (globalThis.fetch as any).__julesMcpPatched = false;
+  it('should NOT intercept non-Jules requests', async () => {
+    // Mock fetch
+    const mockFetch = vi.fn().mockResolvedValue(new Response('{}'));
+    globalThis.fetch = mockFetch as any;
+    (globalThis.fetch as any).__julesMcpPatched = false;
 
-        client = new JulesMCPClient({ apiKey });
-        await client.connect();
+    client = new JulesMCPClient({ apiKey });
+    await client.connect();
 
-        const otherUrl = 'https://example.com/api';
-        await fetch(otherUrl);
+    const otherUrl = 'https://example.com/api';
+    await fetch(otherUrl);
 
-        const lastCall = mockFetch.mock.calls[0];
-        expect(lastCall[0]).toBe(otherUrl);
-        // Should not have our headers if we didn't add them, but headers might be undefined
-        expect(lastCall[1]?.headers).toBeUndefined();
-    });
+    const lastCall = mockFetch.mock.calls[0];
+    expect(lastCall[0]).toBe(otherUrl);
+    // Should not have our headers if we didn't add them, but headers might be undefined
+    expect(lastCall[1]?.headers).toBeUndefined();
+  });
 
   it('should call tool successfully', async () => {
     client = new JulesMCPClient({ apiKey });
     const mockCallTool = vi.fn().mockResolvedValue({
-        content: [{ type: 'text', text: JSON.stringify({ result: 'success' }) }],
-        isError: false
+      content: [{ type: 'text', text: JSON.stringify({ result: 'success' }) }],
+      isError: false,
     });
     const mockConnect = vi.fn();
 
     (Client as any).mockImplementation(() => ({
-        connect: mockConnect,
-        callTool: mockCallTool
+      connect: mockConnect,
+      callTool: mockCallTool,
     }));
     client = new JulesMCPClient({ apiKey });
 
     const result = await client.callTool('test-tool', { arg: 1 });
     expect(result).toEqual({ result: 'success' });
     expect(mockCallTool).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'test-tool', arguments: { arg: 1 } }),
-        undefined,
-        expect.anything()
+      expect.objectContaining({ name: 'test-tool', arguments: { arg: 1 } }),
+      undefined,
+      expect.anything(),
     );
   });
 
   it('should handle tool call errors', async () => {
-      client = new JulesMCPClient({ apiKey });
-      const mockCallTool = vi.fn().mockResolvedValue({
-          content: [{ type: 'text', text: 'Something went wrong' }],
-          isError: true
-      });
-      const mockConnect = vi.fn();
+    client = new JulesMCPClient({ apiKey });
+    const mockCallTool = vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: 'Something went wrong' }],
+      isError: true,
+    });
+    const mockConnect = vi.fn();
 
-      (Client as any).mockImplementation(() => ({
-          connect: mockConnect,
-          callTool: mockCallTool
-      }));
-      client = new JulesMCPClient({ apiKey });
+    (Client as any).mockImplementation(() => ({
+      connect: mockConnect,
+      callTool: mockCallTool,
+    }));
+    client = new JulesMCPClient({ apiKey });
 
-      await expect(client.callTool('fail-tool', {})).rejects.toThrow('Tool Call Failed [fail-tool]: Something went wrong');
+    await expect(client.callTool('fail-tool', {})).rejects.toThrow(
+      'Tool Call Failed [fail-tool]: Something went wrong',
+    );
   });
 
   it('should prioritize structuredContent', async () => {
-      client = new JulesMCPClient({ apiKey });
-      const structuredData = { data: 'structure' };
-      const mockCallTool = vi.fn().mockResolvedValue({
-          structuredContent: structuredData,
-          content: [{ type: 'text', text: 'ignore me' }],
-          isError: false
-      });
-      const mockConnect = vi.fn();
+    client = new JulesMCPClient({ apiKey });
+    const structuredData = { data: 'structure' };
+    const mockCallTool = vi.fn().mockResolvedValue({
+      structuredContent: structuredData,
+      content: [{ type: 'text', text: 'ignore me' }],
+      isError: false,
+    });
+    const mockConnect = vi.fn();
 
-      (Client as any).mockImplementation(() => ({
-          connect: mockConnect,
-          callTool: mockCallTool
-      }));
-      client = new JulesMCPClient({ apiKey });
+    (Client as any).mockImplementation(() => ({
+      connect: mockConnect,
+      callTool: mockCallTool,
+    }));
+    client = new JulesMCPClient({ apiKey });
 
-      const result = await client.callTool('struct-tool', {});
-      expect(result).toEqual(structuredData);
+    const result = await client.callTool('struct-tool', {});
+    expect(result).toEqual(structuredData);
   });
 });
