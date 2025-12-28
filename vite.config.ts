@@ -25,6 +25,7 @@ export default defineConfig({
         // Runtime dependencies (keep bundled for Node, external for Browser if provided by platform)
         'idb',
         'firebase-admin',
+        /@modelcontextprotocol\/sdk(\/.*)?/,
 
         // Node.js Built-ins (Bare specifiers)
         '_http_agent',
