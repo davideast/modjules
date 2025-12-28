@@ -14,6 +14,7 @@ export default defineConfig({
         proxy: 'src/node/proxy.ts',
         'proxy/firebase': 'src/auth/strategies/firebase.ts',
         'proxy/memory': 'src/auth/strategies/memory.ts',
+        mcp: 'src/mcp/index.ts',
       },
       name: 'modjules',
       formats: ['es'],
