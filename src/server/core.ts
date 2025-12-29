@@ -7,7 +7,7 @@ import {
 } from '../auth/protocol.js';
 import { ServerConfig, ServerRequest, Scope } from './types.js';
 import { JulesClientImpl } from '../client.js';
-import { MemoryStorage } from '../storage/memory.js';
+import { MemoryStorage, MemorySessionStorage } from '../storage/memory.js';
 import { Identity } from '../auth/types.js';
 
 // --- 1. The Forwarder (Dumb Proxy) ---
@@ -144,7 +144,10 @@ export function createHandlerCore(config: ServerConfig, platform: Platform) {
   // Admin Client used for the Handshake 'create' flow
   const adminClient = new JulesClientImpl(
     { apiKey: config.apiKey, platform },
-    () => new MemoryStorage(), // Admin client doesn't need persistence for this
+    {
+      activity: () => new MemoryStorage(), // Admin client doesn't need persistence for this
+      session: () => new MemorySessionStorage(),
+    },
     platform,
   );
 

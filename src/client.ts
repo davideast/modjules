@@ -309,7 +309,7 @@ export class JulesClientImpl implements JulesClient {
     configOrId: SessionConfig | string,
   ): Promise<SessionClient> | SessionClient {
     if (typeof configOrId === 'string') {
-      const storage = this.storageFactory(configOrId);
+      const storage = this.storageFactory.activity(configOrId);
       return new SessionClientImpl(
         configOrId,
         this.apiClient,
@@ -338,7 +338,7 @@ export class JulesClientImpl implements JulesClient {
           },
         },
       );
-      const storage = this.storageFactory(session.id);
+      const storage = this.storageFactory.activity(session.id);
       return new SessionClientImpl(
         session.name,
         this.apiClient,

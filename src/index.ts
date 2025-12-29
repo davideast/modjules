@@ -1,13 +1,16 @@
 // src/index.ts
 import { JulesClientImpl } from './client.js';
-import { NodeFileStorage } from './storage/node-fs.js';
+import { NodeFileStorage, NodeSessionStorage } from './storage/node-fs.js';
 import { NodePlatform } from './platform/node.js';
-import { JulesClient, JulesOptions } from './types.js';
+import { JulesClient, JulesOptions, StorageFactory } from './types.js';
 
 // Define defaults for the Node.js environment
 const defaultPlatform = new NodePlatform();
-const defaultStorageFactory = (sessionId: string) =>
-  new NodeFileStorage(sessionId, process.cwd());
+const defaultStorageFactory: StorageFactory = {
+  activity: (sessionId: string) =>
+    new NodeFileStorage(sessionId, process.cwd()),
+  session: () => new NodeSessionStorage(process.cwd()),
+};
 
 /**
  * Connects to the Jules service using Node.js defaults (File System, Native Crypto).

@@ -2,8 +2,8 @@ import * as fs from 'fs/promises';
 import { createReadStream } from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
-import { Activity } from '../types.js';
-import { ActivityStorage } from './types.js';
+import { Activity, SessionResource } from '../types.js';
+import { ActivityStorage, SessionStorage, CachedSession, SessionIndexEntry } from './types.js';
 
 /**
  * Node.js filesystem implementation of ActivityStorage.
@@ -127,6 +127,115 @@ export class NodeFileStorage implements ActivityStorage {
           `[NodeFileStorage] Corrupt JSON line ignored in ${this.filePath}`,
         );
       }
+    }
+  }
+}
+
+export class NodeSessionStorage implements SessionStorage {
+  private cacheDir: string;
+  private indexFilePath: string;
+  private initialized = false;
+
+  constructor(rootDir: string) {
+    this.cacheDir = path.resolve(rootDir, '.jules/cache');
+    this.indexFilePath = path.join(this.cacheDir, 'sessions.jsonl');
+  }
+
+  async init(): Promise<void> {
+    if (this.initialized) return;
+    await fs.mkdir(this.cacheDir, { recursive: true });
+    this.initialized = true;
+  }
+
+  private getSessionPath(sessionId: string): string {
+    return path.join(this.cacheDir, sessionId, 'session.json');
+  }
+
+  async upsert(session: SessionResource): Promise<void> {
+    await this.init();
+
+    // 1. Write the Atomic "Source of Truth"
+    const sessionDir = path.join(this.cacheDir, session.id);
+    await fs.mkdir(sessionDir, { recursive: true });
+
+    const cached: CachedSession = {
+      resource: session,
+      _lastSyncedAt: Date.now(),
+    };
+
+    // Write atomically (JSON.stringify is fast for single sessions)
+    await fs.writeFile(
+      path.join(sessionDir, 'session.json'),
+      JSON.stringify(cached, null, 2),
+      'utf8'
+    );
+
+    // 2. Update the High-Speed Index (Append-Only)
+    // We strictly append. The reader is responsible for deduplication.
+    const indexEntry: SessionIndexEntry = {
+      id: session.id,
+      title: session.title,
+      state: session.state,
+      createTime: session.createTime,
+      source: session.sourceContext?.source || 'unknown',
+      _updatedAt: Date.now()
+    };
+
+    await fs.appendFile(
+      this.indexFilePath,
+      JSON.stringify(indexEntry) + '\n',
+      'utf8'
+    );
+  }
+
+  async upsertMany(sessions: SessionResource[]): Promise<void> {
+    // Parallelize file writes, sequentialize index write
+    await Promise.all(sessions.map(s => this.upsert(s)));
+  }
+
+  async get(sessionId: string): Promise<CachedSession | undefined> {
+    await this.init();
+    try {
+      const data = await fs.readFile(this.getSessionPath(sessionId), 'utf8');
+      return JSON.parse(data) as CachedSession;
+    } catch (e: any) {
+      if (e.code === 'ENOENT') return undefined;
+      throw e;
+    }
+  }
+
+  async delete(sessionId: string): Promise<void> {
+    await this.init();
+    // 1. Remove the directory (Metadata + Activities + Artifacts)
+    const sessionDir = path.join(this.cacheDir, sessionId);
+    await fs.rm(sessionDir, { recursive: true, force: true });
+
+    // 2. We do NOT rewrite the index here for performance.
+    // The "Get" method will return 404 (undefined) which is the ultimate check.
+    // Periodic compaction can clean the index later.
+  }
+
+  async *scanIndex(): AsyncIterable<SessionIndexEntry> {
+    await this.init();
+
+    // Read the raw stream
+    // Note: In Phase 3 (Query Planner), we will optimize this to read backward
+    // or keep an in-memory map to dedupe instantly.
+    try {
+      const fileStream = createReadStream(this.indexFilePath, { encoding: 'utf8' });
+      const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+
+      for await (const line of rl) {
+        if (!line.trim()) continue;
+        try {
+          yield JSON.parse(line);
+        } catch (e) {
+          /* ignore corrupt lines */
+        }
+      }
+    } catch (e: any) {
+      if (e.code === 'ENOENT') return; // No index yet
+      throw e;
     }
   }
 }
