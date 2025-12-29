@@ -17,9 +17,7 @@ import {
   SessionResource,
   SessionState,
 } from './types.js';
-
-const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+import { isCacheValid } from './caching.js';
 
 /**
  * Implementation of the SessionClient interface.
@@ -269,19 +267,9 @@ export class SessionClientImpl implements SessionClient {
    */
   async info(): Promise<SessionResource> {
     const cached = await this.sessionStorage.get(this.id);
-    const now = Date.now();
 
-    if (cached) {
-      const createdAt = new Date(cached.resource.createTime).getTime();
-      const age = now - createdAt;
-      const isTerminal = ['failed', 'completed'].includes(cached.resource.state);
-
-      // TIER 3: FROZEN (Older than 1 month)
-      if (age > ONE_MONTH_MS) return cached.resource;
-
-      // TIER 2: WARM (Terminal state + synced recently)
-      const timeSinceSync = now - cached._lastSyncedAt;
-      if (isTerminal && timeSinceSync < ONE_DAY_MS) return cached.resource;
+    if (isCacheValid(cached)) {
+      return cached.resource;
     }
 
     // TIER 1: HOT (Network Fetch)

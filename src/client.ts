@@ -21,9 +21,7 @@ import { pMap } from './utils.js';
 import { SessionCursor, ListSessionsOptions } from './sessions.js';
 import { Platform } from './platform/types.js';
 import { SessionStorage } from './storage/types.js';
-
-const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+import { isCacheValid } from './caching.js';
 
 /**
  * The fully resolved internal configuration for the SDK.
@@ -166,28 +164,16 @@ export class JulesClientImpl implements JulesClient {
    */
   async getSessionResource(id: string): Promise<SessionResource> {
     const cached = await this.storage.get(id);
-    const now = Date.now();
 
-    if (cached) {
-      const createdAt = new Date(cached.resource.createTime).getTime();
-      const age = now - createdAt;
-      const isTerminal = ['failed', 'completed'].includes(cached.resource.state);
-
-      // TIER 3: FROZEN (Older than 1 month)
-      if (age > ONE_MONTH_MS) {
-        return cached.resource;
-      }
-
-      // TIER 2: WARM (Terminal state + synced recently)
-      const timeSinceSync = now - cached._lastSyncedAt;
-      if (isTerminal && timeSinceSync < ONE_DAY_MS) {
-        return cached.resource;
-      }
+    if (isCacheValid(cached)) {
+      return cached.resource;
     }
 
     // TIER 1 & Fallback: Network Request
     try {
-      const fresh = await this.apiClient.request<SessionResource>(`sessions/${id}`);
+      const fresh = await this.apiClient.request<SessionResource>(
+        `sessions/${id}`,
+      );
 
       await this.storage.upsert(fresh);
 

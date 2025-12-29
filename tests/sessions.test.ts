@@ -76,7 +76,9 @@ describe('jules.sessions()', () => {
       params: { pageSize: '10' },
     });
     expect(result).toEqual(mockResponse);
-    expect(mockSessionStorage.upsertMany).toHaveBeenCalledWith(mockResponse.sessions);
+    expect(mockSessionStorage.upsertMany).toHaveBeenCalledWith(
+      mockResponse.sessions,
+    );
   });
 
   it('should iterate over all sessions across multiple pages using async iterator', async () => {
