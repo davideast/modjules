@@ -38,6 +38,7 @@ describe('Security E2E', () => {
 
       const req = {
         method: 'POST',
+        url: '/handshake',
         body: {
           intent: 'resume',
           authToken: 'valid-auth',
@@ -65,6 +66,7 @@ describe('Security E2E', () => {
 
       const req = {
         method: 'POST', // Write operation
+        url: `/sessions/${sessionId}/prompt`,
         path: `/sessions/${sessionId}/prompt`,
         headers: { Authorization: `Bearer ${token}` },
         body: { message: 'hello' },
@@ -72,7 +74,7 @@ describe('Security E2E', () => {
 
       const res = await handler(req);
       expect(res.status).toBe(403);
-      expect(res.body.error).toMatch(/Read-only/);
+      expect(res.body.error).toMatch(/Write access required/);
     });
 
     it('allows write requests for write tokens', async () => {
@@ -84,11 +86,14 @@ describe('Security E2E', () => {
       // Mock upstream fetch to return success
       vi.spyOn(mockPlatform, 'fetch').mockResolvedValue({
         status: 200,
+        ok: true,
         json: async () => ({ ok: true }),
+        text: async () => JSON.stringify({ ok: true }),
       } as any);
 
       const req = {
         method: 'POST',
+        url: `/sessions/${sessionId}/prompt`,
         path: `/sessions/${sessionId}/prompt`,
         headers: { Authorization: `Bearer ${token}` },
         body: { message: 'hello' },
@@ -106,6 +111,7 @@ describe('Security E2E', () => {
 
       const req = {
         method: 'GET',
+        url: `/sessions/${sessionId}/activities`,
         path: `/sessions/${sessionId}/activities`,
         headers: { Authorization: `Bearer ${token}` },
       };

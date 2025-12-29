@@ -43,7 +43,7 @@ export class TokenManager {
     const [headerB64, payloadB64, signature] = parts;
     const unsignedToken = `${headerB64}.${payloadB64}`;
 
-    // 1. Cryptographic Check
+    // Cryptographic Check
     const isValid = await this.platform.crypto.verify(
       unsignedToken,
       signature,
@@ -54,7 +54,7 @@ export class TokenManager {
       throw new Error('Invalid token signature');
     }
 
-    // 2. Decode & Expiration Check
+    // Decode & Expiration Check
     const claims = JSON.parse(
       this.platform.encoding.base64Decode(payloadB64),
     ) as TokenClaims;
@@ -66,8 +66,6 @@ export class TokenManager {
 
     return claims;
   }
-
-  // --- Helpers ---
 
   private base64Url(obj: object): string {
     const str = JSON.stringify(obj);

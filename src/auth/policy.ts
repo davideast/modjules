@@ -18,7 +18,7 @@ export interface PolicyConfig<T extends ProtectedResource> {
  */
 export function createPolicy<T extends ProtectedResource>(
   config: PolicyConfig<T>,
-): AuthorizationStrategy<T> {
+): AuthorizationStrategy {
   return async (user, sessionId) => {
     // 1. Resolve
     const resource = await config.getResource(sessionId);

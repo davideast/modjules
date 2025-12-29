@@ -1,19 +1,26 @@
 import type { APIRoute } from 'astro';
-import { createFetchHandler } from 'modjules/proxy';
-import { verifyFirebaseAdmin } from 'modjules/proxy/firebase';
+import { createGateway } from 'modjules/server';
+import { verifyFirebaseAdmin } from 'modjules/server/auth/firebase';
 import { adminAuth } from '@/lib/firebase-admin';
 
 const apiKey = import.meta.env.JULES_API_KEY;
 const clientSecret = import.meta.env.JULES_CLIENT_SECRET;
 
-const handler = createFetchHandler({
+const handler = createGateway({
+  kind: 'session',
   apiKey,
   clientSecret,
-  verify: verifyFirebaseAdmin({
-    auth: adminAuth,
-  }),
-  authorize: async (user, sessionId) => {
-    return user.uid === '9lfObjHWETUM3zoKWABFIPFnb4m1';
+  auth: {
+    verify: verifyFirebaseAdmin({
+      auth: adminAuth,
+    }),
+    authorize: async (user, sessionId) => {
+      // Check if user is the owner
+      if (user.uid === '9lfObjHWETUM3zoKWABFIPFnb4m1') {
+        return { scopes: ['read', 'write', 'admin'] };
+      }
+      return { scopes: ['read'] };
+    },
   },
 });
 

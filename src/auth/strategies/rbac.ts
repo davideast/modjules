@@ -15,8 +15,8 @@ export interface RBACConfig<T> {
 
 export function createRBACPolicy<T>(
   config: RBACConfig<T>,
-): AuthorizationStrategy<T> {
-  return async (user, sessionId) => {
+): AuthorizationStrategy {
+  return async (user: Identity, sessionId: string) => {
     // 1. Fetch Resource
     const resource = await config.getResource(sessionId);
     if (!resource) throw new Error('Session not found');
