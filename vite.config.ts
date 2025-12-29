@@ -10,10 +10,12 @@ export default defineConfig({
         index: 'src/index.ts',
         browser: 'src/browser.ts',
         'gas/index': 'src/gas/index.ts',
-        'proxy/web': 'src/node/proxy.ts',
-        proxy: 'src/node/proxy.ts',
-        'proxy/firebase': 'src/auth/strategies/firebase.ts',
-        'proxy/memory': 'src/auth/strategies/memory.ts',
+        // New server entry point
+        server: 'src/server/index.ts',
+        // Auth strategies under server namespace
+        'server/auth/firebase': 'src/auth/strategies/firebase.ts',
+        'server/auth/memory': 'src/auth/strategies/memory.ts',
+        // MCP
         mcp: 'src/mcp/index.ts',
       },
       name: 'modjules',

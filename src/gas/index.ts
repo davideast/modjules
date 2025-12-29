@@ -9,9 +9,11 @@ export function createGasHandler(config: ServerConfig) {
   // The actual GAS trigger function
   return (e: GoogleAppsScript.Events.DoPost) => {
     // 1. Adapter: GAS Event -> ServerRequest
+    const path = e.parameter.path || '';
     const request = {
       method: 'POST', // doPost is always POST
-      path: e.parameter.path || '', // Passed via query param ?path=/sessions/...
+      url: path,
+      path: path, // Kept for backwards compatibility
       headers: {
         // GAS doesn't give easy access to headers in all contexts,
         // so we often pass Auth via the body or specific params in GAS.

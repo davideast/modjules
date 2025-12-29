@@ -1,45 +1,50 @@
 import { Platform } from '../platform/types.js';
 import { TokenManager } from '../auth/tokenizer.js';
+import { HandshakeRequest, HandshakeResponse } from '../auth/protocol.js';
 import {
-  HandshakeRequest,
-  HandshakeResponse,
-  TokenScope,
-} from '../auth/protocol.js';
-import { ServerConfig, ServerRequest, Scope } from './types.js';
+  ServerRequest,
+  ServerResponse,
+  SessionGatewayConfig,
+  Scope,
+} from './types.js';
 import { JulesClientImpl } from '../client.js';
 import { MemoryStorage } from '../storage/memory.js';
 import { Identity } from '../auth/types.js';
 
 // --- 1. The Forwarder (Dumb Proxy) ---
-// Responsible ONLY for URL rewriting, API Key injection, and Fetching.
-// No auth checks here. This allows the Simple Handler to be truly flexible.
+
+/**
+ * Forwards requests to the Jules API without authentication.
+ * Responsible ONLY for URL rewriting, API Key injection, and Fetching.
+ */
 export async function proxyRequest(
-  config: ServerConfig,
+  apiKey: string,
   platform: Platform,
   req: ServerRequest,
-): Promise<{ status: number; body: any }> {
+): Promise<ServerResponse> {
   try {
-    // Strip leading slash to prevent double slashes
-    const requestPath = req.url || req.path || '';
-    const normalizedPath = requestPath.replace(/^\//, '');
-    const julesApiUrl = `https://jules.googleapis.com/v1alpha/${normalizedPath}`;
+    // Extract path from URL (supports full URL or just path)
+    const urlObj = new URL(req.url, 'http://localhost');
+    const path = urlObj.pathname.replace(/^\/+/, '');
+
+    // Construct Upstream URL
+    const julesApiUrl = `https://jules.googleapis.com/v1alpha/${path}${urlObj.search}`;
 
     const upstreamRes = await platform.fetch(julesApiUrl, {
       method: req.method,
       headers: {
         'Content-Type': 'application/json',
-        'X-Goog-Api-Key': config.apiKey,
+        'X-Goog-Api-Key': apiKey,
       },
       body: req.body ? JSON.stringify(req.body) : undefined,
     });
 
-    // Handle 204 No Content or empty bodies gracefully
-    const responseBody = await upstreamRes.text();
-    const parsedBody = responseBody ? JSON.parse(responseBody) : {};
+    const text = await upstreamRes.text();
+    const body = text ? JSON.parse(text) : {};
 
     return {
       status: upstreamRes.status,
-      body: parsedBody,
+      body,
     };
   } catch (error: any) {
     console.error('Upstream Proxy Error:', error);
@@ -51,8 +56,12 @@ export async function proxyRequest(
 }
 
 // --- 2. The Guard (Security Middleware) ---
-// Responsible for Token Verification, Scope Matching, and RBAC.
-async function verifySessionAccess(
+
+/**
+ * Verifies session access based on the capability token.
+ * Checks token validity, session scope, and RBAC permissions.
+ */
+export async function verifyAccess(
   req: ServerRequest,
   tokenizer: TokenManager,
 ): Promise<{ allowed: boolean; error?: string; status?: number }> {
@@ -73,9 +82,8 @@ async function verifySessionAccess(
     const claims = await tokenizer.verify(token);
 
     // A. Scope Validation (Session Isolation)
-    // Extract session ID from URL: /sessions/<id>/...
-    const requestPath = req.url || req.path || '';
-    const pathSegments = requestPath.split('/');
+    const urlObj = new URL(req.url, 'http://localhost');
+    const pathSegments = urlObj.pathname.split('/');
     const sessionIdIndex = pathSegments.indexOf('sessions') + 1;
     const targetSessionId = pathSegments[sessionIdIndex];
 
@@ -90,7 +98,7 @@ async function verifySessionAccess(
 
     // B. Permission Check (RBAC)
     const method = req.method.toUpperCase();
-    const scopes = (claims.scope as any).scopes || []; // Cast to allow your new scopes property
+    const scopes = (claims.scope as any).scopes || [];
 
     const isWrite = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
     const hasWriteScope = scopes.includes('write') || scopes.includes('admin');
@@ -100,7 +108,7 @@ async function verifySessionAccess(
       return {
         allowed: false,
         status: 403,
-        error: 'Permission Denied: Write access required',
+        error: 'Read-only token: Write access required',
       };
     }
 
@@ -118,70 +126,25 @@ async function verifySessionAccess(
   }
 }
 
-// --- 3. The Factories ---
+// --- 3. The Handshake ---
 
 /**
- * Creates a "Simple" Proxy Handler.
- * Useful for trusted environments or when Auth is handled by an external gateway.
- * IT DOES NOT CHECK PERMISSIONS.
+ * Handles the handshake flow for session creation or resumption.
+ * Returns a capability token scoped to the session.
  */
-export function createForwardingHandler(
-  config: ServerConfig,
-  platform: Platform,
-) {
-  return async (req: ServerRequest): Promise<{ status: number; body: any }> => {
-    return await proxyRequest(config, platform, req);
-  };
-}
-
-/**
- * Creates a "Secure" Proxy Handler.
- * Supports the Handshake (login) flow and enforces capability tokens.
- */
-export function createHandlerCore(config: ServerConfig, platform: Platform) {
-  const tokenizer = new TokenManager(platform, config.clientSecret);
-
-  // Admin Client used for the Handshake 'create' flow
-  const adminClient = new JulesClientImpl(
-    { apiKey: config.apiKey, platform },
-    () => new MemoryStorage(), // Admin client doesn't need persistence for this
-    platform,
-  );
-
-  return async (req: ServerRequest): Promise<{ status: number; body: any }> => {
-    // Flow A: Handshake
-    if (req.method === 'POST' && req.body?.intent) {
-      return await handleHandshake(
-        req.body,
-        config,
-        adminClient,
-        tokenizer,
-        platform,
-      );
-    }
-
-    // Flow B: Secure Proxy
-    const access = await verifySessionAccess(req, tokenizer);
-    if (!access.allowed) {
-      return { status: access.status || 403, body: { error: access.error } };
-    }
-
-    return await proxyRequest(config, platform, req);
-  };
-}
-
-// --- Helper: Handshake Logic ---
-
-async function handleHandshake(
+export async function handleHandshake(
   body: HandshakeRequest,
-  config: ServerConfig,
+  config: SessionGatewayConfig,
   client: JulesClientImpl,
   tokenizer: TokenManager,
   platform: Platform,
-): Promise<{ status: number; body: HandshakeResponse }> {
+): Promise<ServerResponse> {
   try {
     // 1. Verify Identity
-    const identityOrUid = await config.verify(body.authToken || '', platform);
+    const identityOrUid = await config.auth.verify(
+      body.authToken || '',
+      platform,
+    );
     const identity: Identity =
       typeof identityOrUid === 'string'
         ? { uid: identityOrUid }
@@ -189,7 +152,7 @@ async function handleHandshake(
 
     // 2. Execute Intent
     let sessionId: string;
-    let scopes: Scope[] = ['read']; // Default to read-only
+    let scopes: Scope[] = ['read'];
 
     if (body.intent === 'create') {
       const session = await client.run({
@@ -201,20 +164,22 @@ async function handleHandshake(
     } else {
       sessionId = body.sessionId;
       // Authorize logic determines scopes
-      const result = await config.authorize(identity, sessionId);
-      scopes = result.scopes || ['read', 'write']; // Fallback if result doesn't explicitly return scopes
+      const result = await config.auth.authorize(identity, sessionId);
+      scopes = result.scopes || ['read', 'write'];
     }
 
     // 3. Mint Capability Token
-    // We extend the TokenScope interface dynamically here or you should update protocol.ts
     const token = await tokenizer.mint({ sessionId, scopes } as any);
 
     return {
       status: 200,
-      body: { success: true, token, sessionId },
+      body: { success: true, token, sessionId } as HandshakeResponse,
     };
   } catch (e: any) {
     console.error('Handshake Error:', e);
-    return { status: 403, body: { success: false, error: e.message } };
+    return {
+      status: 403,
+      body: { success: false, error: e.message } as HandshakeResponse,
+    };
   }
 }

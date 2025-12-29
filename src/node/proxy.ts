@@ -44,6 +44,7 @@ export function createNodeHandler(config: ServerConfig) {
     // 2. Execute Core Logic
     const result = await coreHandler({
       method: req.method,
+      url: path,
       path,
       headers,
       body,
