@@ -1,0 +1,79 @@
+import { describe, it, expect } from 'vitest';
+import { determineCacheTier, isCacheValid } from '../src/caching';
+import { CachedSession } from '../src/storage/types';
+import { SessionResource } from '../src/types';
+
+describe('Iceberg Caching Logic', () => {
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+
+  const mockSession = (state: string, createTime: string): SessionResource => ({
+    id: 'test',
+    name: 'sessions/test',
+    state: state as any,
+    createTime,
+    updateTime: createTime,
+    prompt: '',
+    sourceContext: { source: '' },
+    title: '',
+    url: '',
+    outputs: [],
+  });
+
+  const createCachedSession = (
+    state: string,
+    ageMs: number,
+    lastSyncedAgoMs: number,
+  ): CachedSession => {
+    const now = Date.now();
+    return {
+      resource: mockSession(state, new Date(now - ageMs).toISOString()),
+      _lastSyncedAt: now - lastSyncedAgoMs,
+    };
+  };
+
+  it('should identify FROZEN tier (> 30 days old)', () => {
+    const cached = createCachedSession('inProgress', ONE_MONTH_MS + 1000, 0);
+    expect(determineCacheTier(cached)).toBe('frozen');
+    expect(isCacheValid(cached)).toBe(true);
+  });
+
+  it('should identify WARM tier (Terminal state + Synced < 24h)', () => {
+    // Completed, created recently, synced 1 hour ago
+    const cachedCompleted = createCachedSession(
+      'completed',
+      1000,
+      ONE_DAY_MS - 1000,
+    );
+    expect(determineCacheTier(cachedCompleted)).toBe('warm');
+    expect(isCacheValid(cachedCompleted)).toBe(true);
+
+    // Failed, created recently, synced 1 hour ago
+    const cachedFailed = createCachedSession('failed', 1000, ONE_DAY_MS - 1000);
+    expect(determineCacheTier(cachedFailed)).toBe('warm');
+    expect(isCacheValid(cachedFailed)).toBe(true);
+  });
+
+  it('should identify HOT tier (Non-terminal state)', () => {
+    const cached = createCachedSession('inProgress', 1000, 0);
+    expect(determineCacheTier(cached)).toBe('hot');
+    expect(isCacheValid(cached)).toBe(false);
+  });
+
+  it('should identify HOT tier (Terminal state but stale sync > 24h)', () => {
+    const cached = createCachedSession('completed', 1000, ONE_DAY_MS + 1000);
+    expect(determineCacheTier(cached)).toBe('hot');
+    expect(isCacheValid(cached)).toBe(false);
+  });
+
+  it('should prioritize FROZEN over WARM/HOT based on age', () => {
+    // Old (> 30 days) but active state -> Should be Frozen because it's old
+    // Wait, the logic is: if age > 30 days -> frozen.
+    const cached = createCachedSession('inProgress', ONE_MONTH_MS + 1000, 0);
+    expect(determineCacheTier(cached)).toBe('frozen');
+  });
+
+  it('should handle undefined cache gracefully', () => {
+    expect(isCacheValid(undefined)).toBe(false);
+  });
+});

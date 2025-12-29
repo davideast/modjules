@@ -10,6 +10,7 @@ import {
   SessionClient,
   Outcome,
   SessionResource,
+  StorageFactory,
 } from './types.js';
 import { SourceNotFoundError } from './errors.js';
 import { streamActivities } from './streaming.js';
@@ -18,6 +19,9 @@ import { mapSessionResourceToOutcome } from './mappers.js';
 import { SessionClientImpl } from './session.js';
 import { pMap } from './utils.js';
 import { SessionCursor, ListSessionsOptions } from './sessions.js';
+import { Platform } from './platform/types.js';
+import { SessionStorage } from './storage/types.js';
+import { isCacheValid } from './caching.js';
 
 /**
  * The fully resolved internal configuration for the SDK.
@@ -27,9 +31,6 @@ export type InternalConfig = {
   pollingIntervalMs: number;
   requestTimeoutMs: number;
 };
-
-import { Platform } from './platform/types.js';
-import { StorageFactory } from './types.js';
 
 /**
  * Implementation of the main JulesClient interface.
@@ -41,6 +42,9 @@ export class JulesClientImpl implements JulesClient {
    * Manages source connections (e.g., GitHub repositories).
    */
   public sources: SourceManager;
+  // Expose storage for modular functions (Phase 3 requirement)
+  public readonly storage: SessionStorage;
+
   private apiClient: ApiClient;
   private config: InternalConfig;
   private options: JulesOptions;
@@ -62,6 +66,10 @@ export class JulesClientImpl implements JulesClient {
     this.options = options;
     this.storageFactory = options.storageFactory ?? defaultStorageFactory;
     this.platform = options.platform ?? defaultPlatform;
+
+    // Phase 1 / Phase 2 Integration: Initialize Session Storage
+    // NOTE: This assumes StorageFactory was updated to { activity: ..., session: ... } in Phase 1
+    this.storage = this.storageFactory.session();
 
     // 1. Resolve Proxy Configuration
     const envProxyUrl = this.getEnv('JULES_PROXY');
@@ -149,13 +157,44 @@ export class JulesClientImpl implements JulesClient {
   }
 
   /**
+   * Retrieves a session resource using the "Iceberg" caching strategy.
+   * * - **Tier 3 (Frozen):** > 30 days old. Returns from cache immediately.
+   * - **Tier 2 (Warm):** Terminal state + Verified < 24h ago. Returns from cache.
+   * - **Tier 1 (Hot):** Active or Stale. Fetches from network, updates cache, returns.
+   */
+  async getSessionResource(id: string): Promise<SessionResource> {
+    const cached = await this.storage.get(id);
+
+    if (isCacheValid(cached)) {
+      return cached.resource;
+    }
+
+    // TIER 1 & Fallback: Network Request
+    try {
+      const fresh = await this.apiClient.request<SessionResource>(
+        `sessions/${id}`,
+      );
+
+      await this.storage.upsert(fresh);
+
+      return fresh;
+    } catch (e: any) {
+      // Handle 404: If it was in cache but 404s on network, it was deleted remotely.
+      if (e.status === 404 && cached) {
+        await this.storage.delete(id);
+      }
+      throw e;
+    }
+  }
+
+  /**
    * Lists sessions with a fluent, pagination-friendly API.
    * @param options Configuration for pagination (pageSize, limit, pageToken)
    * @returns A SessionCursor that can be awaited (first page) or iterated (all pages).
    */
   sessions(options?: ListSessionsOptions): SessionCursor {
-    // Return a cursor that supports both await (Promise) and for-await (AsyncIterable)
-    return new SessionCursor(this.apiClient, options);
+    // Inject storage into the cursor for Write-Through behavior
+    return new SessionCursor(this.apiClient, this.storage, options);
   }
 
   async all<T>(
@@ -244,6 +283,9 @@ export class JulesClientImpl implements JulesClient {
       },
     );
 
+    // Cache the new session immediately
+    await this.storage.upsert(sessionResource);
+
     const sessionId = sessionResource.id;
 
     return {
@@ -262,6 +304,8 @@ export class JulesClientImpl implements JulesClient {
           this.apiClient,
           this.config.pollingIntervalMs,
         );
+        // Cache the final state
+        await this.storage.upsert(finalSession);
         return mapSessionResourceToOutcome(finalSession);
       },
     };
@@ -315,6 +359,7 @@ export class JulesClientImpl implements JulesClient {
         this.apiClient,
         this.config,
         storage,
+        this.storage,
         this.platform,
       );
     }
@@ -338,12 +383,17 @@ export class JulesClientImpl implements JulesClient {
           },
         },
       );
-      const storage = this.storageFactory.activity(session.id);
+
+      // Cache created session
+      await this.storage.upsert(session);
+
+      const activityStorage = this.storageFactory.activity(session.id);
       return new SessionClientImpl(
         session.name,
         this.apiClient,
         this.config,
-        storage,
+        activityStorage,
+        this.storage,
         this.platform,
       );
     })();

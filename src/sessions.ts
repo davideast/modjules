@@ -1,5 +1,6 @@
 import { ApiClient } from './api.js';
 import { SessionResource } from './types.js';
+import { SessionStorage } from './storage/types.js';
 
 export type ListSessionsOptions = {
   pageSize?: number;
@@ -28,9 +29,8 @@ export type ListSessionsResponse = {
  * - **Pagination:** Handles `nextPageToken` automatically during iteration. For manual control,
  *   access the `nextPageToken` property on the promised response.
  * - **Limiting:** The `limit` option hard-stops the iteration after N items, preventing over-fetching.
- * - **Caching:** This operation is **stateless** and **network-only**. It does NOT read from or write to
- *   the local activity cache. This prevents directory bloat when listing thousands of sessions
- *   and ensures the list reflects the authoritative server state.
+ * - **Write-Through Caching:** Fetched sessions are automatically persisted to local storage
+ *   using `storage.upsertMany()`. This ensures the local graph is populated during listing.
  * - **Platform:** Fully platform-agnostic (Node.js/Browser/GAS) via the injected `ApiClient`.
  */
 export class SessionCursor
@@ -38,6 +38,7 @@ export class SessionCursor
 {
   constructor(
     private apiClient: ApiClient,
+    private storage: SessionStorage,
     private options: ListSessionsOptions = {},
   ) {}
 
@@ -114,8 +115,16 @@ export class SessionCursor
       nextPageToken?: string;
     }>('sessions', { params });
 
+    const sessions = response.sessions || [];
+
+    // Write-Through Cache: Persist fetched sessions immediately
+    if (sessions.length > 0) {
+      // We await to ensure data integrity
+      await this.storage.upsertMany(sessions);
+    }
+
     return {
-      sessions: response.sessions || [],
+      sessions,
       nextPageToken: response.nextPageToken,
     };
   }

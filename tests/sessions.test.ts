@@ -3,13 +3,14 @@ import { SessionCursor, ListSessionsResponse } from '../src/sessions';
 import { ApiClient } from '../src/api';
 import { SessionResource } from '../src/types';
 import { JulesClientImpl } from '../src/client';
-import { NodeFileStorage } from '../src/storage/node-fs';
 import { NodePlatform } from '../src/platform/node';
+import { SessionStorage } from '../src/storage/types';
 
 describe('jules.sessions()', () => {
   let apiClient: ApiClient;
   let client: JulesClientImpl;
   let mockStorageFactory: any;
+  let mockSessionStorage: SessionStorage;
 
   beforeEach(() => {
     // Mock the ApiClient request method
@@ -17,10 +18,21 @@ describe('jules.sessions()', () => {
       request: vi.fn(),
     } as unknown as ApiClient;
 
-    // Mock storage factory to verify it's NOT called
-    mockStorageFactory = vi
-      .fn()
-      .mockImplementation((id) => new NodeFileStorage(id, '/tmp'));
+    // Mock Session Storage
+    mockSessionStorage = {
+      init: vi.fn(),
+      upsert: vi.fn(),
+      upsertMany: vi.fn(),
+      get: vi.fn(),
+      delete: vi.fn(),
+      scanIndex: vi.fn(),
+    } as unknown as SessionStorage;
+
+    // Mock storage factory
+    mockStorageFactory = {
+      activity: vi.fn(),
+      session: vi.fn().mockReturnValue(mockSessionStorage),
+    };
 
     // Create a client with mocked dependencies
     client = new JulesClientImpl(
@@ -64,6 +76,9 @@ describe('jules.sessions()', () => {
       params: { pageSize: '10' },
     });
     expect(result).toEqual(mockResponse);
+    expect(mockSessionStorage.upsertMany).toHaveBeenCalledWith(
+      mockResponse.sessions,
+    );
   });
 
   it('should iterate over all sessions across multiple pages using async iterator', async () => {
@@ -89,6 +104,7 @@ describe('jules.sessions()', () => {
     expect(results).toHaveLength(3);
     expect(results.map((s) => s.id)).toEqual(['1', '2', '3']);
     expect(apiClient.request).toHaveBeenCalledTimes(2);
+    expect(mockSessionStorage.upsertMany).toHaveBeenCalledTimes(2);
   });
 
   it('should stop iterating when limit is reached within a page', async () => {
@@ -108,6 +124,7 @@ describe('jules.sessions()', () => {
     expect(results).toHaveLength(2);
     expect(results.map((s) => s.id)).toEqual(['1', '2']);
     expect(apiClient.request).toHaveBeenCalledTimes(1);
+    expect(mockSessionStorage.upsertMany).toHaveBeenCalledTimes(1);
   });
 
   // NEW: Test for cross-page limiting
@@ -135,6 +152,7 @@ describe('jules.sessions()', () => {
     expect(results).toHaveLength(3);
     expect(results.map((s) => s.id)).toEqual(['1', '2', '3']);
     expect(apiClient.request).toHaveBeenCalledTimes(2);
+    expect(mockSessionStorage.upsertMany).toHaveBeenCalledTimes(2);
   });
 
   // NEW: Test for manual pagination
@@ -171,12 +189,14 @@ describe('jules.sessions()', () => {
     });
   });
 
-  // NEW: Verify no cache interaction
-  it('should NOT trigger storage initialization', async () => {
-    (apiClient.request as any).mockResolvedValue({ sessions: [] });
+  // NEW: Verify Write-Through cache interaction
+  it('should trigger storage upsert on fetch', async () => {
+    const mockSessions = [createSession('1')];
+    (apiClient.request as any).mockResolvedValue({ sessions: mockSessions });
 
     await client.sessions();
 
-    expect(mockStorageFactory).not.toHaveBeenCalled();
+    expect(mockStorageFactory.session).toHaveBeenCalled();
+    expect(mockSessionStorage.upsertMany).toHaveBeenCalledWith(mockSessions);
   });
 });
