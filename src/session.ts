@@ -74,9 +74,18 @@ export class SessionClientImpl implements SessionClient {
 
   /**
    * COLD STREAM: Yields all known past activities from local storage.
+   * If local cache is empty, fetches from network first.
    */
   history(): AsyncIterable<Activity> {
     return this._activities.history();
+  }
+
+  /**
+   * Forces a full sync of activities from the network to local cache.
+   * @returns The number of new activities synced.
+   */
+  hydrate(): Promise<number> {
+    return this._activities.hydrate();
   }
 
   /**

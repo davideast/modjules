@@ -60,4 +60,11 @@ export interface ActivityClient {
    * NETWORK GET: Fetches a specific activity from the network and caches it.
    */
   get(activityId: string): Promise<Activity>;
+
+  /**
+   * NETWORK SYNC: Fetches all activities from the network and caches them.
+   * Useful when you suspect the cache is stale.
+   * @returns The number of activities synced.
+   */
+  hydrate(): Promise<number>;
 }

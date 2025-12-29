@@ -33,9 +33,73 @@ export class DefaultActivityClient implements ActivityClient {
     // Ensure storage is ready before we start yielding
     await this.storage.init();
 
+    // Check if cache has any activities
+    const hasCache = (await this.storage.latest()) !== undefined;
+
+    // If cache is empty, populate from network
+    if (!hasCache) {
+      yield* this.fetchAndCacheAll();
+      return;
+    }
+
     // Idiomatic delegation to the storage's generator.
     // This yields every item from storage.scan() one by one.
     yield* this.storage.scan();
+  }
+
+  /**
+   * Fetches all activities from the network and caches them.
+   * Used to populate an empty cache.
+   * @internal
+   */
+  private async *fetchAndCacheAll(): AsyncIterable<Activity> {
+    let pageToken: string | undefined;
+
+    do {
+      const response = await this.network.listActivities({ pageToken });
+
+      for (const activity of response.activities) {
+        await this.storage.append(activity);
+        yield activity;
+      }
+
+      pageToken = response.nextPageToken;
+    } while (pageToken);
+  }
+
+  /**
+   * Forces a full sync of activities from the network to local cache.
+   * Useful when you suspect the cache is stale.
+   *
+   * @returns The number of activities synced.
+   */
+  async hydrate(): Promise<number> {
+    await this.storage.init();
+
+    let count = 0;
+    let pageToken: string | undefined;
+
+    const existingIds = new Set<string>();
+
+    for await (const act of this.storage.scan()) {
+      existingIds.add(act.id);
+    }
+
+    do {
+      const response = await this.network.listActivities({ pageToken });
+
+      for (const activity of response.activities) {
+        if (!existingIds.has(activity.id)) {
+          await this.storage.append(activity);
+          existingIds.add(activity.id);
+          count++;
+        }
+      }
+
+      pageToken = response.nextPageToken;
+    } while (pageToken);
+
+    return count;
   }
 
   /**
