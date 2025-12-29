@@ -7,9 +7,7 @@ import { InvalidStateError, JulesError } from './errors.js';
 import { mapSessionResourceToOutcome } from './mappers.js';
 import { NetworkAdapter } from './network/adapter.js';
 import { pollSession, pollUntilCompletion } from './polling.js';
-import { MemoryStorage } from './storage/memory.js';
-import { NodeFileStorage } from './storage/node-fs.js';
-import { ActivityStorage } from './storage/types.js';
+import { ActivityStorage, SessionStorage } from './storage/types.js';
 import { StreamActivitiesOptions } from './streaming.js';
 import {
   Activity,
@@ -20,6 +18,9 @@ import {
   SessionState,
 } from './types.js';
 
+const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Implementation of the SessionClient interface.
  * Manages an interactive session with the Jules agent.
@@ -28,8 +29,7 @@ export class SessionClientImpl implements SessionClient {
   readonly id: string;
   private apiClient: ApiClient;
   private config: InternalConfig;
-
-  // The new client instance
+  private sessionStorage: SessionStorage; // Added property
   private _activities: ActivityClient;
 
   /**
@@ -38,19 +38,22 @@ export class SessionClientImpl implements SessionClient {
    * @param sessionId The ID of the session.
    * @param apiClient The API client to use for network requests.
    * @param config The configuration options.
-   * @param storage The storage engine for activities.
+   * @param activityStorage The storage engine for activities.
+   * @param sessionStorage The storage engine for sessions.
    * @param platform The platform adapter.
    */
   constructor(
     sessionId: string,
     apiClient: ApiClient,
     config: InternalConfig,
-    storage: ActivityStorage,
+    activityStorage: ActivityStorage,
+    sessionStorage: SessionStorage, // Injected dependency
     platform: any,
   ) {
     this.id = sessionId.replace(/^sessions\//, '');
     this.apiClient = apiClient;
     this.config = config;
+    this.sessionStorage = sessionStorage;
 
     // --- WIRING THE NEW ENGINE ---
     const network = new NetworkAdapter(
@@ -60,7 +63,7 @@ export class SessionClientImpl implements SessionClient {
       platform,
     );
 
-    this._activities = new DefaultActivityClient(storage, network);
+    this._activities = new DefaultActivityClient(activityStorage, network);
   }
 
   // Private helper wrapper to enforce resume context
@@ -226,6 +229,8 @@ export class SessionClientImpl implements SessionClient {
       this.apiClient,
       this.config.pollingIntervalMs,
     );
+    // Write-Through: Persist final state
+    await this.sessionStorage.upsert(finalSession);
     return mapSessionResourceToOutcome(finalSession);
   }
 
@@ -259,9 +264,36 @@ export class SessionClientImpl implements SessionClient {
   }
 
   /**
-   * Retrieves the latest state of the underlying session resource from the API.
+   * Retrieves the latest state of the underlying session resource.
+   * Implements "Iceberg" Read-Through caching.
    */
   async info(): Promise<SessionResource> {
-    return this.request<SessionResource>(`sessions/${this.id}`);
+    const cached = await this.sessionStorage.get(this.id);
+    const now = Date.now();
+
+    if (cached) {
+      const createdAt = new Date(cached.resource.createTime).getTime();
+      const age = now - createdAt;
+      const isTerminal = ['failed', 'completed'].includes(cached.resource.state);
+
+      // TIER 3: FROZEN (Older than 1 month)
+      if (age > ONE_MONTH_MS) return cached.resource;
+
+      // TIER 2: WARM (Terminal state + synced recently)
+      const timeSinceSync = now - cached._lastSyncedAt;
+      if (isTerminal && timeSinceSync < ONE_DAY_MS) return cached.resource;
+    }
+
+    // TIER 1: HOT (Network Fetch)
+    try {
+      const fresh = await this.request<SessionResource>(`sessions/${this.id}`);
+      await this.sessionStorage.upsert(fresh);
+      return fresh;
+    } catch (e: any) {
+      if (e.status === 404 && cached) {
+        await this.sessionStorage.delete(this.id);
+      }
+      throw e;
+    }
   }
 }
