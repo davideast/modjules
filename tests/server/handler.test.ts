@@ -97,6 +97,7 @@ describe('Server Core (The Vendor)', () => {
   it('Handshake: Creates session and returns token', async () => {
     const res = await handler({
       method: 'POST',
+      url: '/',
       path: '/',
       headers: {},
       body: {
@@ -123,6 +124,7 @@ describe('Server Core (The Vendor)', () => {
     // 1. Get a valid token first
     const handshake = await handler({
       method: 'POST',
+      url: '/',
       path: '/',
       headers: {},
       body: {
@@ -139,6 +141,7 @@ describe('Server Core (The Vendor)', () => {
     // 2. Use token to access the SPECIFIC session
     const res = await handler({
       method: 'GET',
+      url: '/sessions/sess_123/activities',
       path: '/sessions/sess_123/activities',
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -157,6 +160,7 @@ describe('Server Core (The Vendor)', () => {
     // Token is for sess_123
     const handshake = await handler({
       method: 'POST',
+      url: '/',
       path: '/',
       headers: {},
       body: {
@@ -173,6 +177,7 @@ describe('Server Core (The Vendor)', () => {
     // Try to access sess_999
     const res = await handler({
       method: 'GET',
+      url: '/sessions/sess_999/activities',
       path: '/sessions/sess_999/activities',
       headers: { Authorization: `Bearer ${token}` },
     });
