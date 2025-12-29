@@ -11,14 +11,17 @@
 // =============================================================================
 
 import { SelectOptions } from './activities/types.js';
-import { ActivityStorage } from './storage/types.js';
+import { ActivityStorage, SessionStorage } from './storage/types.js';
 import { ListSessionsOptions, SessionCursor } from './sessions.js';
 
 /**
- * A factory function that creates an ActivityStorage instance for a given session ID.
+ * A factory object that creates storage instances.
  * @internal
  */
-export type StorageFactory = (sessionId: string) => ActivityStorage;
+export type StorageFactory = {
+  activity: (sessionId: string) => ActivityStorage;
+  session: () => SessionStorage;
+};
 
 /**
  * Configuration options for the Jules SDK client.

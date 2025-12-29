@@ -1,12 +1,15 @@
 // src/browser.ts
 import { JulesClientImpl } from './client.js';
 import { BrowserStorage } from './storage/browser.js';
+import { MemorySessionStorage } from './storage/memory.js';
 import { BrowserPlatform } from './platform/browser.js';
-import { JulesClient, JulesOptions } from './types.js';
+import { JulesClient, JulesOptions, StorageFactory } from './types.js';
 
 const defaultPlatform = new BrowserPlatform();
-const defaultStorageFactory = (sessionId: string) =>
-  new BrowserStorage(sessionId);
+const defaultStorageFactory: StorageFactory = {
+  activity: (sessionId: string) => new BrowserStorage(sessionId),
+  session: () => new MemorySessionStorage(), // Use Memory for now, upgrade to IndexedDB later
+};
 
 /**
  * Connects to the Jules service with the provided configuration.

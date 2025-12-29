@@ -8,7 +8,7 @@ import {
 import { WebPlatform } from '../platform/web.js';
 import { JulesClientImpl } from '../client.js';
 import { TokenManager } from '../auth/tokenizer.js';
-import { MemoryStorage } from '../storage/memory.js';
+import { MemoryStorage, MemorySessionStorage } from '../storage/memory.js';
 import { proxyRequest, verifyAccess, handleHandshake } from './gateway.js';
 import { Platform } from '../platform/types.js';
 
@@ -55,7 +55,10 @@ export function createGateway(config: GatewayConfig) {
     // Admin client for 'create' operations
     adminClient = new JulesClientImpl(
       { apiKey: config.apiKey, platform },
-      () => new MemoryStorage(),
+      {
+        activity: () => new MemoryStorage(),
+        session: () => new MemorySessionStorage(),
+      },
       platform,
     );
   }

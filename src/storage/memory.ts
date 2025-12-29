@@ -1,5 +1,10 @@
-import { Activity } from '../types.js';
-import { ActivityStorage } from './types.js';
+import { Activity, SessionResource } from '../types.js';
+import {
+  ActivityStorage,
+  SessionStorage,
+  CachedSession,
+  SessionIndexEntry,
+} from './types.js';
 
 /**
  * In-memory implementation of ActivityStorage.
@@ -64,6 +69,57 @@ export class MemoryStorage implements ActivityStorage {
   async *scan(): AsyncIterable<Activity> {
     for (const activity of this.activities) {
       yield activity;
+    }
+  }
+}
+
+/**
+ * In-memory implementation of SessionStorage.
+ */
+export class MemorySessionStorage implements SessionStorage {
+  private sessions: Map<string, CachedSession> = new Map();
+  private index: SessionIndexEntry[] = [];
+
+  async init(): Promise<void> {
+    // No-op
+  }
+
+  async upsert(session: SessionResource): Promise<void> {
+    this.sessions.set(session.id, {
+      resource: session,
+      _lastSyncedAt: Date.now(),
+    });
+
+    // Append to index (mimicking file behavior)
+    this.index.push({
+      id: session.id,
+      title: session.title,
+      state: session.state,
+      createTime: session.createTime,
+      source: session.sourceContext?.source || 'unknown',
+      _updatedAt: Date.now(),
+    });
+  }
+
+  async upsertMany(sessions: SessionResource[]): Promise<void> {
+    for (const s of sessions) {
+      await this.upsert(s);
+    }
+  }
+
+  async get(sessionId: string): Promise<CachedSession | undefined> {
+    return this.sessions.get(sessionId);
+  }
+
+  async delete(sessionId: string): Promise<void> {
+    this.sessions.delete(sessionId);
+    // Index entries remain (append-only simulation), or we could filter them out.
+    // Spec says "We do NOT rewrite the index here for performance", so we leave them.
+  }
+
+  async *scanIndex(): AsyncIterable<SessionIndexEntry> {
+    for (const entry of this.index) {
+      yield entry;
     }
   }
 }

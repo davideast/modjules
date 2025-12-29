@@ -11,7 +11,11 @@ const mockRun = vi.fn();
 class MockJulesClient extends JulesClientImpl {
   constructor() {
     // Pass dummy dependencies
-    super({}, () => ({}) as any, new NodePlatform());
+    super(
+      {},
+      { activity: () => ({}) as any, session: () => ({}) as any },
+      new NodePlatform(),
+    );
   }
 
   // Override run to mock it
