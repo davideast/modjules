@@ -3,7 +3,12 @@ import { createReadStream } from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
 import { Activity, SessionResource } from '../types.js';
-import { ActivityStorage, SessionStorage, CachedSession, SessionIndexEntry } from './types.js';
+import {
+  ActivityStorage,
+  SessionStorage,
+  CachedSession,
+  SessionIndexEntry,
+} from './types.js';
 
 /**
  * Node.js filesystem implementation of ActivityStorage.
@@ -167,7 +172,7 @@ export class NodeSessionStorage implements SessionStorage {
     await fs.writeFile(
       path.join(sessionDir, 'session.json'),
       JSON.stringify(cached, null, 2),
-      'utf8'
+      'utf8',
     );
 
     // 2. Update the High-Speed Index (Append-Only)
@@ -178,19 +183,19 @@ export class NodeSessionStorage implements SessionStorage {
       state: session.state,
       createTime: session.createTime,
       source: session.sourceContext?.source || 'unknown',
-      _updatedAt: Date.now()
+      _updatedAt: Date.now(),
     };
 
     await fs.appendFile(
       this.indexFilePath,
       JSON.stringify(indexEntry) + '\n',
-      'utf8'
+      'utf8',
     );
   }
 
   async upsertMany(sessions: SessionResource[]): Promise<void> {
     // Parallelize file writes, sequentialize index write
-    await Promise.all(sessions.map(s => this.upsert(s)));
+    await Promise.all(sessions.map((s) => this.upsert(s)));
   }
 
   async get(sessionId: string): Promise<CachedSession | undefined> {
@@ -222,8 +227,13 @@ export class NodeSessionStorage implements SessionStorage {
     // Note: In Phase 3 (Query Planner), we will optimize this to read backward
     // or keep an in-memory map to dedupe instantly.
     try {
-      const fileStream = createReadStream(this.indexFilePath, { encoding: 'utf8' });
-      const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+      const fileStream = createReadStream(this.indexFilePath, {
+        encoding: 'utf8',
+      });
+      const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity,
+      });
 
       for await (const line of rl) {
         if (!line.trim()) continue;

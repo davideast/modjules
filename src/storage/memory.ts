@@ -1,5 +1,10 @@
 import { Activity, SessionResource } from '../types.js';
-import { ActivityStorage, SessionStorage, CachedSession, SessionIndexEntry } from './types.js';
+import {
+  ActivityStorage,
+  SessionStorage,
+  CachedSession,
+  SessionIndexEntry,
+} from './types.js';
 
 /**
  * In-memory implementation of ActivityStorage.
