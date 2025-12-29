@@ -58,6 +58,8 @@ describe('DefaultActivityClient', () => {
       storageMock.scan = vi.fn().mockImplementation(async function* () {
         yield* mockActivities;
       });
+      // Mock latest() to return something, simulating existing cache
+      storageMock.latest = vi.fn().mockResolvedValue(mockActivities[1]);
 
       const result = [];
       for await (const activity of client.history()) {
@@ -158,7 +160,8 @@ describe('DefaultActivityClient', () => {
 
       expect(result).toEqual([historyActivity, updateActivity]);
       expect(storageMock.scan).toHaveBeenCalledTimes(1);
-      expect(storageMock.latest).toHaveBeenCalledTimes(1);
+      // latest() called in history() check + updates() check
+      expect(storageMock.latest).toHaveBeenCalledTimes(2);
     });
   });
 
