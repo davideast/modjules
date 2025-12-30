@@ -10,9 +10,11 @@
 // Configuration Types
 // =============================================================================
 
-import { SelectOptions } from './activities/types.js';
+import { ActivityClient, SelectOptions } from './activities/types.js';
 import { ActivityStorage, SessionStorage } from './storage/types.js';
 import { ListSessionsOptions, SessionCursor } from './sessions.js';
+
+export { SelectOptions };
 
 /**
  * A factory object that creates storage instances.
@@ -687,6 +689,82 @@ export interface AutomatedSession {
 }
 
 // -----------------------------------------------------------------------------
+// Query Engine Types (Phase 3)
+// -----------------------------------------------------------------------------
+
+/**
+ * Valid root domains for the local graph.
+ */
+export type JulesDomain = 'sessions' | 'activities';
+
+/**
+ * Filter operators for the 'where' clause.
+ */
+export type FilterOp<V> =
+  | V
+  | {
+      eq?: V;
+      neq?: V;
+      contains?: string; // Fuzzy text search
+      gt?: V;
+      lt?: V;
+      in?: V[];
+    };
+
+/**
+ * Domain-specific filter definitions.
+ */
+export type WhereClause<T extends JulesDomain> = T extends 'sessions'
+  ? {
+      id?: FilterOp<string>;
+      state?: FilterOp<string>;
+      title?: FilterOp<string>;
+      search?: string;
+    }
+  : {
+      id?: FilterOp<string>;
+      type?: FilterOp<string>;
+      sessionId?: FilterOp<string>;
+      search?: string;
+    };
+
+/**
+ * Defines which related nodes to fetch.
+ */
+export type IncludeClause<T extends JulesDomain> = T extends 'sessions'
+  ? {
+      activities?:
+        | boolean
+        | {
+            where?: WhereClause<'activities'>;
+            limit?: number;
+            select?: (keyof Activity)[];
+          };
+    }
+  : { session?: boolean | { select?: (keyof SessionResource)[] } };
+
+/**
+ * The Unified Query Schema.
+ */
+export interface JulesQuery<T extends JulesDomain> {
+  from: T;
+  select?: T extends 'sessions'
+    ? (keyof SessionResource)[]
+    : (keyof Activity)[];
+  where?: WhereClause<T>;
+  include?: IncludeClause<T>;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Maps the domain to its resulting object type.
+ */
+export type QueryResult<T extends JulesDomain> = T extends 'sessions'
+  ? SessionResource
+  : Activity;
+
+// -----------------------------------------------------------------------------
 // SessionClient (Interactive Paradigm)
 // -----------------------------------------------------------------------------
 
@@ -713,6 +791,11 @@ export interface SessionClient {
   readonly id: string;
 
   /**
+   * Scoped access to activity-specific operations.
+   */
+  readonly activities: ActivityClient;
+
+  /**
    * COLD STREAM: Yields all known past activities from local storage.
    * Ends immediately after yielding the last known activity.
    * Does NOT open a network connection.
@@ -728,6 +811,8 @@ export interface SessionClient {
   /**
    * LOCAL QUERY: Performs rich filtering against local storage only.
    * Fast, but might be incomplete if not synced.
+   *
+   * @deprecated Use `session.activities.select()` instead.
    */
   select(options?: SelectOptions): Promise<Activity[]>;
 
@@ -977,6 +1062,18 @@ export interface JulesClient {
       delayMs?: number;
     },
   ): Promise<AutomatedSession[]>;
+
+  /**
+   * Internal storage access for advanced queries.
+   */
+  readonly storage: SessionStorage;
+
+  /**
+   * Fluent API for rich local querying across sessions and activities.
+   */
+  select<T extends JulesDomain>(
+    query: JulesQuery<T>,
+  ): Promise<QueryResult<T>[]>;
 }
 
 /**

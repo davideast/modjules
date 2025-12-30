@@ -98,9 +98,18 @@ export class SessionClientImpl implements SessionClient {
 
   /**
    * LOCAL QUERY: Performs rich filtering against local storage only.
+   *
+   * @deprecated Use `session.activities.select()` instead.
    */
   select(options?: SelectOptions): Promise<Activity[]> {
     return this._activities.select(options);
+  }
+
+  /**
+   * Scoped access to activity-specific operations.
+   */
+  public get activities() {
+    return this._activities;
   }
 
   /**

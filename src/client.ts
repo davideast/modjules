@@ -22,6 +22,8 @@ import { SessionCursor, ListSessionsOptions } from './sessions.js';
 import { Platform } from './platform/types.js';
 import { SessionStorage } from './storage/types.js';
 import { isCacheValid } from './caching.js';
+import { select as modularSelect } from './query/select.js';
+import { JulesQuery, JulesDomain, QueryResult } from './types.js';
 
 /**
  * The fully resolved internal configuration for the SDK.
@@ -102,6 +104,18 @@ export class JulesClientImpl implements JulesClient {
       proxy: options.proxy,
     });
     this.sources = createSourceManager(this.apiClient);
+  }
+
+  /**
+   * Fluent API for rich local querying across sessions and activities.
+   * This method uses the modular query engine internally.
+   */
+  async select<T extends JulesDomain>(
+    query: JulesQuery<T>,
+  ): Promise<QueryResult<T>[]> {
+    // Pass 'this' to the modular function.
+    // Bundlers can still tree-shake if this method is never called.
+    return modularSelect(this, query);
   }
 
   /**
