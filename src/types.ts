@@ -1074,6 +1074,72 @@ export interface JulesClient {
   select<T extends JulesDomain>(
     query: JulesQuery<T>,
   ): Promise<QueryResult<T>[]>;
+
+  /**
+   * Synchronizes the local cache with the authoritative API.
+   * This is a "Reconciliation Engine" that ensures local data is consistent
+   * with the server, enabling high-performance local queries.
+   *
+   * @param options Configuration for the sync job (depth, limit, concurrency).
+   */
+  sync(options?: SyncOptions): Promise<SyncStats>;
+}
+
+/**
+ * Defines the depth of data ingestion.
+ * - 'metadata': Only SessionResource fields (lightweight).
+ * - 'activities': Full hydration including all event logs (heavyweight).
+ */
+export type SyncDepth = 'metadata' | 'activities';
+
+/**
+ * Progress updates for observability.
+ */
+export interface SyncProgress {
+  phase: 'fetching_list' | 'hydrating_records';
+  current: number;
+  total?: number;
+  lastIngestedId?: string;
+}
+
+/**
+ * Metrics resulting from a completed sync job.
+ */
+export interface SyncStats {
+  sessionsIngested: number;
+  activitiesIngested: number;
+  isComplete: boolean;
+  durationMs: number;
+}
+
+/**
+ * Configuration for the Reconciliation Engine.
+ */
+export interface SyncOptions {
+  /**
+   * Maximum number of sessions to ingest in one pass.
+   * @default 100
+   */
+  limit?: number;
+  /**
+   * Data depth per session.
+   * @default 'metadata'
+   */
+  depth?: SyncDepth;
+  /**
+   * If true, stops when hitting a record already in the local cache.
+   * @default true
+   */
+  incremental?: boolean;
+  /**
+   * Simultaneous hydration jobs. Use low values for SBCs/low bandwidth.
+   * @default 3
+   */
+  concurrency?: number;
+  /**
+   * Optional callback for UI/CLI progress bars.
+   */
+  onProgress?: (progress: SyncProgress) => void;
 }
 
 /**

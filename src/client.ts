@@ -23,7 +23,13 @@ import { Platform } from './platform/types.js';
 import { SessionStorage } from './storage/types.js';
 import { isCacheValid } from './caching.js';
 import { select as modularSelect } from './query/select.js';
-import { JulesQuery, JulesDomain, QueryResult } from './types.js';
+import {
+  JulesQuery,
+  JulesDomain,
+  QueryResult,
+  SyncOptions,
+  SyncStats,
+} from './types.js';
 
 /**
  * The fully resolved internal configuration for the SDK.
@@ -116,6 +122,111 @@ export class JulesClientImpl implements JulesClient {
     // Pass 'this' to the modular function.
     // Bundlers can still tree-shake if this method is never called.
     return modularSelect(this, query);
+  }
+
+  /**
+   * Synchronizes local state with the server.
+   * Logic:
+   * 1. Find High-Water Mark (newest local record).
+   * 2. Stream latest sessions from API.
+   * 3. Terminate stream early if 'incremental' and High-Water Mark is hit.
+   * 4. Throttled hydration of activities if depth is 'activities'.
+   */
+  async sync(options: SyncOptions = {}): Promise<SyncStats> {
+    const startTime = Date.now();
+    const {
+      limit = 100,
+      depth = 'metadata',
+      incremental = true,
+      concurrency = 3,
+      onProgress,
+    } = options;
+
+    let sessionsIngested = 0;
+    let activitiesIngested = 0;
+
+    // 1. High-Water Mark check
+    const highWaterMark = incremental ? await this._getHighWaterMark() : null;
+
+    // 2. Authoritative Fetching (Metadata Ingestion)
+    const cursor = this.sessions({ pageSize: Math.min(limit, 100) });
+    const candidates: SessionResource[] = [];
+
+    onProgress?.({ phase: 'fetching_list', current: 0 });
+
+    for await (const session of cursor) {
+      // Precise Reconciliation: Stop if we hit the water mark
+      if (highWaterMark && new Date(session.createTime) <= highWaterMark) {
+        break;
+      }
+
+      // 2.1 Persistence: Save metadata to local cache
+      await this.storage.upsert(session);
+
+      candidates.push(session);
+      sessionsIngested++;
+
+      onProgress?.({
+        phase: 'fetching_list',
+        current: sessionsIngested,
+        lastIngestedId: session.id,
+      });
+
+      if (candidates.length >= limit) break;
+    }
+
+    // 3. Deep Ingestion (Activity Hydration)
+    // Uses pMap for backpressure to prevent quota saturation.
+    if (depth === 'activities' && candidates.length > 0) {
+      let hydratedCount = 0;
+      onProgress?.({
+        phase: 'hydrating_records',
+        current: 0,
+        total: candidates.length,
+      });
+
+      await pMap(
+        candidates,
+        async (session) => {
+          const sessionClient = await this.session(session.id);
+
+          // This triggers a full history sync to disk
+          const history = sessionClient.history();
+          let count = 0;
+          for await (const _ of history) {
+            count++;
+          }
+
+          activitiesIngested += count;
+          hydratedCount++;
+
+          onProgress?.({
+            phase: 'hydrating_records',
+            current: hydratedCount,
+            total: candidates.length,
+            lastIngestedId: session.id,
+          });
+        },
+        { concurrency },
+      );
+    }
+
+    return {
+      sessionsIngested,
+      activitiesIngested,
+      isComplete: true,
+      durationMs: Date.now() - startTime,
+    };
+  }
+
+  private async _getHighWaterMark(): Promise<Date | null> {
+    let newest: Date | null = null;
+    // scanIndex is the high-speed index scanner implemented in Phase 1
+    for await (const entry of this.storage.scanIndex()) {
+      const date = new Date(entry.createTime);
+      if (!newest || date > newest) newest = date;
+    }
+    return newest;
   }
 
   /**
