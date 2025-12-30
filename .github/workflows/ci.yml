@@ -55,7 +55,7 @@ jobs:
       - name: Check Formatting
         id: format
         run: |
-          npm run format:check || (echo "log=Formatting/Linting failed. Run 'npm run format'." >> $GITHUB_OUTPUT && exit 1)
+          npm run format:check || (echo "log=$(echo 'Formatting/Linting failed. Run npm run format.' | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
 
       - name: Type Check
         id: types
@@ -81,56 +81,21 @@ jobs:
         env:
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
           BRANCH_NAME: ${{ github.head_ref }}
-          FILES: ${{ steps.changed-files.outputs.list }}
-          # Capture logs from the specific failing step
+          FILES_CHANGED: ${{ steps.changed-files.outputs.list }}
+          # Determine the error type based on which step produced output
+          ERROR_TYPE: ${{ steps.attribution.outputs.log && 'Attribution Check' || steps.format.outputs.log && 'Formatting Failure' || steps.types.outputs.log && 'TypeScript Error' || steps.tests.outputs.log && 'Test Failure' || steps.smoke.outputs.log && 'Smoke Test Failure' || 'Quality Gate Failure' }}
+          # Pass the log as a base64 string to prevent shell character issues
+          # Note: ATTR_LOG is plain text, others are base64 encoded. The script expects base64.
+          # We need to ensure uniformity.
+          # The shell logic below handles the discrepancy.
           ATTR_LOG: ${{ steps.attribution.outputs.log }}
-          FORMAT_LOG: ${{ steps.format.outputs.log }}
-          TYPE_LOG: ${{ steps.types.outputs.log }}
-          TEST_LOG: ${{ steps.tests.outputs.log }}
-          SMOKE_LOG: ${{ steps.smoke.outputs.log }}
+          OTHER_LOGS: ${{ steps.types.outputs.log || steps.tests.outputs.log || steps.smoke.outputs.log || steps.format.outputs.log }}
         run: |
-          # Extract Session ID (everything after the last hyphen)
-          SESSION_ID=$(echo $BRANCH_NAME | grep -oE '[^-]+$')
-
-          # Determine the error source and decode if necessary
           if [ -n "$ATTR_LOG" ]; then
-            ERROR_MSG="$ATTR_LOG"
-            ERROR_TYPE="Attribution Check"
-          elif [ -n "$TYPE_LOG" ]; then
-            ERROR_MSG=$(echo "$TYPE_LOG" | base64 --decode)
-            ERROR_TYPE="TypeScript Error"
-          elif [ -n "$TEST_LOG" ]; then
-            ERROR_MSG=$(echo "$TEST_LOG" | base64 --decode)
-            ERROR_TYPE="Test Failure"
-          elif [ -n "$SMOKE_LOG" ]; then
-            ERROR_MSG=$(echo "$SMOKE_LOG" | base64 --decode)
-            ERROR_TYPE="Smoke Test Failure"
+             # Encode plain text attribution log to base64 for consistency
+             export ERROR_LOG=$(echo -n "$ATTR_LOG" | base64 -w 0)
           else
-            ERROR_MSG="${FORMAT_LOG:-Unknown build failure}"
-            ERROR_TYPE="General Quality Gate"
+             export ERROR_LOG="$OTHER_LOGS"
           fi
 
-          export ERROR_MSG
-          export ERROR_TYPE
-          export SESSION_ID
-
-          npx -p modjules -p tsx tsx -e "
-            import { Jules } from 'modjules';
-            const jules = new Jules(process.env.JULES_API_KEY);
-
-            async function report() {
-              const content = \`🚨 **CI Failure: \${process.env.ERROR_TYPE}**
-
-          **Files Changed:** \\\`\${process.env.FILES}\\\`
-
-          **Logs:**
-          \\\`\\\`\\\`text
-          \${process.env.ERROR_MSG}
-          \\\`\\\`\\\`
-
-          Please fix the issues in branch \\\`\${process.env.BRANCH_NAME}\\\`.\`;
-
-              await jules.session(process.env.SESSION_ID).message(content);
-            }
-            report();
-          "
+          npm run ci:report
