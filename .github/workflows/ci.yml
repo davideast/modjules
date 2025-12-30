@@ -121,14 +121,14 @@ jobs:
             async function report() {
               const content = \`🚨 **CI Failure: \${process.env.ERROR_TYPE}**
 
-**Files Changed:** \\\`\${process.env.FILES}\\\`
+          **Files Changed:** \\\`\${process.env.FILES}\\\`
 
-**Logs:**
-\\\`\\\`\\\`text
-\${process.env.ERROR_MSG}
-\\\`\\\`\\\`
+          **Logs:**
+          \\\`\\\`\\\`text
+          \${process.env.ERROR_MSG}
+          \\\`\\\`\\\`
 
-Please fix the issues in branch \\\`\${process.env.BRANCH_NAME}\\\`.\`;
+          Please fix the issues in branch \\\`\${process.env.BRANCH_NAME}\\\`.\`;
 
               await jules.session(process.env.SESSION_ID).message(content);
             }
