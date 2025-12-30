@@ -7,7 +7,7 @@
  */
 export async function pMap<T, R>(
   items: T[],
-  mapper: (item: T) => Promise<R>,
+  mapper: (item: T, index: number) => Promise<R>,
   options: {
     concurrency?: number;
     stopOnError?: boolean;
@@ -34,7 +34,7 @@ export async function pMap<T, R>(
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
       try {
-        results[index] = await mapper(item);
+        results[index] = await mapper(item, index);
       } catch (err) {
         if (stopOnError) {
           throw err;
