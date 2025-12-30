@@ -2,13 +2,10 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
-    # Run on all PRs targeting any branch
     types: [opened, synchronize, reopened]
 
-# Cancel previous runs if a new commit is pushed to the same PR
+# Prevents multiple runs on the same PR from overlapping
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -19,6 +16,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to see commit history and changed files
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,22 +28,109 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Enforce code style
+      # 1. Get Changed Files for Jules context
+      - name: Get Changed Files
+        id: changed-files
+        run: |
+          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | tr '\n' ' ')
+          echo "list=$FILES" >> $GITHUB_OUTPUT
+
+      # 2. Verify Attribution (Dynamic Co-authored-by check)
+      - name: Verify Attribution
+        id: attribution
+        env:
+          USER_NAME: ${{ github.event.pull_request.user.login }}
+          USER_ID: ${{ github.event.pull_request.user.id }}
+        run: |
+          # Use HEAD SHA to check the actual commit, not the merge commit
+          COMMIT_MSG=$(git show -s --format=%B ${{ github.event.pull_request.head.sha }})
+          EXPECTED="Co-authored-by: $USER_NAME <$USER_ID+$USER_NAME@users.noreply.github.com>"
+
+          if [[ ! "$COMMIT_MSG" == *"$EXPECTED"* ]]; then
+            echo "log=Missing attribution. Please append this to your commit message: $EXPECTED" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      # 3. Quality Checks (Each captures errors into GITHUB_OUTPUT)
       - name: Check Formatting
-        run: npm run format:check
+        id: format
+        run: |
+          npm run format:check || (echo "log=Formatting/Linting failed. Run 'npm run format'." >> $GITHUB_OUTPUT && exit 1)
 
-      # Enforce type safety for tests/dev files
       - name: Type Check
-        run: npm run type-check
+        id: types
+        run: |
+          npm run type-check > ts_error.txt 2>&1 || (echo "log=$(head -n 15 ts_error.txt | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
 
-      # Enforce unit tests pass
       - name: Run Tests
-        run: npm test
+        id: tests
+        run: |
+          npm test > test_log.txt 2>&1 || (echo "log=$(tail -n 20 test_log.txt | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
 
-      # Ensure the library compiles
       - name: Production Build
         run: npm run build
 
-      # Run smoke test to verify packaging
       - name: Smoke Test
-        run: npm run test:smoke
+        id: smoke
+        run: |
+          npm run test:smoke > smoke_log.txt 2>&1 || (echo "log=$(tail -n 20 smoke_log.txt | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
+
+      # 4. Report Failures to Jules via modjules
+      - name: Report Failure to Jules
+        if: failure()
+        env:
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          BRANCH_NAME: ${{ github.head_ref }}
+          FILES: ${{ steps.changed-files.outputs.list }}
+          # Capture logs from the specific failing step
+          ATTR_LOG: ${{ steps.attribution.outputs.log }}
+          FORMAT_LOG: ${{ steps.format.outputs.log }}
+          TYPE_LOG: ${{ steps.types.outputs.log }}
+          TEST_LOG: ${{ steps.tests.outputs.log }}
+          SMOKE_LOG: ${{ steps.smoke.outputs.log }}
+        run: |
+          # Extract Session ID (everything after the last hyphen)
+          SESSION_ID=$(echo $BRANCH_NAME | grep -oE '[^-]+$')
+
+          # Determine the error source and decode if necessary
+          if [ -n "$ATTR_LOG" ]; then
+            ERROR_MSG="$ATTR_LOG"
+            ERROR_TYPE="Attribution Check"
+          elif [ -n "$TYPE_LOG" ]; then
+            ERROR_MSG=$(echo "$TYPE_LOG" | base64 --decode)
+            ERROR_TYPE="TypeScript Error"
+          elif [ -n "$TEST_LOG" ]; then
+            ERROR_MSG=$(echo "$TEST_LOG" | base64 --decode)
+            ERROR_TYPE="Test Failure"
+          elif [ -n "$SMOKE_LOG" ]; then
+            ERROR_MSG=$(echo "$SMOKE_LOG" | base64 --decode)
+            ERROR_TYPE="Smoke Test Failure"
+          else
+            ERROR_MSG="${FORMAT_LOG:-Unknown build failure}"
+            ERROR_TYPE="General Quality Gate"
+          fi
+
+          export ERROR_MSG
+          export ERROR_TYPE
+          export SESSION_ID
+
+          npx -p modjules -p tsx tsx -e "
+            import { Jules } from 'modjules';
+            const jules = new Jules(process.env.JULES_API_KEY);
+
+            async function report() {
+              const content = \`🚨 **CI Failure: \${process.env.ERROR_TYPE}**
+
+**Files Changed:** \\\`\${process.env.FILES}\\\`
+
+**Logs:**
+\\\`\\\`\\\`text
+\${process.env.ERROR_MSG}
+\\\`\\\`\\\`
+
+Please fix the issues in branch \\\`\${process.env.BRANCH_NAME}\\\`.\`;
+
+              await jules.session(process.env.SESSION_ID).message(content);
+            }
+            report();
+          "

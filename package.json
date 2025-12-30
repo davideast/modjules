@@ -59,6 +59,8 @@
     "test:integration": "vitest run -c vitest.integration.config.ts",
     "test:smoke": "tsx scripts/smoke-test.ts",
     "type-check": "tsc --project tsconfig.test.json",
+    "preflight": "tsx scripts/preflight.ts",
+    "fix-attribution": "tsx scripts/fix-attribution.ts",
     "verify": "tsx scripts/verify.ts",
     "prepare": "husky",
     "changeset": "changeset",
