@@ -2,6 +2,8 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -82,20 +84,33 @@ jobs:
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
           BRANCH_NAME: ${{ github.head_ref }}
           FILES_CHANGED: ${{ steps.changed-files.outputs.list }}
-          # Determine the error type based on which step produced output
-          ERROR_TYPE: ${{ steps.attribution.outputs.log && 'Attribution Check' || steps.format.outputs.log && 'Formatting Failure' || steps.types.outputs.log && 'TypeScript Error' || steps.tests.outputs.log && 'Test Failure' || steps.smoke.outputs.log && 'Smoke Test Failure' || 'Quality Gate Failure' }}
-          # Pass the log as a base64 string to prevent shell character issues
-          # Note: ATTR_LOG is plain text, others are base64 encoded. The script expects base64.
-          # We need to ensure uniformity.
-          # The shell logic below handles the discrepancy.
+
+          # Pass raw outputs to shell for correct logic handling
           ATTR_LOG: ${{ steps.attribution.outputs.log }}
-          OTHER_LOGS: ${{ steps.types.outputs.log || steps.tests.outputs.log || steps.smoke.outputs.log || steps.format.outputs.log }}
+          FORMAT_LOG: ${{ steps.format.outputs.log }}
+          TYPE_LOG: ${{ steps.types.outputs.log }}
+          TEST_LOG: ${{ steps.tests.outputs.log }}
+          SMOKE_LOG: ${{ steps.smoke.outputs.log }}
         run: |
+          # Determine Error Type and Log Source
           if [ -n "$ATTR_LOG" ]; then
-             # Encode plain text attribution log to base64 for consistency
-             export ERROR_LOG=$(echo -n "$ATTR_LOG" | base64 -w 0)
+            export ERROR_TYPE="Attribution Check"
+            export ERROR_LOG=$(echo -n "$ATTR_LOG" | base64 -w 0)
+          elif [ -n "$FORMAT_LOG" ]; then
+            export ERROR_TYPE="Formatting Failure"
+            export ERROR_LOG="$FORMAT_LOG"
+          elif [ -n "$TYPE_LOG" ]; then
+            export ERROR_TYPE="TypeScript Error"
+            export ERROR_LOG="$TYPE_LOG"
+          elif [ -n "$TEST_LOG" ]; then
+            export ERROR_TYPE="Test Failure"
+            export ERROR_LOG="$TEST_LOG"
+          elif [ -n "$SMOKE_LOG" ]; then
+            export ERROR_TYPE="Smoke Test Failure"
+            export ERROR_LOG="$SMOKE_LOG"
           else
-             export ERROR_LOG="$OTHER_LOGS"
+            export ERROR_TYPE="Quality Gate Failure"
+            export ERROR_LOG=""
           fi
 
           npm run ci:report
