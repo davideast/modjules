@@ -10,6 +10,12 @@ export type ListSessionsOptions = {
    * Useful if you want "The last 50" without manual counting.
    */
   limit?: number;
+  /**
+   * Whether to persist fetched sessions to local storage.
+   * Defaults to `true` (Write-Through Caching).
+   * Set to `false` to disable side effects.
+   */
+  persist?: boolean;
 };
 
 export type ListSessionsResponse = {
@@ -118,7 +124,8 @@ export class SessionCursor
     const sessions = response.sessions || [];
 
     // Write-Through Cache: Persist fetched sessions immediately
-    if (sessions.length > 0) {
+    // Default to true if undefined
+    if (sessions.length > 0 && this.options.persist !== false) {
       // We await to ensure data integrity
       await this.storage.upsertMany(sessions);
     }

@@ -149,7 +149,12 @@ export class JulesClientImpl implements JulesClient {
     const highWaterMark = incremental ? await this._getHighWaterMark() : null;
 
     // 2. Authoritative Fetching (Metadata Ingestion)
-    const cursor = this.sessions({ pageSize: Math.min(limit, 100) });
+    // We disable cursor persistence because we handle it manually in the loop
+    // to support incremental sync and precise control.
+    const cursor = this.sessions({
+      pageSize: Math.min(limit, 100),
+      persist: false,
+    });
     const candidates: SessionResource[] = [];
 
     onProgress?.({ phase: 'fetching_list', current: 0 });
