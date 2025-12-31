@@ -29,9 +29,7 @@ async function getGitHubUser(username: string, token: string) {
   });
 
   if (!res.ok) {
-    throw new Error(
-      `Failed to fetch user ${username}: ${res.status} ${res.statusText}`,
-    );
+    throw new Error(`Failed to fetch user ${username}: ${res.status} ${res.statusText}`);
   }
 
   return res.json();
@@ -41,8 +39,8 @@ async function main() {
   const prBody = process.env.PR_BODY || '';
   const token = process.env.GITHUB_TOKEN;
 
-  // Environment variable for commit range (default to HEAD if missing, though typically supplied)
-  const commitRange = process.env.COMMIT_RANGE;
+  // Use COMMIT_MSG env var (Head Commit) or fallback to git show HEAD
+  const commitMsg = process.env.COMMIT_MSG || execSync('git show -s --format=%B HEAD').toString();
 
   const prUserLogin = process.env.PR_USER_LOGIN || '';
   const prUserId = process.env.PR_USER_ID || '';
@@ -64,9 +62,7 @@ async function main() {
       targetUserId = String(user.id);
       targetUserLogin = user.login; // Use canonical case
     } catch (e) {
-      console.warn(
-        `⚠️ Could not resolve user @${targetUser}. Falling back to PR creator.`,
-      );
+      console.warn(`⚠️ Could not resolve user @${targetUser}. Falling back to PR creator.`);
       console.error(e);
       targetUser = null;
     }
@@ -87,55 +83,16 @@ async function main() {
   const trailer = `Co-authored-by: ${targetUserLogin} <${targetUserId}+${targetUserLogin}@users.noreply.github.com>`;
   console.log(`🎯 Expected Trailer: "${trailer}"`);
 
-  // Identify commits to check
-  // If commitRange is provided (e.g. "base..head"), list all commits in that range.
-  // Otherwise fallback to single check of HEAD (legacy behavior, or if run locally without range).
-  let commitMsgs: string[] = [];
-
-  if (commitRange) {
-    try {
-      // --no-merges to skip merge commits which might not need attribution
-      // format=%B gets the raw body
-      // We use a custom separator to split commits safely
-      const rawLog = execSync(
-        `git log ${commitRange} --no-merges --format="%B%n---COMMIT_SEPARATOR---"`,
-      ).toString();
-      commitMsgs = rawLog
-        .split('\n---COMMIT_SEPARATOR---\n')
-        .filter((msg) => msg.trim().length > 0);
-    } catch (e) {
-      console.warn(
-        `⚠️ Failed to list commits in range ${commitRange}. Checking HEAD only.`,
-      );
-      commitMsgs = [execSync('git show -s --format=%B HEAD').toString()];
-    }
-  } else {
-    // Legacy / Fallback
-    const singleMsg =
-      process.env.COMMIT_MSG ||
-      execSync('git show -s --format=%B HEAD').toString();
-    commitMsgs = [singleMsg];
-  }
-
-  console.log(`🔍 Verifying ${commitMsgs.length} commit(s)...`);
-
-  let missingCount = 0;
-  for (const msg of commitMsgs) {
-    if (!msg.includes(trailer)) {
-      missingCount++;
-    }
-  }
-
-  if (missingCount === 0) {
-    console.log('✅ Attribution present in all checked commits.');
+  if (commitMsg.includes(trailer)) {
+    console.log('✅ Attribution present.');
     process.exit(0);
   } else {
-    console.error(`❌ Missing attribution in ${missingCount} commit(s).`);
+    console.error('❌ Missing attribution.');
 
     // Write to GITHUB_OUTPUT if available
     const githubOutput = process.env.GITHUB_OUTPUT;
     if (githubOutput) {
-      const message = `Missing attribution in ${missingCount} commit(s). Please append this to your commit message(s): ${trailer}`;
+      const message = `Missing attribution. Please append this to your commit message: ${trailer}`;
       fs.appendFileSync(githubOutput, `log=${message}\n`);
     }
     process.exit(1);

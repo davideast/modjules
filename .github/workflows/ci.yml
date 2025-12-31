@@ -47,8 +47,8 @@ jobs:
           PR_USER_LOGIN: ${{ github.event.pull_request.user.login }}
           PR_USER_ID: ${{ github.event.pull_request.user.id }}
         run: |
-          # Check range of commits from base to head
-          export COMMIT_RANGE="origin/${{ github.base_ref }}...${{ github.event.pull_request.head.sha }}"
+          # Use HEAD SHA to check the actual commit, not the merge commit
+          export COMMIT_MSG=$(git show -s --format=%B ${{ github.event.pull_request.head.sha }})
           npx tsx scripts/verify-attribution.ts
 
       # 3. Quality Checks (Each captures errors into GITHUB_OUTPUT)
