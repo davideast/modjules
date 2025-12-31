@@ -40,7 +40,9 @@ try {
 
   try {
     // This command adds the trailer correctly at the end of the message
-    execSync(`git interpret-trailers --trailer "${attributionArg}" --in-place "${tempFile}"`);
+    execSync(
+      `git interpret-trailers --trailer "${attributionArg}" --in-place "${tempFile}"`,
+    );
 
     // Now commit using the file updated by interpret-trailers
     // Added --no-gpg-sign for CI/Automation compatibility

@@ -53,14 +53,14 @@ async function report() {
     // 2. Format Files list
     const filesList = filesChangedRaw
       .split(' ')
-      .filter(f => f.trim().length > 0)
-      .map(f => `- \`${f}\``)
+      .filter((f) => f.trim().length > 0)
+      .map((f) => `- \`${f}\``)
       .join('\n');
 
     // 3. Build instruction based on error type
     let instruction = `Please fix the issues in branch \`${branchName}\`.`;
 
-    if (errorType === "Attribution Check") {
+    if (errorType === 'Attribution Check') {
       instruction = `🚨 **Missing Attribution Detected**
 
 I have a specialized script to fix this for you. Please run:
@@ -85,7 +85,6 @@ ${instruction}`;
     console.log(`🚀 Reporting to Jules Session: ${sessionId}...`);
     await client.session(sessionId).send(content);
     console.log('✅ Success: Report sent.');
-
   } catch (e: any) {
     console.error('❌ Failed to report:', e);
     process.exit(1);

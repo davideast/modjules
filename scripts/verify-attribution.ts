@@ -29,7 +29,9 @@ async function getGitHubUser(username: string, token: string) {
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch user ${username}: ${res.status} ${res.statusText}`);
+    throw new Error(
+      `Failed to fetch user ${username}: ${res.status} ${res.statusText}`,
+    );
   }
 
   return res.json();
@@ -39,8 +41,12 @@ async function main() {
   const prBody = process.env.PR_BODY || '';
   const token = process.env.GITHUB_TOKEN;
 
-  // Use COMMIT_MSG env var (Head Commit) or fallback to git show HEAD
-  const commitMsg = process.env.COMMIT_MSG || execSync('git show -s --format=%B HEAD').toString();
+  // We need to check all commits in the PR range
+  // The BASE_REF and HEAD_REF are usually available in PR context,
+  // but we can rely on git log origin/base..HEAD if checked out properly.
+  // In GitHub Actions 'checkout@v4' with fetch-depth: 0, we can use origin/target...HEAD
+  const baseRef = process.env.GITHUB_BASE_REF || 'main';
+  const headSha = process.env.GITHUB_HEAD_SHA || 'HEAD';
 
   const prUserLogin = process.env.PR_USER_LOGIN || '';
   const prUserId = process.env.PR_USER_ID || '';
@@ -62,7 +68,9 @@ async function main() {
       targetUserId = String(user.id);
       targetUserLogin = user.login; // Use canonical case
     } catch (e) {
-      console.warn(`⚠️ Could not resolve user @${targetUser}. Falling back to PR creator.`);
+      console.warn(
+        `⚠️ Could not resolve user @${targetUser}. Falling back to PR creator.`,
+      );
       console.error(e);
       targetUser = null;
     }
@@ -83,11 +91,22 @@ async function main() {
   const trailer = `Co-authored-by: ${targetUserLogin} <${targetUserId}+${targetUserLogin}@users.noreply.github.com>`;
   console.log(`🎯 Expected Trailer: "${trailer}"`);
 
-  if (commitMsg.includes(trailer)) {
-    console.log('✅ Attribution present.');
+  console.log(`🔍 Checking commits in range origin/${baseRef}...${headSha}`);
+
+  let logs = '';
+  try {
+    // Get all commit messages in the PR range
+    logs = execSync(`git log origin/${baseRef}...${headSha} --pretty=%B`).toString();
+  } catch (e) {
+    console.warn('⚠️ Could not fetch commit range. Checking HEAD only.');
+    logs = execSync('git show -s --format=%B HEAD').toString();
+  }
+
+  if (logs.includes(trailer)) {
+    console.log('✅ Attribution present in at least one commit.');
     process.exit(0);
   } else {
-    console.error('❌ Missing attribution.');
+    console.error('❌ Missing attribution in all commits.');
 
     // Write to GITHUB_OUTPUT if available
     const githubOutput = process.env.GITHUB_OUTPUT;
