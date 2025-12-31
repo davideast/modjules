@@ -93,7 +93,8 @@ async function main() {
     const githubOutput = process.env.GITHUB_OUTPUT;
     if (githubOutput) {
       const message = `Missing attribution. Please append this to your commit message: ${trailer}`;
-      fs.appendFileSync(githubOutput, `log=${message}\n`);
+      const b64Log = Buffer.from(message).toString('base64');
+      fs.appendFileSync(githubOutput, `log=${b64Log}\n`);
     }
     process.exit(1);
   }

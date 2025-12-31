@@ -93,7 +93,7 @@ jobs:
           # Determine Error Type and Log Source (Normalize to Base64)
           if [ -n "$ATTR_LOG" ]; then
             export ERROR_TYPE="Attribution Check"
-            export ERROR_LOG_B64=$(echo -n "$ATTR_LOG" | base64 -w 0)
+            export ERROR_LOG_B64="$ATTR_LOG"
           elif [ -n "$FORMAT_LOG" ]; then
             export ERROR_TYPE="Formatting Failure"
             export ERROR_LOG_B64="$FORMAT_LOG"
