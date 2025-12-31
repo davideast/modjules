@@ -1,5 +1,13 @@
 // tests/errors.test.ts
-import { beforeAll, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
+import {
+  beforeAll,
+  afterAll,
+  afterEach,
+  describe,
+  it,
+  expect,
+  vi,
+} from 'vitest';
 import { server } from './mocks/server.js';
 import { http, HttpResponse } from 'msw';
 import { jules as defaultJules } from '../src/index.js';
