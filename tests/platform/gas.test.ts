@@ -73,7 +73,11 @@ describe('GasPlatform', () => {
     });
   });
 
-  runPlatformTests('Google Apps Script', new GasPlatform(), (key: string, value: string) => {
-    mockProperties.set(key, value);
-  });
+  runPlatformTests(
+    'Google Apps Script',
+    new GasPlatform(),
+    (key: string, value: string) => {
+      mockProperties.set(key, value);
+    },
+  );
 });

@@ -28,7 +28,11 @@ describe('NodePlatform', () => {
     global.fetch = originalFetch;
   });
 
-  runPlatformTests('Node.js', new NodePlatform(), (key: string, value: string) => {
-    process.env[key] = value;
-  });
+  runPlatformTests(
+    'Node.js',
+    new NodePlatform(),
+    (key: string, value: string) => {
+      process.env[key] = value;
+    },
+  );
 });

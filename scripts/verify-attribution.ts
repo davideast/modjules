@@ -29,7 +29,9 @@ async function getGitHubUser(username: string, token: string) {
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch user ${username}: ${res.status} ${res.statusText}`);
+    throw new Error(
+      `Failed to fetch user ${username}: ${res.status} ${res.statusText}`,
+    );
   }
 
   return res.json();
@@ -62,7 +64,9 @@ async function main() {
       targetUserId = String(user.id);
       targetUserLogin = user.login; // Use canonical case
     } catch (e) {
-      console.warn(`⚠️ Could not resolve user @${targetUser}. Falling back to PR creator.`);
+      console.warn(
+        `⚠️ Could not resolve user @${targetUser}. Falling back to PR creator.`,
+      );
       console.error(e);
       targetUser = null;
     }
@@ -93,16 +97,24 @@ async function main() {
       // --no-merges to skip merge commits which might not need attribution
       // format=%B gets the raw body
       // We use a custom separator to split commits safely
-      const rawLog = execSync(`git log ${commitRange} --no-merges --format="%B%n---COMMIT_SEPARATOR---"`).toString();
-      commitMsgs = rawLog.split('\n---COMMIT_SEPARATOR---\n').filter(msg => msg.trim().length > 0);
+      const rawLog = execSync(
+        `git log ${commitRange} --no-merges --format="%B%n---COMMIT_SEPARATOR---"`,
+      ).toString();
+      commitMsgs = rawLog
+        .split('\n---COMMIT_SEPARATOR---\n')
+        .filter((msg) => msg.trim().length > 0);
     } catch (e) {
-      console.warn(`⚠️ Failed to list commits in range ${commitRange}. Checking HEAD only.`);
+      console.warn(
+        `⚠️ Failed to list commits in range ${commitRange}. Checking HEAD only.`,
+      );
       commitMsgs = [execSync('git show -s --format=%B HEAD').toString()];
     }
   } else {
-     // Legacy / Fallback
-     const singleMsg = process.env.COMMIT_MSG || execSync('git show -s --format=%B HEAD').toString();
-     commitMsgs = [singleMsg];
+    // Legacy / Fallback
+    const singleMsg =
+      process.env.COMMIT_MSG ||
+      execSync('git show -s --format=%B HEAD').toString();
+    commitMsgs = [singleMsg];
   }
 
   console.log(`🔍 Verifying ${commitMsgs.length} commit(s)...`);

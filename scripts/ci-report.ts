@@ -13,7 +13,9 @@ async function report() {
     const sessionId = branchName.split('-').pop();
 
     if (!sessionId || !/^\d+$/.test(sessionId)) {
-      console.log(`ℹ️ Branch "${branchName}" does not appear to contain a numeric Session ID. Skipping report.`);
+      console.log(
+        `ℹ️ Branch "${branchName}" does not appear to contain a numeric Session ID. Skipping report.`,
+      );
       return;
     }
 
@@ -44,7 +46,9 @@ ${log}
 
 Please fix the issues in branch \`${branchName}\`.`;
 
-    console.log(`🚀 Reporting failure (${errorType}) to Session ID: ${sessionId}...`);
+    console.log(
+      `🚀 Reporting failure (${errorType}) to Session ID: ${sessionId}...`,
+    );
     await client.session(sessionId).send(content);
     console.log('✅ Success: Report sent to Jules.');
   } catch (e: any) {

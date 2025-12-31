@@ -176,7 +176,8 @@ describe('Smart Proxy Client', () => {
     resolveHandshake({
       ok: true,
       json: async () => ({ success: true, token: 'token_shared' }),
-      text: async () => JSON.stringify({ success: true, token: 'token_shared' }),
+      text: async () =>
+        JSON.stringify({ success: true, token: 'token_shared' }),
     } as Response);
 
     await Promise.all([p1, p2]);

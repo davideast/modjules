@@ -193,11 +193,7 @@ export class BrowserPlatform implements Platform {
     // 3. Legacy process.env check (Safe)
     // We strictly check for existence to avoid ReferenceError if 'process' is missing.
     try {
-      if (
-        typeof process !== 'undefined' &&
-        process.env &&
-        process.env[key]
-      ) {
+      if (typeof process !== 'undefined' && process.env && process.env[key]) {
         return process.env[key];
       }
     } catch (e) {

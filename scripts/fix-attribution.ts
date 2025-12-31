@@ -6,10 +6,10 @@ const attributionArg = process.argv[2];
 
 if (!attributionArg) {
   console.error(
-    'Error: Please provide the "Co-authored-by: ..." string as the first argument.'
+    'Error: Please provide the "Co-authored-by: ..." string as the first argument.',
   );
   console.error(
-    'Usage: npx tsx scripts/fix-attribution.ts "Co-authored-by: Name <email>"'
+    'Usage: npx tsx scripts/fix-attribution.ts "Co-authored-by: Name <email>"',
   );
   process.exit(1);
 }
