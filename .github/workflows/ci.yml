@@ -42,17 +42,14 @@ jobs:
         if: github.event_name == 'pull_request'
         id: attribution
         env:
-          USER_NAME: ${{ github.event.pull_request.user.login }}
-          USER_ID: ${{ github.event.pull_request.user.id }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_USER_LOGIN: ${{ github.event.pull_request.user.login }}
+          PR_USER_ID: ${{ github.event.pull_request.user.id }}
         run: |
           # Use HEAD SHA to check the actual commit, not the merge commit
-          COMMIT_MSG=$(git show -s --format=%B ${{ github.event.pull_request.head.sha }})
-          EXPECTED="Co-authored-by: $USER_NAME <$USER_ID+$USER_NAME@users.noreply.github.com>"
-
-          if [[ ! "$COMMIT_MSG" == *"$EXPECTED"* ]]; then
-            echo "log=Missing attribution. Please append this to your commit message: $EXPECTED" >> $GITHUB_OUTPUT
-            exit 1
-          fi
+          export COMMIT_MSG=$(git show -s --format=%B ${{ github.event.pull_request.head.sha }})
+          npx tsx scripts/verify-attribution.ts
 
       # 3. Quality Checks (Each captures errors into GITHUB_OUTPUT)
       - name: Check Formatting
@@ -93,25 +90,65 @@ jobs:
           TEST_LOG: ${{ steps.tests.outputs.log }}
           SMOKE_LOG: ${{ steps.smoke.outputs.log }}
         run: |
-          # Determine Error Type and Log Source
+          # Extract Session ID (everything after the last hyphen)
+          SESSION_ID=$(echo $BRANCH_NAME | grep -oE '[^-]+$')
+
+          # Determine Error Type and Log Source (Normalize to Base64)
           if [ -n "$ATTR_LOG" ]; then
             export ERROR_TYPE="Attribution Check"
-            export ERROR_LOG=$(echo -n "$ATTR_LOG" | base64 -w 0)
+            export ERROR_LOG_B64=$(echo -n "$ATTR_LOG" | base64 -w 0)
           elif [ -n "$FORMAT_LOG" ]; then
             export ERROR_TYPE="Formatting Failure"
-            export ERROR_LOG="$FORMAT_LOG"
+            export ERROR_LOG_B64="$FORMAT_LOG"
           elif [ -n "$TYPE_LOG" ]; then
             export ERROR_TYPE="TypeScript Error"
-            export ERROR_LOG="$TYPE_LOG"
+            export ERROR_LOG_B64="$TYPE_LOG"
           elif [ -n "$TEST_LOG" ]; then
             export ERROR_TYPE="Test Failure"
-            export ERROR_LOG="$TEST_LOG"
+            export ERROR_LOG_B64="$TEST_LOG"
           elif [ -n "$SMOKE_LOG" ]; then
             export ERROR_TYPE="Smoke Test Failure"
-            export ERROR_LOG="$SMOKE_LOG"
+            export ERROR_LOG_B64="$SMOKE_LOG"
           else
-            export ERROR_TYPE="Quality Gate Failure"
-            export ERROR_LOG=""
+            export ERROR_TYPE="General Quality Gate"
+            export ERROR_LOG_B64=""
           fi
 
-          npm run ci:report
+          export SESSION_ID
+
+          # Execute Inline Reporting Script
+          npx -p modjules -p tsx tsx -e "
+            import { jules } from 'modjules';
+
+            async function report() {
+              try {
+                if (!process.env.SESSION_ID) {
+                  console.log('No Session ID found in branch name. Skipping report.');
+                  return;
+                }
+
+                const client = jules.with({ apiKey: process.env.JULES_API_KEY });
+                const log = process.env.ERROR_LOG_B64
+                  ? Buffer.from(process.env.ERROR_LOG_B64, 'base64').toString('utf-8')
+                  : 'No details provided.';
+
+                const content = \`🚨 **CI Failure: \${process.env.ERROR_TYPE}**
+
+**Files Changed:** \\\`\${process.env.FILES_CHANGED}\\\`
+
+**Logs:**
+\\\`\\\`\\\`text
+\${log}
+\\\`\\\`\\\`
+
+Please fix the issues in branch \\\`\${process.env.BRANCH_NAME}\\\`.\`;
+
+                await client.session(process.env.SESSION_ID).send(content);
+                console.log('✅ Success: Report sent to Jules.');
+              } catch (e) {
+                console.error('❌ Failed to report to Jules:', e);
+                process.exit(1);
+              }
+            }
+            report();
+          "
