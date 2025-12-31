@@ -162,7 +162,29 @@ export class JulesClientImpl implements JulesClient {
     for await (const session of cursor) {
       // Precise Reconciliation: Stop if we hit the water mark
       if (highWaterMark && new Date(session.createTime) <= highWaterMark) {
-        break;
+        let shouldSkip = true;
+
+        if (depth === 'activities') {
+          // Check if we have any activities locally.
+          // If not, we treat this session as "new" for the purpose of activity hydration.
+          const activityStorage = this.storageFactory.activity(session.id);
+          // Quick check for existence (scan yields at least one item)
+          let hasActivities = false;
+          for await (const _ of activityStorage.scan()) {
+            // Found at least one activity, so we assume we are caught up.
+            // (Note: This is a heuristic. Partial hydration isn't handled by 'incremental' mode)
+            hasActivities = true;
+            break;
+          }
+
+          if (!hasActivities) {
+            shouldSkip = false;
+          }
+        }
+
+        if (shouldSkip) {
+          break;
+        }
       }
 
       // 2.1 Persistence: Save metadata to local cache

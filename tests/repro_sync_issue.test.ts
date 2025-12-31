@@ -1,0 +1,120 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { JulesClientImpl } from '../src/client.js';
+import { ApiClient } from '../src/api.js';
+import { mockPlatform } from './mocks/platform.js';
+import { SessionResource } from '../src/types.js';
+import { NodeSessionStorage } from '../src/storage/node-fs.js';
+import { SessionCursor } from '../src/sessions.js';
+
+// Mock dependencies
+vi.mock('../src/api.js');
+vi.mock('../src/storage/node-fs.js');
+vi.mock('../src/sessions.js');
+
+describe('JulesClient.sync() Repro', () => {
+  let client: JulesClientImpl;
+  let mockApiClient: any;
+  let mockSessionStorage: any;
+  let mockActivityStorage: any;
+  let mockStorageFactory: any;
+  let mockCursor: any;
+
+  const session1: SessionResource = {
+    id: 'session-1',
+    name: 'sessions/session-1',
+    createTime: '2023-01-01T12:00:00Z',
+    updateTime: '2023-01-01T12:00:00Z',
+    state: 'inProgress',
+    prompt: 'test',
+    title: 'test session 1',
+    sourceContext: { source: 'test' },
+    url: 'http://test.com',
+    outputs: [],
+  };
+
+  const session2: SessionResource = {
+    id: 'session-2',
+    name: 'sessions/session-2',
+    createTime: '2023-01-02T12:00:00Z', // Newer
+    updateTime: '2023-01-02T12:00:00Z',
+    state: 'inProgress',
+    prompt: 'test',
+    title: 'test session 2',
+    sourceContext: { source: 'test' },
+    url: 'http://test.com',
+    outputs: [],
+  };
+
+  beforeEach(() => {
+    mockApiClient = {
+      request: vi.fn(),
+    };
+
+    mockSessionStorage = {
+      upsert: vi.fn(),
+      scanIndex: vi.fn(async function* () {
+        // Simulating that we already have session2 (the newest one)
+        yield session2;
+      }),
+      get: vi.fn(),
+    };
+
+    mockActivityStorage = {
+      scan: vi.fn(async function* () {}),
+      upsert: vi.fn(),
+    };
+
+    mockStorageFactory = {
+      session: () => mockSessionStorage,
+      activity: () => mockActivityStorage,
+    };
+
+    // Mock SessionCursor to yield session2 then session1 (newest first from API)
+    mockCursor = (async function* () {
+      yield session2;
+      yield session1;
+    })();
+
+    // Spy on sessions() to return our mock cursor
+    // We need to cast client to any or access prototype if we want to spy before instantiation?
+    // Or we can mock the method after instantiation.
+  });
+
+  it('fails to sync activities when session is already downloaded (incremental=true)', async () => {
+    client = new JulesClientImpl(
+      { apiKey: 'test-key' },
+      mockStorageFactory,
+      mockPlatform,
+    );
+
+    // Inject mock API client
+    (client as any).apiClient = mockApiClient;
+
+    // Mock sessions() method
+    vi.spyOn(client, 'sessions').mockReturnValue(mockCursor as any);
+
+    // Mock session() method to return a dummy session client for hydration
+    const mockSessionClient = {
+      history: vi.fn().mockReturnValue(
+        (async function* () {
+          yield { id: 'act-1', type: 'agentMessaged' };
+        })(),
+      ),
+    };
+    vi.spyOn(client, 'session').mockResolvedValue(mockSessionClient as any);
+
+    // Act
+    const result = await client.sync({
+      depth: 'activities',
+      incremental: true,
+      limit: 10,
+    });
+
+    console.log('Sync result:', result);
+
+    // Assert
+    // Now expecting success because of the fix
+    expect(result.sessionsIngested).toBeGreaterThan(0);
+    expect(result.activitiesIngested).toBeGreaterThan(0);
+  });
+});
