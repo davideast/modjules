@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createMemoryPolicy } from '../src/auth/strategies/memory';
+import { createMemoryPolicy } from '../src/auth/strategies/memory.js';
 
 // Mock Data
 const db = {
@@ -11,7 +11,7 @@ const db = {
 const policy = createMemoryPolicy({
   data: db,
   admins: ['admin@test.com'],
-  getScopes: async (user, resource) => {
+  getScopes: async (_user: any, resource: any) => {
     // Custom Rule: Anyone can access 'public' sessions
     if (resource.type === 'public') {
       return ['read'];

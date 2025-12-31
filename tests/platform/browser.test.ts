@@ -2,8 +2,8 @@
  * @vitest-environment jsdom
  */
 import { describe, vi, beforeEach, afterEach } from 'vitest';
-import { BrowserPlatform } from '../../src/platform/browser';
-import { runPlatformTests } from './contract';
+import { BrowserPlatform } from '../../src/platform/browser.js';
+import { runPlatformTests } from './contract.js';
 
 describe('BrowserPlatform', () => {
   // Mock window.fetch
@@ -32,7 +32,7 @@ describe('BrowserPlatform', () => {
     window.fetch = originalFetch;
   });
 
-  runPlatformTests('Browser', new BrowserPlatform(), (key, value) => {
+  runPlatformTests('Browser', new BrowserPlatform(), (key: string, value: string) => {
     // jsdom includes a process shim, so we can test the behavior
     process.env[key] = value;
   });

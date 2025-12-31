@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { DefaultActivityClient } from '../../src/activities/client';
-import { Activity } from '../../src/types';
-import { ActivityStorage } from '../../src/storage/types';
-import { NetworkClient } from '../../src/activities/client';
+import { DefaultActivityClient } from '../../src/activities/client.js';
+import { Activity } from '../../src/types.js';
+import { ActivityStorage } from '../../src/storage/types.js';
+import { NetworkClient } from '../../src/activities/client.js';
 
 // Mock storage factory
 const createMockStorage = (activities: Activity[] = []): ActivityStorage => {

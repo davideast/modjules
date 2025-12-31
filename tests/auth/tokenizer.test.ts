@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { TokenManager } from '../../src/auth/tokenizer';
-import { NodePlatform } from '../../src/platform/node';
+import { TokenManager } from '../../src/auth/tokenizer.js';
+import { NodePlatform } from '../../src/platform/node.js';
 
 describe('TokenManager (Security Logic)', () => {
   const secret = 'super-secret-key-123';

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SessionCursor, ListSessionsResponse } from '../src/sessions';
-import { ApiClient } from '../src/api';
-import { SessionResource } from '../src/types';
-import { JulesClientImpl } from '../src/client';
-import { NodePlatform } from '../src/platform/node';
-import { SessionStorage } from '../src/storage/types';
+import { SessionCursor, ListSessionsResponse } from '../src/sessions.js';
+import { ApiClient } from '../src/api.js';
+import { SessionResource } from '../src/types.js';
+import { JulesClientImpl } from '../src/client.js';
+import { NodePlatform } from '../src/platform/node.js';
+import { SessionStorage } from '../src/storage/types.js';
 
 describe('jules.sessions()', () => {
   let apiClient: ApiClient;

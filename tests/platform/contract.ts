@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { Platform } from '../../src/platform/types';
+import { Platform } from '../../src/platform/types.js';
 
 // RFC 4231 Test Vector (Case 2)
 const TEST_KEY = 'Jefe';

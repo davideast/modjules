@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { determineCacheTier, isCacheValid } from '../src/caching';
-import { CachedSession } from '../src/storage/types';
-import { SessionResource } from '../src/types';
+import { determineCacheTier, isCacheValid } from '../src/caching.js';
+import { CachedSession } from '../src/storage/types.js';
+import { SessionResource } from '../src/types.js';
 
 describe('Iceberg Caching Logic', () => {
   const ONE_DAY_MS = 24 * 60 * 60 * 1000;

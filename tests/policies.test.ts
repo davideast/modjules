@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createFirestorePolicy } from '../src/auth/strategies/firestore';
-import { createFirebasePolicy } from '../src/auth/strategies/rtdb';
+import { createFirestorePolicy } from '../src/auth/strategies/firestore.js';
+import { createFirebasePolicy } from '../src/auth/strategies/rtdb.js';
 
 // --- MOCKS SETUP ---
 

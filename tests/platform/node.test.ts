@@ -1,6 +1,6 @@
 import { describe, vi, beforeEach, afterEach } from 'vitest';
-import { NodePlatform } from '../../src/platform/node';
-import { runPlatformTests } from './contract';
+import { NodePlatform } from '../../src/platform/node.js';
+import { runPlatformTests } from './contract.js';
 
 describe('NodePlatform', () => {
   // Mock global fetch
@@ -28,7 +28,7 @@ describe('NodePlatform', () => {
     global.fetch = originalFetch;
   });
 
-  runPlatformTests('Node.js', new NodePlatform(), (key, value) => {
+  runPlatformTests('Node.js', new NodePlatform(), (key: string, value: string) => {
     process.env[key] = value;
   });
 });

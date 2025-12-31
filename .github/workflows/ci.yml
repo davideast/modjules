@@ -39,6 +39,7 @@ jobs:
 
       # 2. Verify Attribution (Dynamic Co-authored-by check)
       - name: Verify Attribution
+        if: github.event_name == 'pull_request'
         id: attribution
         env:
           USER_NAME: ${{ github.event.pull_request.user.login }}

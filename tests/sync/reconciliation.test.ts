@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { JulesClientImpl } from '../../src/client';
-import { SessionResource } from '../../src/types';
-import { ApiClient } from '../../src/api';
-import { SessionCursor } from '../../src/sessions';
-import { SessionStorage } from '../../src/storage/types';
+import { JulesClientImpl } from '../../src/client.js';
+import { SessionResource } from '../../src/types.js';
+import { ApiClient } from '../../src/api.js';
+import { SessionCursor } from '../../src/sessions.js';
+import { SessionStorage } from '../../src/storage/types.js';
 
 // Mock dependencies
-vi.mock('../../src/api');
-vi.mock('../../src/sessions');
-vi.mock('../../src/client.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/client')>();
+vi.mock('../../src/api.js');
+vi.mock('../../src/sessions.js');
+vi.mock('../../src/client.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/client.js')>();
   return {
     ...actual,
     // Keep JulesClientImpl but mock parts of it if needed, or rely on mocking deps

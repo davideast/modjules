@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { Jules } from '../src/index.ts';
+import { jules } from '../src/index.ts';
 
 /**
  * Validates and retrieves required environment variables.
@@ -61,7 +61,9 @@ async function reportToJules() {
     }
 
     console.log(`🚀 Reporting to Jules Session: ${sessionId}...`);
-    const jules = new Jules(config.apiKey);
+    // The default 'jules' instance automatically reads JULES_API_KEY from process.env
+    // We can also use .with() if we needed to override it explicitly.
+    const client = jules.with({ apiKey: config.apiKey });
 
     const message = `🚨 **CI Failure: ${config.errType}**
 
@@ -74,7 +76,7 @@ ${config.errLog}
 
 Please analyze the failure and push a fix to branch \`${config.branchName}\`.`;
 
-    await jules.session(sessionId).message(message);
+    await client.session(sessionId).send(message);
     console.log('✅ Success: Message sent to Jules.');
 
   } catch (err: any) {

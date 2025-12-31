@@ -1,5 +1,5 @@
 // tests/e2e/node-proxy.test.ts
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createServer, Server } from 'node:http';
 import { AddressInfo } from 'node:net';
 import { connect } from '../../src/index.js';
@@ -60,6 +60,9 @@ describe('E2E: Node Proxy Architecture', () => {
   let proxyUrl: string;
 
   beforeAll(async () => {
+    // Ensure JULES_API_KEY env does not interfere with Proxy logic
+    vi.stubEnv('JULES_API_KEY', '');
+
     // Allow localhost requests to bypass MSW (for the local proxy)
     googleMock.listen({
       onUnhandledRequest: (req) => {
@@ -119,6 +122,7 @@ describe('E2E: Node Proxy Architecture', () => {
   afterAll(() => {
     proxyServer.close();
     googleMock.close();
+    vi.unstubAllEnvs();
   });
 
   it('SCENARIO 1: Create a Session (Handshake Intent: Create)', async () => {

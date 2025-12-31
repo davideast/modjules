@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { JulesClientImpl } from '../../src/client';
-import { SessionResource } from '../../src/types';
-import { ApiClient } from '../../src/api';
+import { JulesClientImpl } from '../../src/client.js';
+import { SessionResource } from '../../src/types.js';
+import { ApiClient } from '../../src/api.js';
 
 // Mock dependencies
 vi.mock('../../src/api');
