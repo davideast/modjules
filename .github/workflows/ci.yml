@@ -37,21 +37,7 @@ jobs:
           FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | tr '\n' ' ')
           echo "list=$FILES" >> $GITHUB_OUTPUT
 
-      # 2. Verify Attribution (Dynamic Co-authored-by check)
-      - name: Verify Attribution
-        if: github.event_name == 'pull_request'
-        id: attribution
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-          PR_USER_LOGIN: ${{ github.event.pull_request.user.login }}
-          PR_USER_ID: ${{ github.event.pull_request.user.id }}
-        run: |
-          # Use HEAD SHA to check the actual commit, not the merge commit
-          export COMMIT_MSG=$(git show -s --format=%B ${{ github.event.pull_request.head.sha }})
-          npx tsx scripts/verify-attribution.ts
-
-      # 3. Quality Checks (Each captures errors into GITHUB_OUTPUT)
+      # 2. Quality Checks (Each captures errors into GITHUB_OUTPUT)
       - name: Check Formatting
         id: format
         run: |
@@ -75,6 +61,20 @@ jobs:
         run: |
           npm run test:smoke > smoke_log.txt 2>&1 || (echo "log=$(tail -n 20 smoke_log.txt | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
 
+      # 3. Verify Attribution (Dynamic Co-authored-by check) - MOVED TO LAST
+      - name: Verify Attribution
+        if: github.event_name == 'pull_request'
+        id: attribution
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_USER_LOGIN: ${{ github.event.pull_request.user.login }}
+          PR_USER_ID: ${{ github.event.pull_request.user.id }}
+        run: |
+          # Use HEAD SHA to check the actual commit, not the merge commit
+          export COMMIT_MSG=$(git show -s --format=%B ${{ github.event.pull_request.head.sha }})
+          npx tsx scripts/verify-attribution.ts
+
       # 4. Report Failures to Jules via modjules
       - name: Report Failure to Jules
         if: failure()
@@ -82,6 +82,9 @@ jobs:
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
           BRANCH_NAME: ${{ github.head_ref }}
           FILES_CHANGED: ${{ steps.changed-files.outputs.list }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_USER_LOGIN: ${{ github.event.pull_request.user.login }}
+          PR_USER_ID: ${{ github.event.pull_request.user.id }}
 
           # Pass raw outputs to shell for correct logic handling
           ATTR_LOG: ${{ steps.attribution.outputs.log }}
@@ -91,6 +94,7 @@ jobs:
           SMOKE_LOG: ${{ steps.smoke.outputs.log }}
         run: |
           # Determine Error Type and Log Source (Normalize to Base64)
+          # Order of checks matters: Check most specific errors first
           if [ -n "$ATTR_LOG" ]; then
             export ERROR_TYPE="Attribution Check"
             export ERROR_LOG_B64="$ATTR_LOG"

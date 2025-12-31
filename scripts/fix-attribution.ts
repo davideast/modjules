@@ -31,16 +31,18 @@ try {
     process.exit(0);
   }
 
-  // 2. Construct the new message (Blank line + Trailer)
-  // Ensure we don't add too many blank lines if one exists
-  const newMsg = `${currentMsg}\n\n${attributionArg}`;
-
-  // 3. Amend the commit safely using a temporary file
+  // 2. Use Git's built-in trailer logic to avoid manual string concat issues
   // This avoids issues with shell quoting of complex messages
   const tempFile = join(process.cwd(), '.COMMIT_EDITMSG_FIX');
-  writeFileSync(tempFile, newMsg);
+
+  // Write current message to temp file first so we can interpret trailers on it
+  writeFileSync(tempFile, currentMsg);
 
   try {
+    // This command adds the trailer correctly at the end of the message
+    execSync(`git interpret-trailers --trailer "${attributionArg}" --in-place "${tempFile}"`);
+
+    // Now commit using the file updated by interpret-trailers
     // Added --no-gpg-sign for CI/Automation compatibility
     execSync(`git commit --amend -F "${tempFile}" --no-verify --no-gpg-sign`);
   } finally {
@@ -51,7 +53,7 @@ try {
     }
   }
 
-  // 4. Force push safely
+  // 3. Force push safely
   const branchName = execSync('git rev-parse --abbrev-ref HEAD')
     .toString()
     .trim();
