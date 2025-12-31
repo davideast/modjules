@@ -32,7 +32,9 @@ describe('Sync Duplication Regression Tests', () => {
 
     // Use real NodeSessionStorage to verify actual file writes
     const storageFactory = {
-      activity: () => { throw new Error('Not implemented'); },
+      activity: () => {
+        throw new Error('Not implemented');
+      },
       session: () => new NodeSessionStorage(tmpDir),
     };
 
@@ -63,9 +65,9 @@ describe('Sync Duplication Regression Tests', () => {
 
     const indexContent = await fs.readFile(
       path.join(tmpDir, '.jules/cache/sessions.jsonl'),
-      'utf8'
+      'utf8',
     );
-    const lines = indexContent.split('\n').filter(l => l.trim());
+    const lines = indexContent.split('\n').filter((l) => l.trim());
 
     // Expect exactly 1 write, meaning SessionCursor did NOT write, only sync() loop did.
     expect(lines.length).toBe(1);
@@ -89,9 +91,9 @@ describe('Sync Duplication Regression Tests', () => {
 
     const indexContent = await fs.readFile(
       path.join(tmpDir, '.jules/cache/sessions.jsonl'),
-      'utf8'
+      'utf8',
     );
-    const lines = indexContent.split('\n').filter(l => l.trim());
+    const lines = indexContent.split('\n').filter((l) => l.trim());
 
     expect(lines.length).toBe(1);
   });
