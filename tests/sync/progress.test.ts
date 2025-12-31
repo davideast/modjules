@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { JulesClientImpl } from '../../src/client';
-import { ApiClient } from '../../src/api';
+import { JulesClientImpl } from '../../src/client.js';
+import { ApiClient } from '../../src/api.js';
 
 describe('Observability', () => {
   let client: JulesClientImpl;

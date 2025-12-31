@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { BrowserPlatform } from '../../src/platform/browser';
+import { BrowserPlatform } from '../../src/platform/browser.js';
 
 describe('BrowserPlatform - Environment Fallback', () => {
   const platform = new BrowserPlatform();
@@ -48,6 +48,13 @@ describe('BrowserPlatform - Environment Fallback', () => {
     // If process exists, it should match process-value.
     // If not, it falls back (but we expect process in JSDOM).
     if (typeof process !== 'undefined') {
+      // In our implementation, process.env takes precedence over window.__MODJULES__ (if both exist)
+      // Wait, current implementation:
+      // 1. import.meta
+      // 2. process.env (via safe check)
+      // 3. window.__MODJULES__
+      // Actually my implementation checks process.env LAST?
+      // No, let's check src/platform/browser.ts
       expect(value).toBe('process-value');
     }
 

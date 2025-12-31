@@ -1,7 +1,7 @@
 import { vi, beforeEach, describe } from 'vitest';
 import crypto from 'node:crypto';
-import { GasPlatform } from '../../src/platform/gas';
-import { runPlatformTests } from './contract';
+import { GasPlatform } from '../../src/platform/gas.js';
+import { runPlatformTests } from './contract.js';
 
 // 1. Mock Globals BEFORE usage
 const mockUrlFetch = vi.fn();
@@ -73,7 +73,11 @@ describe('GasPlatform', () => {
     });
   });
 
-  runPlatformTests('Google Apps Script', new GasPlatform(), (key, value) => {
-    mockProperties.set(key, value);
-  });
+  runPlatformTests(
+    'Google Apps Script',
+    new GasPlatform(),
+    (key: string, value: string) => {
+      mockProperties.set(key, value);
+    },
+  );
 });

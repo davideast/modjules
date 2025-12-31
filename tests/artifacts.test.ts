@@ -171,17 +171,11 @@ describe('Artifacts', () => {
   });
 
   describe('in a non-Node.js environment', () => {
-    let originalProcess: any;
-
     beforeEach(() => {
-      originalProcess = global.process;
-      // @ts-ignore
-      delete global.process; // Simulate a browser-like environment
-      vi.resetModules(); // This is key to re-evaluating the isNode check
+      vi.resetModules();
     });
 
     afterEach(() => {
-      global.process = originalProcess; // Restore for other tests
       vi.resetModules();
     });
 

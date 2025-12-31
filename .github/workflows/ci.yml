@@ -5,10 +5,9 @@ on:
   push:
     branches: [main]
   pull_request:
-    # Run on all PRs targeting any branch
     types: [opened, synchronize, reopened]
 
-# Cancel previous runs if a new commit is pushed to the same PR
+# Prevents multiple runs on the same PR from overlapping
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -19,6 +18,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to see commit history and changed files
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,22 +30,90 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Enforce code style
+      # 1. Get Changed Files for Jules context
+      - name: Get Changed Files
+        id: changed-files
+        run: |
+          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | tr '\n' ' ')
+          echo "list=$FILES" >> $GITHUB_OUTPUT
+
+      # 2. Quality Checks (Each captures errors into GITHUB_OUTPUT)
       - name: Check Formatting
-        run: npm run format:check
+        id: format
+        run: |
+          npm run format:check || (echo "log=$(echo 'Formatting/Linting failed. Run npm run format.' | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
 
-      # Enforce type safety for tests/dev files
       - name: Type Check
-        run: npm run type-check
+        id: types
+        run: |
+          npm run type-check > ts_error.txt 2>&1 || (echo "log=$(head -n 15 ts_error.txt | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
 
-      # Enforce unit tests pass
       - name: Run Tests
-        run: npm test
+        id: tests
+        run: |
+          npm test > test_log.txt 2>&1 || (echo "log=$(tail -n 20 test_log.txt | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
 
-      # Ensure the library compiles
       - name: Production Build
         run: npm run build
 
-      # Run smoke test to verify packaging
       - name: Smoke Test
-        run: npm run test:smoke
+        id: smoke
+        run: |
+          npm run test:smoke > smoke_log.txt 2>&1 || (echo "log=$(tail -n 20 smoke_log.txt | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
+
+      # 3. Verify Attribution (Dynamic Co-authored-by check) - MOVED TO LAST
+      - name: Verify Attribution
+        if: github.event_name == 'pull_request'
+        id: attribution
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_USER_LOGIN: ${{ github.event.pull_request.user.login }}
+          PR_USER_ID: ${{ github.event.pull_request.user.id }}
+        run: |
+          # Use HEAD SHA to check the actual commit, not the merge commit
+          export COMMIT_MSG=$(git show -s --format=%B ${{ github.event.pull_request.head.sha }})
+          npx tsx scripts/verify-attribution.ts
+
+      # 4. Report Failures to Jules via modjules
+      - name: Report Failure to Jules
+        if: failure()
+        env:
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          BRANCH_NAME: ${{ github.head_ref }}
+          FILES_CHANGED: ${{ steps.changed-files.outputs.list }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_USER_LOGIN: ${{ github.event.pull_request.user.login }}
+          PR_USER_ID: ${{ github.event.pull_request.user.id }}
+
+          # Pass raw outputs to shell for correct logic handling
+          ATTR_LOG: ${{ steps.attribution.outputs.log }}
+          FORMAT_LOG: ${{ steps.format.outputs.log }}
+          TYPE_LOG: ${{ steps.types.outputs.log }}
+          TEST_LOG: ${{ steps.tests.outputs.log }}
+          SMOKE_LOG: ${{ steps.smoke.outputs.log }}
+        run: |
+          # Determine Error Type and Log Source (Normalize to Base64)
+          # Order of checks matters: Check most specific errors first
+          if [ -n "$ATTR_LOG" ]; then
+            export ERROR_TYPE="Attribution Check"
+            export ERROR_LOG_B64="$ATTR_LOG"
+          elif [ -n "$FORMAT_LOG" ]; then
+            export ERROR_TYPE="Formatting Failure"
+            export ERROR_LOG_B64="$FORMAT_LOG"
+          elif [ -n "$TYPE_LOG" ]; then
+            export ERROR_TYPE="TypeScript Error"
+            export ERROR_LOG_B64="$TYPE_LOG"
+          elif [ -n "$TEST_LOG" ]; then
+            export ERROR_TYPE="Test Failure"
+            export ERROR_LOG_B64="$TEST_LOG"
+          elif [ -n "$SMOKE_LOG" ]; then
+            export ERROR_TYPE="Smoke Test Failure"
+            export ERROR_LOG_B64="$SMOKE_LOG"
+          else
+            export ERROR_TYPE="General Quality Gate"
+            export ERROR_LOG_B64=""
+          fi
+
+          # Run the reporting script
+          npx tsx scripts/ci-report.ts

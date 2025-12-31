@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { NodeSessionStorage } from '../../src/storage/node-fs';
-import { SessionResource } from '../../src/types';
+import { NodeSessionStorage } from '../../src/storage/node-fs.js';
+import { SessionResource } from '../../src/types.js';
 
 const TEST_DIR = path.resolve(__dirname, '.test-cache');
 

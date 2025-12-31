@@ -14,7 +14,12 @@ Before submitting any changes, you **MUST** perform the following steps. Failure
     - Run `npm run type-check` (which runs `tsc --project tsconfig.test.json`).
     - Fix **ALL** TypeScript errors. Do not suppress errors without a very strong reason.
 
-3.  **Cleanup:**
+3.  **Attribution:**
+    - Every commit must include a `Co-authored-by:` trailer for the GitHub user associated with the PR to ensure proper credit.
+    - The CI "Attribution Check" step will fail and provide the exact required trailer string if it is missing.
+    - **Fix:** Run `npx tsx scripts/fix-attribution.ts "<Co-authored-by string>"` (copy the string from the CI error log).
+
+4.  **Cleanup:**
     - **Revert Temporary Changes:** Ensure you have reverted any changes made for local debugging or environment setup (e.g., adding dev tools to `package.json`, creating `.env.local`, generating `*.log` files).
     - **Files:** Ensure no build artifacts or temporary files are committed.
 

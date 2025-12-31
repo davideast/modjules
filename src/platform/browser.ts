@@ -170,9 +170,16 @@ export class BrowserPlatform implements Platform {
   };
 
   getEnv(key: string): string | undefined {
-    // In bundler environments (Vite, Webpack, etc.), process.env is often polyfilled or replaced.
-    // We check for its existence safely, but avoid direct usage of the 'process' global
-    // to prevent build tools from assuming a Node.js environment or failing on strict checks.
+    // 1. Vite / Modern ESM Support
+    if (
+      typeof import.meta !== 'undefined' &&
+      (import.meta as any).env &&
+      (import.meta as any).env[key]
+    ) {
+      return (import.meta as any).env[key];
+    }
+
+    // 2. Safe Global Fallbacks (window, self, globalThis)
     const globalRef =
       typeof globalThis !== 'undefined'
         ? globalThis
@@ -183,24 +190,21 @@ export class BrowserPlatform implements Platform {
             : {};
     const anyGlobal = globalRef as any;
 
-    if (
-      anyGlobal.process &&
-      anyGlobal.process.env &&
-      anyGlobal.process.env[key]
-    ) {
-      return anyGlobal.process.env[key];
+    // 3. Legacy process.env check (Safe)
+    // We strictly check for existence to avoid ReferenceError if 'process' is missing.
+    try {
+      if (typeof process !== 'undefined' && process.env && process.env[key]) {
+        return process.env[key];
+      }
+    } catch (e) {
+      // Ignore ReferenceError if process is not defined
     }
 
-    // Fallback to window.__MODJULES__ for manual configuration injection
-    if (
-      typeof window !== 'undefined' &&
-      (window as any).__MODJULES__ &&
-      (window as any).__MODJULES__[key]
-    ) {
-      return (window as any).__MODJULES__[key];
+    // 4. Manual Injection Fallback
+    if (anyGlobal.__MODJULES__ && anyGlobal.__MODJULES__[key]) {
+      return anyGlobal.__MODJULES__[key];
     }
 
     return undefined;
   }
 }
-// triggering ci

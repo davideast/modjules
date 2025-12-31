@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createHandlerCore } from '../../src/server/core';
-import { NodePlatform } from '../../src/platform/node';
-import { Scope } from '../../src/server/types';
+import { createHandlerCore } from '../../src/server/core.js';
+import { NodePlatform } from '../../src/platform/node.js';
+import { Scope } from '../../src/server/types.js';
 
 describe('Server Core (The Vendor)', () => {
   const platform = new NodePlatform();

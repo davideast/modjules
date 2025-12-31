@@ -8,6 +8,7 @@ describe('Smart Proxy Client', () => {
   beforeEach(() => {
     mockFetch.mockReset();
     vi.useFakeTimers();
+    vi.stubEnv('JULES_API_KEY', ''); // Ensure no API key leak
   });
 
   afterEach(() => {
@@ -21,6 +22,7 @@ describe('Smart Proxy Client', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ success: true, token: 'cap_token_1' }),
+      text: async () => JSON.stringify({ success: true, token: 'cap_token_1' }),
     } as Response);
     // 2. Actual API Response
     mockFetch.mockResolvedValueOnce({
@@ -67,6 +69,7 @@ describe('Smart Proxy Client', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ success: true, token: 'token_1' }),
+      text: async () => JSON.stringify({ success: true, token: 'token_1' }),
     } as Response);
     // 2. API Call (Fail - Expired)
     mockFetch.mockResolvedValueOnce({
@@ -74,11 +77,13 @@ describe('Smart Proxy Client', () => {
       status: 401,
       statusText: 'Unauthorized',
       text: async () => 'Expired',
+      json: async () => ({ error: 'Expired' }),
     } as Response);
     // 3. Handshake 2 (Success)
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ success: true, token: 'token_2' }),
+      text: async () => JSON.stringify({ success: true, token: 'token_2' }),
     } as Response);
     // 4. API Call Retry (Success)
     mockFetch.mockResolvedValueOnce({
@@ -114,6 +119,7 @@ describe('Smart Proxy Client', () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ success: true, token: 'token_env' }),
+      text: async () => JSON.stringify({ success: true, token: 'token_env' }),
     } as Response);
 
     // Mock API Call
@@ -170,6 +176,8 @@ describe('Smart Proxy Client', () => {
     resolveHandshake({
       ok: true,
       json: async () => ({ success: true, token: 'token_shared' }),
+      text: async () =>
+        JSON.stringify({ success: true, token: 'token_shared' }),
     } as Response);
 
     await Promise.all([p1, p2]);

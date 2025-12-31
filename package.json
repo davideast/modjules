@@ -1,5 +1,6 @@
 {
   "name": "modjules",
+  "type": "module",
   "version": "0.1.1",
   "engines": {
     "node": ">=18"
@@ -59,6 +60,9 @@
     "test:integration": "vitest run -c vitest.integration.config.ts",
     "test:smoke": "tsx scripts/smoke-test.ts",
     "type-check": "tsc --project tsconfig.test.json",
+    "ci:report": "tsx scripts/ci-report.ts",
+    "preflight": "tsx scripts/preflight.ts",
+    "fix-attribution": "tsx scripts/fix-attribution.ts",
     "verify": "tsx scripts/verify.ts",
     "prepare": "husky",
     "changeset": "changeset",
