@@ -38,10 +38,10 @@ async function getGitHubUser(username: string, token: string) {
 async function main() {
   const prBody = process.env.PR_BODY || '';
   const token = process.env.GITHUB_TOKEN;
-  const commitMsg = process.env.COMMIT_MSG || '';
-  // Fallback to PR creator if no mention found?
-  // User prompt: "It needs to be a real user... I wanted it to be me since I was mentioned in the PR body"
-  // If no mention, maybe fall back to PR user login?
+
+  // Environment variable for commit range (default to HEAD if missing, though typically supplied)
+  const commitRange = process.env.COMMIT_RANGE;
+
   const prUserLogin = process.env.PR_USER_LOGIN || '';
   const prUserId = process.env.PR_USER_ID || '';
 
@@ -77,25 +77,53 @@ async function main() {
 
   if (!targetUserLogin || !targetUserId) {
     console.error('❌ Could not determine user for attribution.');
-    // Fail safe? Or just exit success?
-    // "The CI ... will fail ... if it is missing."
-    // If we can't determine WHO, we can't fail reliably.
     process.exit(1);
   }
 
   const trailer = `Co-authored-by: ${targetUserLogin} <${targetUserId}+${targetUserLogin}@users.noreply.github.com>`;
   console.log(`🎯 Expected Trailer: "${trailer}"`);
 
-  if (commitMsg.includes(trailer)) {
-    console.log('✅ Attribution present.');
+  // Identify commits to check
+  // If commitRange is provided (e.g. "base..head"), list all commits in that range.
+  // Otherwise fallback to single check of HEAD (legacy behavior, or if run locally without range).
+  let commitMsgs: string[] = [];
+
+  if (commitRange) {
+    try {
+      // --no-merges to skip merge commits which might not need attribution
+      // format=%B gets the raw body
+      // We use a custom separator to split commits safely
+      const rawLog = execSync(`git log ${commitRange} --no-merges --format="%B%n---COMMIT_SEPARATOR---"`).toString();
+      commitMsgs = rawLog.split('\n---COMMIT_SEPARATOR---\n').filter(msg => msg.trim().length > 0);
+    } catch (e) {
+      console.warn(`⚠️ Failed to list commits in range ${commitRange}. Checking HEAD only.`);
+      commitMsgs = [execSync('git show -s --format=%B HEAD').toString()];
+    }
+  } else {
+     // Legacy / Fallback
+     const singleMsg = process.env.COMMIT_MSG || execSync('git show -s --format=%B HEAD').toString();
+     commitMsgs = [singleMsg];
+  }
+
+  console.log(`🔍 Verifying ${commitMsgs.length} commit(s)...`);
+
+  let missingCount = 0;
+  for (const msg of commitMsgs) {
+    if (!msg.includes(trailer)) {
+      missingCount++;
+    }
+  }
+
+  if (missingCount === 0) {
+    console.log('✅ Attribution present in all checked commits.');
     process.exit(0);
   } else {
-    console.error('❌ Missing attribution.');
+    console.error(`❌ Missing attribution in ${missingCount} commit(s).`);
 
     // Write to GITHUB_OUTPUT if available
     const githubOutput = process.env.GITHUB_OUTPUT;
     if (githubOutput) {
-      const message = `Missing attribution. Please append this to your commit message: ${trailer}`;
+      const message = `Missing attribution in ${missingCount} commit(s). Please append this to your commit message(s): ${trailer}`;
       fs.appendFileSync(githubOutput, `log=${message}\n`);
     }
     process.exit(1);

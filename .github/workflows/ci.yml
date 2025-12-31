@@ -47,8 +47,8 @@ jobs:
           PR_USER_LOGIN: ${{ github.event.pull_request.user.login }}
           PR_USER_ID: ${{ github.event.pull_request.user.id }}
         run: |
-          # Use HEAD SHA to check the actual commit, not the merge commit
-          export COMMIT_MSG=$(git show -s --format=%B ${{ github.event.pull_request.head.sha }})
+          # Check range of commits from base to head
+          export COMMIT_RANGE="origin/${{ github.base_ref }}...${{ github.event.pull_request.head.sha }}"
           npx tsx scripts/verify-attribution.ts
 
       # 3. Quality Checks (Each captures errors into GITHUB_OUTPUT)
@@ -90,9 +90,6 @@ jobs:
           TEST_LOG: ${{ steps.tests.outputs.log }}
           SMOKE_LOG: ${{ steps.smoke.outputs.log }}
         run: |
-          # Extract Session ID (everything after the last hyphen)
-          SESSION_ID=$(echo $BRANCH_NAME | grep -oE '[^-]+$')
-
           # Determine Error Type and Log Source (Normalize to Base64)
           if [ -n "$ATTR_LOG" ]; then
             export ERROR_TYPE="Attribution Check"
@@ -114,41 +111,5 @@ jobs:
             export ERROR_LOG_B64=""
           fi
 
-          export SESSION_ID
-
-          # Execute Inline Reporting Script
-          npx -p modjules -p tsx tsx -e "
-            import { jules } from 'modjules';
-
-            async function report() {
-              try {
-                if (!process.env.SESSION_ID) {
-                  console.log('No Session ID found in branch name. Skipping report.');
-                  return;
-                }
-
-                const client = jules.with({ apiKey: process.env.JULES_API_KEY });
-                const log = process.env.ERROR_LOG_B64
-                  ? Buffer.from(process.env.ERROR_LOG_B64, 'base64').toString('utf-8')
-                  : 'No details provided.';
-
-                const content = \`🚨 **CI Failure: \${process.env.ERROR_TYPE}**
-
-**Files Changed:** \\\`\${process.env.FILES_CHANGED}\\\`
-
-**Logs:**
-\\\`\\\`\\\`text
-\${log}
-\\\`\\\`\\\`
-
-Please fix the issues in branch \\\`\${process.env.BRANCH_NAME}\\\`.\`;
-
-                await client.session(process.env.SESSION_ID).send(content);
-                console.log('✅ Success: Report sent to Jules.');
-              } catch (e) {
-                console.error('❌ Failed to report to Jules:', e);
-                process.exit(1);
-              }
-            }
-            report();
-          "
+          # Run the reporting script
+          npx tsx scripts/ci-report.ts
