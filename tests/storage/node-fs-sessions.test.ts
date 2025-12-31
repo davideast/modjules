@@ -145,4 +145,35 @@ describe('NodeSessionStorage', () => {
     expect(entries.length).toBe(1);
     expect(entries[0].id).toBe('scan_1');
   });
+
+  it('scanIndex deduplicates entries with same ID', async () => {
+    const s1 = {
+      id: 'dupe_1',
+      title: 'Original',
+      state: 'running',
+      createTime: new Date().toISOString(),
+    } as unknown as SessionResource;
+
+    // Simulate multiple updates (append-only log grows)
+    await storage.upsert(s1);
+    await storage.upsert({ ...s1, title: 'Updated' });
+    await storage.upsert({ ...s1, state: 'completed' });
+
+    // Verify raw file has 3 lines
+    const indexContent = await fs.readFile(
+      path.join(TEST_DIR, '.jules/cache/sessions.jsonl'),
+      'utf8',
+    );
+    expect(indexContent.trim().split('\n').length).toBe(3);
+
+    // Verify scanIndex yields only 1 entry (the latest)
+    const entries = [];
+    for await (const entry of storage.scanIndex()) {
+      entries.push(entry);
+    }
+
+    expect(entries.length).toBe(1);
+    expect(entries[0].id).toBe('dupe_1');
+    expect(entries[0].state).toBe('completed');
+  });
 });

@@ -235,13 +235,21 @@ export class NodeSessionStorage implements SessionStorage {
         crlfDelay: Infinity,
       });
 
+      // Deduplication Map: ID -> Entry
+      const entries = new Map<string, SessionIndexEntry>();
+
       for await (const line of rl) {
         if (!line.trim()) continue;
         try {
-          yield JSON.parse(line);
+          const entry = JSON.parse(line) as SessionIndexEntry;
+          entries.set(entry.id, entry);
         } catch (e) {
           /* ignore corrupt lines */
         }
+      }
+
+      for (const entry of entries.values()) {
+        yield entry;
       }
     } catch (e: any) {
       if (e.code === 'ENOENT') return; // No index yet
