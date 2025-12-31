@@ -222,9 +222,16 @@ export class JulesClientImpl implements JulesClient {
           let count = 0;
           for await (const _ of history) {
             count++;
+            activitiesIngested++;
+            onProgress?.({
+              phase: 'hydrating_activities',
+              current: hydratedCount,
+              total: candidates.length,
+              lastIngestedId: session.id,
+              activityCount: count,
+            });
           }
 
-          activitiesIngested += count;
           hydratedCount++;
 
           onProgress?.({

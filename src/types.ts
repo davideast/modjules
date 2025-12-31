@@ -1096,10 +1096,11 @@ export type SyncDepth = 'metadata' | 'activities';
  * Progress updates for observability.
  */
 export interface SyncProgress {
-  phase: 'fetching_list' | 'hydrating_records';
+  phase: 'fetching_list' | 'hydrating_records' | 'hydrating_activities';
   current: number;
   total?: number;
   lastIngestedId?: string;
+  activityCount?: number;
 }
 
 /**
