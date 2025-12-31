@@ -110,16 +110,40 @@ export class ApiClient {
     }
 
     if (!response.ok) {
+      if (response.status === 429) {
+        // If we haven't exceeded retry limit, back off and retry.
+        // We reuse `_isRetry` loosely here, but really we want a counter.
+        // Since we don't have a retry count in options, we can add one or handle it locally if we change architecture.
+        // However, given the recursive structure, let's just use a simple randomized exponential backoff if we want to be fancy,
+        // but `request` is recursive.
+        // Let's assume we can add a `retryCount` to options or just implement a simple loop inside `request` is better?
+        // No, `request` is already doing recursion for auth.
+
+        // Let's implement retry logic.
+        const retryCount = (options as any)._retryCount || 0;
+        const MAX_RETRIES = 5;
+
+        if (retryCount < MAX_RETRIES) {
+          // Exponential Backoff: 1s, 2s, 4s, 8s, 16s + Jitter
+          const delay = Math.pow(2, retryCount) * 1000 + Math.random() * 500;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return this.request<T>(endpoint, {
+            ...options,
+            _retryCount: retryCount + 1,
+          } as any);
+        }
+
+        throw new JulesRateLimitError(
+          url.toString(),
+          response.status,
+          response.statusText,
+        );
+      }
+
       switch (response.status) {
         case 401:
         case 403:
           throw new JulesAuthenticationError(
-            url.toString(),
-            response.status,
-            response.statusText,
-          );
-        case 429:
-          throw new JulesRateLimitError(
             url.toString(),
             response.status,
             response.statusText,

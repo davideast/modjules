@@ -1,5 +1,5 @@
 // tests/errors.test.ts
-import { beforeAll, afterAll, afterEach, describe, it, expect } from 'vitest';
+import { beforeAll, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
 import { server } from './mocks/server.js';
 import { http, HttpResponse } from 'msw';
 import { jules as defaultJules } from '../src/index.js';
@@ -93,14 +93,25 @@ describe('Error Handling', () => {
       }),
     );
 
+    // Use fake timers to fast-forward through retries
+    vi.useFakeTimers();
+
     const promise = jules.session({
       prompt: 'test',
       source: { github: 'test/repo', branch: 'main' },
     });
 
-    await expect(promise).rejects.toThrow(JulesRateLimitError);
+    // Attach expectation before advancing timers
+    const expectation = expect(promise).rejects.toThrow(JulesRateLimitError);
+
+    // Advance time enough to cover 5 retries (approx 31s)
+    await vi.advanceTimersByTimeAsync(100000);
+
+    await expectation;
     await expect(promise).rejects.toHaveProperty('url', expectedUrl);
     await expect(promise).rejects.toHaveProperty('status', 429);
+
+    vi.useRealTimers();
   });
 
   it('should throw JulesApiError on other non-2xx responses (e.g., 500)', async () => {
