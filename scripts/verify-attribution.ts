@@ -96,7 +96,9 @@ async function main() {
   let logs = '';
   try {
     // Get all commit messages in the PR range
-    logs = execSync(`git log origin/${baseRef}...${headSha} --pretty=%B`).toString();
+    logs = execSync(
+      `git log origin/${baseRef}...${headSha} --pretty=%B`,
+    ).toString();
   } catch (e) {
     console.warn('⚠️ Could not fetch commit range. Checking HEAD only.');
     logs = execSync('git show -s --format=%B HEAD').toString();
