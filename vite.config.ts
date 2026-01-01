@@ -114,6 +114,7 @@ export default defineConfig({
         'node:stream',
         'node:timers/promises',
         'node:util',
+        'node:os',
       ],
     },
   },
