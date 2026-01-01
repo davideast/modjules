@@ -17,6 +17,7 @@ export default defineConfig({
         'server/auth/memory': 'src/auth/strategies/memory.ts',
         // MCP
         mcp: 'src/mcp/index.ts',
+        'mcp/cli': 'src/mcp/cli.ts',
       },
       name: 'modjules',
       formats: ['es'],
