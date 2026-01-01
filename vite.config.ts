@@ -29,6 +29,9 @@ export default defineConfig({
         'idb',
         'firebase-admin',
         /@modelcontextprotocol\/sdk(\/.*)?/,
+        'commander',
+        'chalk',
+        /@inquirer\/prompts(\/.*)?/,
 
         // Node.js Built-ins (Bare specifiers)
         '_http_agent',
