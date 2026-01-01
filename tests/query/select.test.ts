@@ -25,6 +25,8 @@ type MockActivityClient = {
 type MockSessionClient = {
   activities: MockActivityClient;
   info: () => Promise<SessionResource>;
+  history: () => AsyncIterable<Activity>;
+  stream: () => AsyncIterable<Activity>;
 };
 
 type MockJulesClient = {
@@ -36,6 +38,7 @@ describe('Unified Query Engine (select)', () => {
   let mockClient: MockJulesClient;
   let sessions: SessionResource[];
   let activities: Record<string, Activity[]>;
+  let sessionClients: Record<string, MockSessionClient>;
 
   beforeEach(() => {
     // 1. Setup Data
@@ -91,6 +94,8 @@ describe('Unified Query Engine (select)', () => {
       ],
     };
 
+    sessionClients = {};
+
     // 2. Setup Mocks
     mockClient = {
       storage: {
@@ -104,19 +109,33 @@ describe('Unified Query Engine (select)', () => {
           return found ? { resource: found } : null;
         },
       },
-      session: (id: string) => ({
-        activities: {
-          select: async (options: any) => {
-            // Simple mock filtering
-            const acts = activities[id] || [];
-            if (options.limit) return acts.slice(0, options.limit);
-            if (options.type)
-              return acts.filter((a) => a.type === options.type);
-            return acts;
-          },
-        },
-        info: async () => sessions.find((s) => s.id === id)!,
-      }),
+      session: (id: string) => {
+        if (!sessionClients[id]) {
+          sessionClients[id] = {
+            activities: {
+              select: async (options: any) => {
+                // Simple mock filtering
+                const acts = activities[id] || [];
+                if (options.limit) return acts.slice(0, options.limit);
+                if (options.type)
+                  return acts.filter((a) => a.type === options.type);
+                return acts;
+              },
+            },
+            history: async function* () {
+              const acts = activities[id] || [];
+              for (const act of acts) {
+                yield act;
+              }
+            },
+            stream: async function* () {
+              // Infinite stream simulation (should not be called)
+            },
+            info: async () => sessions.find((s) => s.id === id)!,
+          };
+        }
+        return sessionClients[id];
+      },
     };
   });
 
@@ -168,6 +187,37 @@ describe('Unified Query Engine (select)', () => {
       expect(session.activities).toHaveLength(1);
       expect(session.activities[0].message).toBe('Hello');
     });
+
+    it('should use finite history() instead of infinite stream() to prevent hanging', async () => {
+      const sessionClient = mockClient.session('sess_1');
+      const historySpy = vi.spyOn(sessionClient, 'history');
+      const streamSpy = vi.spyOn(sessionClient, 'stream');
+
+      await select(mockClient as any, {
+        from: 'sessions',
+        include: { activities: true },
+      });
+
+      // CRITICAL: history() yields a finite set of local data
+      expect(historySpy).toHaveBeenCalled();
+      // CRITICAL: stream() is an infinite poll; using it here is a bug
+      expect(streamSpy).not.toHaveBeenCalled();
+    });
+
+    it('should properly augment session DTOs with activity data', async () => {
+      const results = await select(mockClient as any, {
+        from: 'sessions',
+        include: { activities: true },
+      });
+
+      const session = results[0];
+      // Verify the property exists and contains the expected data
+      expect(session).toHaveProperty('activities');
+      expect(Array.isArray((session as any).activities)).toBe(true);
+      if ((session as any).activities.length > 0) {
+        expect((session as any).activities[0].id).toBe('act_1_1');
+      }
+    });
   });
 
   describe('Querying Activities (Scatter-Gather)', () => {
@@ -215,6 +265,38 @@ describe('Unified Query Engine (select)', () => {
       });
 
       expect(results).toHaveLength(1);
+    });
+
+    it('should cache session.info() calls during activity scatter-gather', async () => {
+      // Setup: Two activities in the SAME session
+      activities['sess_1'] = [
+        {
+          id: 'act_1_1',
+          createTime: '2023-01-01T00:00:01Z',
+          type: 'agentMessaged',
+          originator: 'agent',
+          artifacts: [],
+        } as any,
+        {
+          id: 'act_1_2',
+          createTime: '2023-01-01T00:00:02Z',
+          type: 'agentMessaged',
+          originator: 'agent',
+          artifacts: [],
+        } as any,
+      ];
+
+      const sessionClient = mockClient.session('sess_1');
+      const infoSpy = vi.spyOn(sessionClient, 'info');
+
+      await select(mockClient as any, {
+        from: 'activities',
+        include: { session: true },
+      });
+
+      // Without caching, info() would be called 2 times (once per activity).
+      // With caching, it should be called exactly 1 time.
+      expect(infoSpy).toHaveBeenCalledTimes(1);
     });
   });
 });

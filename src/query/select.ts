@@ -7,6 +7,7 @@ import {
   WhereClause,
   SelectOptions,
 } from '../types.js';
+import { pMap } from '../utils.js';
 
 /**
  * Recursively applies the 'select' projection mask to an object.
@@ -118,39 +119,47 @@ export async function select<T extends JulesDomain>(
       if (!cached) continue;
 
       const item: any = project(cached.resource, query.select as string[]);
+      results.push(item);
+    }
 
-      // PASS 3: Virtual Join (Include Activities)
-      if (query.include && 'activities' in query.include) {
-        const actConfig = query.include.activities;
-        // const selectOptions = typeof actConfig === 'object' ? actConfig : {}; // Removed unused variable
-
-        // Use the session-scoped client to fetch activities
-        // If selectOptions has 'where', we might need to map it if the activity client expects simpler options
-        // But for now let's pass it as is or map it.
-        // The type of actConfig is { where?: WhereClause... }
-        // The ActivityClient.select takes SelectOptions.
-        // We'll trust the user to pass compatible options or we map them.
-        // In the test we pass { limit: 1 }, which works.
-        // If we passed { where: { ... } }, we'd need to map.
-
-        // Fix: Map IncludeClause structure to SelectOptions
-        let mappedOptions: any = {};
-        if (typeof actConfig === 'object') {
-          mappedOptions = {
-            ...toActivitySelectOptions(actConfig.where),
-            limit: actConfig.limit,
-            // ActivityClient.select doesn't support 'select' projection yet, so we project here if needed?
-            // Actually ActivityClient.select returns Activity[].
-          };
-        }
-
-        const activities = await client
-          .session(entry.id)
-          .activities.select(mappedOptions);
-        item.activities = activities;
+    // PASS 3: Virtual Join (Include Activities)
+    // We do this after filtering sessions to minimize fetches.
+    // Using pMap for concurrency.
+    if (query.include && 'activities' in query.include) {
+      const actConfig = query.include.activities;
+      let mappedOptions: any = {};
+      if (typeof actConfig === 'object') {
+        mappedOptions = {
+          ...toActivitySelectOptions(actConfig.where),
+          limit: actConfig.limit,
+        };
       }
 
-      results.push(item);
+      await pMap(
+        results,
+        async (session) => {
+          // Use history() to ensure we get data (cold stream)
+          const sessionClient = await client.session(session.id);
+          const history = sessionClient.history();
+          const activities: any[] = [];
+          for await (const act of history) {
+            // Apply limit manually if needed since history yields all
+            if (
+              mappedOptions.limit &&
+              activities.length >= mappedOptions.limit
+            ) {
+              break;
+            }
+            // Basic filtering if options were passed
+            if (mappedOptions.type && act.type !== mappedOptions.type) {
+              continue;
+            }
+            activities.push(act);
+          }
+          session.activities = activities;
+        },
+        { concurrency: 5 },
+      );
     }
   } else if (query.from === 'activities') {
     const where = query.where as WhereClause<'activities'> | undefined;
@@ -170,36 +179,37 @@ export async function select<T extends JulesDomain>(
       }
     }
 
+    // Use a session cache to avoid N+1 fetches for session info
+    const sessionCache = new Map<string, any>();
+
     // Generator for session IDs to scan
+    // We prefer iterating over sessions we know about
     const sessionScanner = async function* () {
       if (targetSessionIds.length > 0) {
         for (const id of targetSessionIds) {
           yield { id };
         }
       } else {
+        // Use client.sessions() or storage directly.
+        // Using storage.scanIndex() is safer/faster if we just need IDs.
         yield* storage.scanIndex();
       }
     };
 
     // PASS 1: Scatter-Gather (Cross-session activity search)
-    // We iterate over every session we know about in the index
+    // We iterate over every session we know about
     for await (const sessionEntry of sessionScanner()) {
       if (results.length >= limit) break;
 
-      const sessionClient = client.session(sessionEntry.id);
+      const sessionClient = await client.session(sessionEntry.id);
 
-      // Map WhereClause to SelectOptions for the activity client
-      const selectOptions = {
-        ...toActivitySelectOptions(where),
-        limit: limit - results.length, // Aggressive limiting
-      };
+      // Use history() to ensure finite stream and correct hydration
+      const history = sessionClient.history();
 
-      const matchedActivities =
-        await sessionClient.activities.select(selectOptions);
+      for await (const act of history) {
+        if (results.length >= limit) break;
 
-      for (const act of matchedActivities) {
-        // Additional filtering if the underlying select() isn't rich enough
-        // e.g. if we want to filter by ID which .select() might not support
+        // Apply filters manually since we are consuming the raw history stream
         if (where?.id && !match(act.id, where.id)) continue;
         if (where?.type && !match(act.type, where.type)) continue;
 
@@ -211,12 +221,17 @@ export async function select<T extends JulesDomain>(
           const sessSelect =
             typeof sessConfig === 'object' ? sessConfig.select : undefined;
 
-          const sessionInfo = await sessionClient.info();
+          // Check cache first
+          let sessionInfo = sessionCache.get(sessionEntry.id);
+          if (!sessionInfo) {
+            sessionInfo = await sessionClient.info();
+            sessionCache.set(sessionEntry.id, sessionInfo);
+          }
+
           item.session = project(sessionInfo, sessSelect as string[]);
         }
 
         results.push(item);
-        if (results.length >= limit) break;
       }
     }
   }

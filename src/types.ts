@@ -325,6 +325,11 @@ export interface SessionResource {
    * The outputs of the session, if any.
    */
   outputs: SessionOutput[];
+  /**
+   * The activities associated with the session.
+   * Only populated when `include: { activities: true }` is used in `jules.select()`.
+   */
+  activities?: Activity[];
 }
 
 // -----------------------------------------------------------------------------
@@ -517,6 +522,11 @@ interface BaseActivity {
    * The artifacts produced by this activity.
    */
   artifacts: Artifact[];
+  /**
+   * The session that this activity belongs to.
+   * Only populated when `include: { session: true }` is used in `jules.select()`.
+   */
+  session?: SessionResource;
 }
 
 /**
