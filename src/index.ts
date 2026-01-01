@@ -1,15 +1,55 @@
 // src/index.ts
+import { homedir } from 'node:os';
+import { accessSync, constants } from 'node:fs';
 import { JulesClientImpl } from './client.js';
 import { NodeFileStorage, NodeSessionStorage } from './storage/node-fs.js';
 import { NodePlatform } from './platform/node.js';
 import { JulesClient, JulesOptions, StorageFactory } from './types.js';
 
+export function isWritable(dir: string): boolean {
+  try {
+    accessSync(dir, constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getRootDir(): string {
+  // 1. Explicit environment variable (highest priority)
+  const julesHome = process.env.JULES_HOME;
+  if (julesHome && isWritable(julesHome)) {
+    return julesHome;
+  }
+
+  // 2. HOME environment variable
+  const home = process.env.HOME;
+  if (home && home !== '/' && isWritable(home)) {
+    return home;
+  }
+
+  // 3. os.homedir() (may use /etc/passwd on Unix)
+  const osHome = homedir();
+  if (osHome && osHome !== '/' && isWritable(osHome)) {
+    return osHome;
+  }
+
+  // 4. process.cwd() (original behavior, for backwards compat)
+  const cwd = process.cwd();
+  if (cwd && cwd !== '/' && isWritable(cwd)) {
+    return cwd;
+  }
+
+  // 5. Temporary directory as last resort
+  const tmpDir = process.env.TMPDIR || process.env.TMP || '/tmp';
+  return tmpDir;
+}
+
 // Define defaults for the Node.js environment
 const defaultPlatform = new NodePlatform();
 const defaultStorageFactory: StorageFactory = {
-  activity: (sessionId: string) =>
-    new NodeFileStorage(sessionId, process.cwd()),
-  session: () => new NodeSessionStorage(process.cwd()),
+  activity: (sessionId: string) => new NodeFileStorage(sessionId, getRootDir()),
+  session: () => new NodeSessionStorage(getRootDir()),
 };
 
 /**

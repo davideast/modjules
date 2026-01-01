@@ -40,28 +40,83 @@ export async function registerAction(tool?: string) {
   }
 
   if (!tool || tool === 'gemini') {
-    console.log(
-      chalk.bold('\nConfiguration for Antigravity (.gemini/modules.json):'),
+    const geminiConfigPath = path.join(
+      os.homedir(),
+      '.gemini',
+      'antigravity',
+      'mcp_config.json',
     );
-    console.log(
-      chalk.dim('Add this to your .gemini/modules.json global config:'),
-    );
-    console.log(
-      chalk.cyan(
-        JSON.stringify(
-          {
-            modules: {
-              modjules: {
-                command: 'npx',
-                args: ['-y', '--package', 'modjules', 'modjules-mcp'],
-              },
-            },
+
+    const geminiConfig = {
+      mcpServers: {
+        modjules: {
+          command: 'npx',
+          args: ['-y', '--package', 'modjules', 'modjules-mcp'],
+          env: {
+            HOME: os.homedir(),
+            JULES_API_KEY: '<YOUR_API_KEY>',
           },
-          null,
-          2,
-        ),
-      ),
+        },
+      },
+    };
+
+    console.log(
+      chalk.bold(`\nConfiguration for Antigravity (${geminiConfigPath}):`),
     );
+    console.log(chalk.dim('Add this to your global Antigravity MCP config:'));
+    console.log(chalk.cyan(JSON.stringify(geminiConfig, null, 2)));
+    console.log(
+      chalk.yellow('\n⚠️  Replace <YOUR_API_KEY> with your Jules API key'),
+    );
+
+    // Add auto-install option for gemini (same as claude)
+    if (tool === 'gemini') {
+      try {
+        const shouldInstall = await inquirer.confirm({
+          message: `Do you want to automatically add this to ${geminiConfigPath}?`,
+          default: false,
+        });
+
+        if (shouldInstall) {
+          const apiKey = await inquirer.input({
+            message: 'Enter your Jules API key:',
+          });
+
+          geminiConfig.mcpServers.modjules.env.JULES_API_KEY = apiKey;
+
+          let currentConfig: any = { mcpServers: {} };
+          if (fs.existsSync(geminiConfigPath)) {
+            try {
+              currentConfig = JSON.parse(
+                fs.readFileSync(geminiConfigPath, 'utf-8'),
+              );
+            } catch {
+              console.warn(
+                chalk.yellow(
+                  'Existing config file is invalid, creating new one.',
+                ),
+              );
+            }
+          }
+
+          currentConfig.mcpServers = {
+            ...currentConfig.mcpServers,
+            ...geminiConfig.mcpServers,
+          };
+
+          fs.mkdirSync(path.dirname(geminiConfigPath), { recursive: true });
+          fs.writeFileSync(
+            geminiConfigPath,
+            JSON.stringify(currentConfig, null, 2),
+          );
+          console.log(
+            chalk.green(`✓ Successfully updated ${geminiConfigPath}`),
+          );
+        }
+      } catch (e) {
+        console.error(chalk.red('Could not write config file'), e);
+      }
+    }
   }
 
   if (!tool || tool === 'claude') {
