@@ -41,6 +41,10 @@
       "types": "./dist/mcp/index.d.ts",
       "import": "./dist/mcp.mjs"
     },
+    "./mcp/cli": {
+      "types": "./dist/mcp/cli.d.ts",
+      "import": "./dist/mcp/cli.mjs"
+    },
     "./types": {
       "types": "./dist/types.d.ts"
     },
@@ -66,7 +70,8 @@
     "verify": "tsx scripts/verify.ts",
     "prepare": "husky",
     "changeset": "changeset",
-    "release": "changeset publish"
+    "release": "changeset publish",
+    "mcp-server": "tsx src/mcp/cli.ts"
   },
   "keywords": [
     "jules",

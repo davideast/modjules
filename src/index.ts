@@ -67,6 +67,8 @@ export type {
   SourceContext,
   SourceInput,
   SourceManager,
+  JulesQuery,
+  JulesDomain,
 } from './types.js';
 
 export { SessionCursor } from './sessions.js';
