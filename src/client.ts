@@ -20,7 +20,7 @@ import { SessionClientImpl } from './session.js';
 import { pMap } from './utils.js';
 import { SessionCursor, ListSessionsOptions } from './sessions.js';
 import { Platform } from './platform/types.js';
-import { SessionStorage } from './storage/types.js';
+import { SessionStorage } from './storage/interface.js';
 import { isCacheValid } from './caching.js';
 import { select as modularSelect } from './query/select.js';
 import {
@@ -30,6 +30,7 @@ import {
   SyncOptions,
   SyncStats,
 } from './types.js';
+import { hydrateActivities } from './sync.js';
 
 /**
  * The fully resolved internal configuration for the SDK.
@@ -145,12 +146,8 @@ export class JulesClientImpl implements JulesClient {
     let sessionsIngested = 0;
     let activitiesIngested = 0;
 
-    // 1. High-Water Mark check
     const highWaterMark = incremental ? await this._getHighWaterMark() : null;
 
-    // 2. Authoritative Fetching (Metadata Ingestion)
-    // We disable cursor persistence because we handle it manually in the loop
-    // to support incremental sync and precise control.
     const cursor = this.sessions({
       pageSize: Math.min(limit, 100),
       persist: false,
@@ -160,36 +157,14 @@ export class JulesClientImpl implements JulesClient {
     onProgress?.({ phase: 'fetching_list', current: 0 });
 
     for await (const session of cursor) {
-      // Precise Reconciliation: Stop if we hit the water mark
       if (highWaterMark && new Date(session.createTime) <= highWaterMark) {
-        let shouldSkip = true;
-
-        if (depth === 'activities') {
-          // Check if we have any activities locally.
-          // If not, we treat this session as "new" for the purpose of activity hydration.
-          const activityStorage = this.storageFactory.activity(session.id);
-          // Quick check for existence (scan yields at least one item)
-          let hasActivities = false;
-          for await (const _ of activityStorage.scan()) {
-            // Found at least one activity, so we assume we are caught up.
-            // (Note: This is a heuristic. Partial hydration isn't handled by 'incremental' mode)
-            hasActivities = true;
-            break;
-          }
-
-          if (!hasActivities) {
-            shouldSkip = false;
-          }
-        }
-
-        if (shouldSkip) {
+        const existing = await this.storage.getSessionIndexEntry(session.id);
+        if (existing) {
           break;
         }
       }
 
-      // 2.1 Persistence: Save metadata to local cache
       await this.storage.upsert(session);
-
       candidates.push(session);
       sessionsIngested++;
 
@@ -202,8 +177,6 @@ export class JulesClientImpl implements JulesClient {
       if (candidates.length >= limit) break;
     }
 
-    // 3. Deep Ingestion (Activity Hydration)
-    // Uses pMap for backpressure to prevent quota saturation.
     if (depth === 'activities' && candidates.length > 0) {
       let hydratedCount = 0;
       onProgress?.({
@@ -215,23 +188,14 @@ export class JulesClientImpl implements JulesClient {
       await pMap(
         candidates,
         async (session) => {
-          const sessionClient = await this.session(session.id);
-
-          // This triggers a full history sync to disk
-          const history = sessionClient.history();
-          let count = 0;
-          for await (const _ of history) {
-            count++;
-            activitiesIngested++;
-            onProgress?.({
-              phase: 'hydrating_activities',
-              current: hydratedCount,
-              total: candidates.length,
-              lastIngestedId: session.id,
-              activityCount: count,
-            });
-          }
-
+          const count = await hydrateActivities(
+            this,
+            this.storageFactory,
+            this.storage,
+            session,
+            incremental,
+          );
+          activitiesIngested += count;
           hydratedCount++;
 
           onProgress?.({
@@ -255,7 +219,6 @@ export class JulesClientImpl implements JulesClient {
 
   private async _getHighWaterMark(): Promise<Date | null> {
     let newest: Date | null = null;
-    // scanIndex is the high-speed index scanner implemented in Phase 1
     for await (const entry of this.storage.scanIndex()) {
       const date = new Date(entry.createTime);
       if (!newest || date > newest) newest = date;

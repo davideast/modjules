@@ -4,7 +4,7 @@ import { ApiClient } from '../src/api.js';
 import { SessionResource } from '../src/types.js';
 import { JulesClientImpl } from '../src/client.js';
 import { NodePlatform } from '../src/platform/node.js';
-import { SessionStorage } from '../src/storage/types.js';
+import { SessionStorage } from '../src/storage/interface.js';
 
 describe('jules.sessions()', () => {
   let apiClient: ApiClient;

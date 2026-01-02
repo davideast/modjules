@@ -1,6 +1,6 @@
 import { openDB, IDBPDatabase } from 'idb';
 import { Activity } from '../types.js';
-import { ActivityStorage } from './types.js';
+import { ActivityStorage } from './interface.js';
 
 const DB_NAME = 'jules-activities';
 const STORE_NAME = 'activities';
@@ -86,6 +86,35 @@ export class BrowserStorage implements ActivityStorage {
     // Add sessionId to the object for indexing
     const storableActivity = { ...activity, sessionId: this.sessionId };
     await store.put(storableActivity);
+    await tx.done;
+  }
+
+  async appendActivities(activities: Activity[]): Promise<void> {
+    if (activities.length === 0) return;
+    const db = await this.getDb();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    await Promise.all(
+      activities.map((a) => store.put({ ...a, sessionId: this.sessionId })),
+    );
+    await tx.done;
+  }
+
+  async writeActivities(activities: Activity[]): Promise<void> {
+    const db = await this.getDb();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const index = store.index('sessionTimestamp');
+    const range = IDBKeyRange.only([this.sessionId]);
+    let cursor = await index.openCursor(range);
+    while (cursor) {
+      await cursor.delete();
+      cursor = await cursor.continue();
+    }
+
+    await Promise.all(
+      activities.map((a) => store.put({ ...a, sessionId: this.sessionId })),
+    );
     await tx.done;
   }
 

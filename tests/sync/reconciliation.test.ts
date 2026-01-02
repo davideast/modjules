@@ -1,20 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JulesClientImpl } from '../../src/client.js';
-import { SessionResource } from '../../src/types.js';
+import { SessionResource, StorageFactory } from '../../src/types.js';
 import { ApiClient } from '../../src/api.js';
-import { SessionCursor } from '../../src/sessions.js';
-import { SessionStorage } from '../../src/storage/types.js';
-
-// Mock dependencies
-vi.mock('../../src/api.js');
-vi.mock('../../src/sessions.js');
-vi.mock('../../src/client.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/client.js')>();
-  return {
-    ...actual,
-    // Keep JulesClientImpl but mock parts of it if needed, or rely on mocking deps
-  };
-});
+import { MemorySessionStorage } from '../../src/storage/memory.js';
+import { mockPlatform } from '../mocks/platform.js';
 
 // Helper to create mock sessions
 const createMockSession = (
@@ -35,46 +24,28 @@ const createMockSession = (
 
 describe('Reconciliation Engine', () => {
   let client: JulesClientImpl;
-  let mockStorage: any;
-  let mockApiClient: any;
+  let sessionStorage: MemorySessionStorage;
+  let mockApiClient: ApiClient;
+  let storageFactory: StorageFactory;
 
   beforeEach(() => {
-    // Mock Storage
-    mockStorage = {
-      scanIndex: vi.fn(),
-      get: vi.fn(),
-      upsert: vi.fn(),
-      session: vi.fn(),
+    sessionStorage = new MemorySessionStorage();
+    storageFactory = {
+      session: () => sessionStorage,
+      activity: vi.fn() as any,
     };
 
-    // Mock API Client
     mockApiClient = new ApiClient({
       apiKey: 'test',
       baseUrl: 'test',
       requestTimeoutMs: 1000,
     });
 
-    // Mock Platform
-    const mockPlatform = {
-      getEnv: vi.fn(),
-    };
-
-    // Create Client
-    client = new JulesClientImpl(
-      {},
-      {
-        session: () => mockStorage,
-        activity: vi.fn() as any,
-      },
-      mockPlatform as any,
-    );
-
-    // Inject mock API client (since it's private, we cast to any)
+    client = new JulesClientImpl({}, storageFactory, mockPlatform);
     (client as any).apiClient = mockApiClient;
   });
 
   it('Cold Start: Ingests all sessions when cache is empty', async () => {
-    // Setup API to return 5 sessions
     const sessions = [
       createMockSession('1', '2023-01-01T00:00:00Z'),
       createMockSession('2', '2023-01-02T00:00:00Z'),
@@ -83,32 +54,26 @@ describe('Reconciliation Engine', () => {
       createMockSession('5', '2023-01-05T00:00:00Z'),
     ];
 
-    // Mock sessions() to return these
     vi.spyOn(client, 'sessions').mockImplementation(() => {
       return (async function* () {
         for (const s of sessions) yield s;
       })() as any;
     });
 
-    // Mock empty storage
-    mockStorage.scanIndex.mockImplementation(async function* () {});
-
+    const upsertSpy = vi.spyOn(sessionStorage, 'upsert');
     const stats = await client.sync({ depth: 'metadata' });
 
     expect(stats.sessionsIngested).toBe(5);
-    expect(client.sessions).toHaveBeenCalled();
-    expect(mockStorage.upsert).toHaveBeenCalledTimes(5);
+    expect(upsertSpy).toHaveBeenCalledTimes(5);
   });
 
   it('Incremental Sync: Stops at High-Water Mark', async () => {
-    // Local cache has session from Monday
     const monday = '2023-01-02T00:00:00Z';
-    mockStorage.scanIndex.mockImplementation(async function* () {
-      yield { createTime: monday };
-    });
-
-    // API returns Tuesday (new) then Monday (old)
     const tuesday = '2023-01-03T00:00:00Z';
+
+    // Pre-populate storage
+    await sessionStorage.upsert(createMockSession('1', monday));
+
     const sessions = [
       createMockSession('2', tuesday),
       createMockSession('1', monday),
@@ -120,18 +85,17 @@ describe('Reconciliation Engine', () => {
       })() as any;
     });
 
+    const upsertSpy = vi.spyOn(sessionStorage, 'upsert');
     const stats = await client.sync({ depth: 'metadata', incremental: true });
 
-    // Should ingest Tuesday, then see Monday <= HighWaterMark and stop
     expect(stats.sessionsIngested).toBe(1);
-    expect(mockStorage.upsert).toHaveBeenCalledTimes(1);
-    expect(mockStorage.upsert).toHaveBeenCalledWith(
+    expect(upsertSpy).toHaveBeenCalledTimes(1);
+    expect(upsertSpy).toHaveBeenCalledWith(
       expect.objectContaining({ id: '2' }),
     );
   });
 
   it('Limit Enforcement: Respects the limit option', async () => {
-    // Generate 100 sessions
     const sessions = Array.from({ length: 100 }, (_, i) =>
       createMockSession(`${i}`, new Date().toISOString()),
     );
@@ -142,12 +106,10 @@ describe('Reconciliation Engine', () => {
       })() as any;
     });
 
-    // Mock empty storage
-    mockStorage.scanIndex.mockImplementation(async function* () {});
-
+    const upsertSpy = vi.spyOn(sessionStorage, 'upsert');
     const stats = await client.sync({ limit: 10, depth: 'metadata' });
 
     expect(stats.sessionsIngested).toBe(10);
-    expect(mockStorage.upsert).toHaveBeenCalledTimes(10);
+    expect(upsertSpy).toHaveBeenCalledTimes(10);
   });
 });

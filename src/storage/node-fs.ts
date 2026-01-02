@@ -8,7 +8,7 @@ import {
   SessionStorage,
   CachedSession,
   SessionIndexEntry,
-} from './types.js';
+} from './interface.js';
 
 /**
  * Node.js filesystem implementation of ActivityStorage.
@@ -63,6 +63,19 @@ export class NodeFileStorage implements ActivityStorage {
     const line = JSON.stringify(activity) + '\n';
     // 'utf8' is standard. appendFile handles opening/closing the file handle automatically.
     await fs.appendFile(this.filePath, line, 'utf8');
+  }
+
+  async appendActivities(activities: Activity[]): Promise<void> {
+    if (activities.length === 0) return;
+    if (!this.initialized) await this.init();
+    const lines = activities.map((a) => JSON.stringify(a)).join('\n') + '\n';
+    await fs.appendFile(this.filePath, lines, 'utf8');
+  }
+
+  async writeActivities(activities: Activity[]): Promise<void> {
+    if (!this.initialized) await this.init();
+    const lines = activities.map((a) => JSON.stringify(a)).join('\n') + '\n';
+    await fs.writeFile(this.filePath, lines, 'utf8');
   }
 
   /**
@@ -254,6 +267,105 @@ export class NodeSessionStorage implements SessionStorage {
     } catch (e: any) {
       if (e.code === 'ENOENT') return; // No index yet
       throw e;
+    }
+  }
+
+  async getSessionIndexEntry(
+    sessionId: string,
+  ): Promise<SessionIndexEntry | undefined> {
+    await this.init();
+
+    try {
+      const fileStream = createReadStream(this.indexFilePath, {
+        encoding: 'utf8',
+      });
+      const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity,
+      });
+
+      // V1 implementation: linear scan, last-entry-wins
+      let result: SessionIndexEntry | undefined;
+      for await (const line of rl) {
+        if (!line.trim()) continue;
+        try {
+          const entry = JSON.parse(line) as SessionIndexEntry;
+          if (entry.id === sessionId) {
+            // Keep overwriting, the last one we see for this ID is the most recent
+            result = entry;
+          }
+        } catch (e) {
+          /* ignore corrupt lines */
+        }
+      }
+      return result;
+    } catch (e: any) {
+      if (e.code === 'ENOENT') return undefined; // No index yet
+      throw e;
+    }
+  }
+
+  async updateSessionIndex(
+    sessionId: string,
+    updates: Partial<Omit<SessionIndexEntry, 'id'>>,
+  ): Promise<void> {
+    await this.init();
+
+    const existing = await this.getSessionIndexEntry(sessionId);
+    if (!existing) {
+      throw new Error(
+        `[NodeSessionStorage] Cannot update index for non-existent session: ${sessionId}`,
+      );
+    }
+
+    const updatedEntry: SessionIndexEntry = {
+      ...existing,
+      ...updates,
+      _updatedAt: Date.now(),
+    };
+
+    await fs.appendFile(
+      this.indexFilePath,
+      JSON.stringify(updatedEntry) + '\n',
+      'utf8',
+    );
+  }
+
+  async getActivityHighWaterMark(sessionId: string): Promise<string | null> {
+    const entry = await this.getSessionIndexEntry(sessionId);
+    return entry?.activityHighWaterMark ?? null;
+  }
+
+  async appendActivities(
+    sessionId: string,
+    activities: Activity[],
+  ): Promise<void> {
+    if (activities.length === 0) return;
+    const activityStorage = new NodeFileStorage(sessionId, this.cacheDir);
+    await activityStorage.appendActivities(activities);
+
+    const latestActivity = activities[activities.length - 1];
+    const existing = await this.getSessionIndexEntry(sessionId);
+
+    await this.updateSessionIndex(sessionId, {
+      activityCount: (existing?.activityCount || 0) + activities.length,
+      activityHighWaterMark: latestActivity.createTime,
+    });
+  }
+
+  async writeActivities(
+    sessionId: string,
+    activities: Activity[],
+  ): Promise<void> {
+    const activityStorage = new NodeFileStorage(sessionId, this.cacheDir);
+    await activityStorage.writeActivities(activities);
+
+    if (activities.length > 0) {
+      const latestActivity = activities[activities.length - 1];
+      await this.updateSessionIndex(sessionId, {
+        activityCount: activities.length,
+        activityHighWaterMark: latestActivity.createTime,
+      });
     }
   }
 }

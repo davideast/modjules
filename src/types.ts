@@ -11,7 +11,7 @@
 // =============================================================================
 
 import { ActivityClient, SelectOptions } from './activities/types.js';
-import { ActivityStorage, SessionStorage } from './storage/types.js';
+import { ActivityStorage, SessionStorage } from './storage/interface.js';
 import { ListSessionsOptions, SessionCursor } from './sessions.js';
 
 export { SelectOptions };

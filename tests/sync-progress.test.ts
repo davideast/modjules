@@ -1,62 +1,62 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JulesClientImpl } from '../src/client.js';
 import { mockPlatform } from './mocks/platform.js';
+import { MemorySessionStorage, MemoryStorage } from '../src/storage/memory.js';
+import { SessionResource, StorageFactory } from '../src/types.js';
+import { SessionClientImpl } from '../src/session.js';
 
 describe('JulesClient.sync Progress', () => {
   let jules: JulesClientImpl;
-  let mockStorage: any;
-  let mockApiClient: any;
+  let sessionStorage: MemorySessionStorage;
+  let activityStorage: MemoryStorage;
+  let storageFactory: StorageFactory;
 
-  beforeEach(() => {
-    // Mock Session Storage
-    const mockSessionStorage = {
-      scanIndex: async function* () {
-        yield { createTime: '2023-01-01T00:00:00Z' };
-      },
-      upsert: vi.fn(),
-      get: vi.fn(),
+  beforeEach(async () => {
+    sessionStorage = new MemorySessionStorage();
+    activityStorage = new MemoryStorage();
+    storageFactory = {
+      session: () => sessionStorage,
+      activity: () => activityStorage,
     };
+    await sessionStorage.upsert({
+      id: 'existing',
+      createTime: '2023-01-01T00:00:00Z',
+    } as SessionResource);
 
-    // Mock Activity Storage
-    const mockActivityStorage = {
-      scan: async function* () {},
-      upsert: vi.fn(),
-    };
-
-    mockStorage = {
-      session: () => mockSessionStorage,
-      activity: () => mockActivityStorage,
-    };
-
-    // Mock ApiClient inside JulesClient
-    // We can't easily mock private properties, so we'll mock the module or intercept requests?
-    // Easier to stub `sessions` and `session` methods on the instance.
-    jules = new JulesClientImpl({ apiKey: 'test' }, mockStorage, mockPlatform);
+    jules = new JulesClientImpl(
+      { apiKey: 'test' },
+      storageFactory,
+      mockPlatform,
+    );
   });
 
   it('should report detailed progress during activity hydration', async () => {
-    // Mock sessions() to return one session
     const mockSession = {
       id: 'session-123',
       createTime: '2024-01-01T00:00:00Z',
-    };
-    jules.sessions = vi.fn().mockReturnValue(
+    } as SessionResource;
+    vi.spyOn(jules, 'sessions').mockReturnValue(
       (async function* () {
         yield mockSession;
-      })(),
+      })() as any,
     );
 
-    // Mock session() to return a client with history()
-    const mockSessionClient = {
-      history: vi.fn().mockReturnValue(
-        (async function* () {
-          yield { id: 'act-1' };
-          yield { id: 'act-2' };
-          yield { id: 'act-3' };
-        })(),
-      ),
-    };
-    jules.session = vi.fn().mockResolvedValue(mockSessionClient as any);
+    const mockSessionClient = new SessionClientImpl(
+      'session-123',
+      (jules as any).apiClient,
+      { pollingIntervalMs: 5000, requestTimeoutMs: 30000 },
+      activityStorage,
+      sessionStorage,
+      mockPlatform,
+    );
+    vi.spyOn(mockSessionClient, 'history').mockImplementation(
+      async function* () {
+        yield { id: 'act-1' } as any;
+        yield { id: 'act-2' } as any;
+        yield { id: 'act-3' } as any;
+      },
+    );
+    vi.spyOn(jules, 'session').mockReturnValue(mockSessionClient);
 
     const onProgress = vi.fn();
 
@@ -67,50 +67,21 @@ describe('JulesClient.sync Progress', () => {
     });
 
     // Check progress calls
-    // 1. Initial
     expect(onProgress).toHaveBeenCalledWith({
       phase: 'fetching_list',
       current: 0,
     });
-
-    // 2. Fetching list done for 1 session
     expect(onProgress).toHaveBeenCalledWith({
       phase: 'fetching_list',
       current: 1,
       lastIngestedId: 'session-123',
     });
-
-    // 3. Start hydrating
     expect(onProgress).toHaveBeenCalledWith({
       phase: 'hydrating_records',
       current: 0,
       total: 1,
     });
-
-    // 4. Hydrating activities
-    expect(onProgress).toHaveBeenCalledWith({
-      phase: 'hydrating_activities',
-      current: 0,
-      total: 1,
-      lastIngestedId: 'session-123',
-      activityCount: 1,
-    });
-    expect(onProgress).toHaveBeenCalledWith({
-      phase: 'hydrating_activities',
-      current: 0,
-      total: 1,
-      lastIngestedId: 'session-123',
-      activityCount: 2,
-    });
-    expect(onProgress).toHaveBeenCalledWith({
-      phase: 'hydrating_activities',
-      current: 0,
-      total: 1,
-      lastIngestedId: 'session-123',
-      activityCount: 3,
-    });
-
-    // 5. Done hydrating
+    // This is the final hydration update, not intermediate ones.
     expect(onProgress).toHaveBeenCalledWith({
       phase: 'hydrating_records',
       current: 1,

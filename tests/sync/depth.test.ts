@@ -1,56 +1,48 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JulesClientImpl } from '../../src/client.js';
-import { SessionResource } from '../../src/types.js';
+import { SessionResource, StorageFactory } from '../../src/types.js';
 import { ApiClient } from '../../src/api.js';
+import {
+  MemorySessionStorage,
+  MemoryStorage,
+} from '../../src/storage/memory.js';
+import { mockPlatform } from '../mocks/platform.js';
+import { SessionClientImpl } from '../../src/session.js';
 
-// Mock dependencies
-vi.mock('../../src/api');
-
-const createMockSession = (id: string) => ({
-  id,
-  name: `sessions/${id}`,
-  createTime: new Date().toISOString(),
-  updateTime: new Date().toISOString(),
-  state: 'completed' as const,
-  prompt: 'test',
-  title: 'test',
-  url: 'http://test.com',
-  outputs: [],
-  sourceContext: { source: 'github/owner/repo' },
-});
+const createMockSession = (id: string) =>
+  ({
+    id,
+    name: `sessions/${id}`,
+    createTime: new Date().toISOString(),
+    updateTime: new Date().toISOString(),
+    state: 'completed' as const,
+    prompt: 'test',
+    title: 'test',
+    url: 'http://test.com',
+    outputs: [],
+    sourceContext: { source: 'github/owner/repo' },
+  }) as SessionResource;
 
 describe('Ingestion Depth', () => {
   let client: JulesClientImpl;
-  let mockStorage: any;
-  let mockSessionClient: any;
+  let sessionStorage: MemorySessionStorage;
+  let activityStorage: MemoryStorage;
+  let storageFactory: StorageFactory;
 
   beforeEach(() => {
-    mockStorage = {
-      scanIndex: vi.fn(async function* () {}),
-      session: vi.fn(),
-      upsert: vi.fn(),
+    sessionStorage = new MemorySessionStorage();
+    activityStorage = new MemoryStorage();
+    storageFactory = {
+      session: () => sessionStorage,
+      activity: () => activityStorage,
     };
 
-    mockSessionClient = {
-      history: vi.fn(async function* () {}),
-    };
-
-    client = new JulesClientImpl(
-      {},
-      {
-        session: () => mockStorage,
-        activity: vi.fn() as any,
-      },
-      { getEnv: vi.fn() } as any,
-    );
+    client = new JulesClientImpl({}, storageFactory, mockPlatform);
     (client as any).apiClient = new ApiClient({
       apiKey: 'test',
       baseUrl: 'test',
       requestTimeoutMs: 1000,
     });
-
-    // Mock session() to return a mock client
-    vi.spyOn(client, 'session').mockResolvedValue(mockSessionClient);
   });
 
   it('Metadata Only: Does not hydrate activities', async () => {
@@ -60,12 +52,13 @@ describe('Ingestion Depth', () => {
         yield session;
       })() as any;
     });
+    const sessionSpy = vi.spyOn(client, 'session');
 
     const stats = await client.sync({ depth: 'metadata' });
 
     expect(stats.sessionsIngested).toBe(1);
     expect(stats.activitiesIngested).toBe(0);
-    expect(client.session).not.toHaveBeenCalled();
+    expect(sessionSpy).not.toHaveBeenCalled();
   });
 
   it('Full Hydration: Hydrates activities for each session', async () => {
@@ -76,18 +69,30 @@ describe('Ingestion Depth', () => {
       })() as any;
     });
 
-    // Mock history to return 3 activities
-    mockSessionClient.history.mockImplementation(async function* () {
-      yield {};
-      yield {};
-      yield {};
-    });
+    const mockSessionClient = new SessionClientImpl(
+      '1',
+      (client as any).apiClient,
+      { pollingIntervalMs: 5000, requestTimeoutMs: 30000 },
+      activityStorage,
+      sessionStorage,
+      mockPlatform,
+    );
+    const historySpy = vi
+      .spyOn(mockSessionClient, 'history')
+      .mockImplementation(async function* () {
+        yield { id: 'a1' } as any;
+        yield { id: 'a2' } as any;
+        yield { id: 'a3' } as any;
+      });
+    const sessionSpy = vi
+      .spyOn(client, 'session')
+      .mockReturnValue(mockSessionClient);
 
     const stats = await client.sync({ depth: 'activities' });
 
     expect(stats.sessionsIngested).toBe(1);
     expect(stats.activitiesIngested).toBe(3);
-    expect(client.session).toHaveBeenCalledWith('1');
-    expect(mockSessionClient.history).toHaveBeenCalled();
+    expect(sessionSpy).toHaveBeenCalledWith('1');
+    expect(historySpy).toHaveBeenCalled();
   });
 });

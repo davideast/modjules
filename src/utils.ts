@@ -5,6 +5,16 @@
  * @param mapper - Async function (item) => result
  * @param options - Configuration options
  */
+export async function collectAsync<T>(
+  iterator: AsyncIterable<T>,
+): Promise<T[]> {
+  const result: T[] = [];
+  for await (const item of iterator) {
+    result.push(item);
+  }
+  return result;
+}
+
 export async function pMap<T, R>(
   items: T[],
   mapper: (item: T, index: number) => Promise<R>,

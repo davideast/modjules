@@ -7,7 +7,7 @@ import { InvalidStateError, JulesError } from './errors.js';
 import { mapSessionResourceToOutcome } from './mappers.js';
 import { NetworkAdapter } from './network/adapter.js';
 import { pollSession, pollUntilCompletion } from './polling.js';
-import { ActivityStorage, SessionStorage } from './storage/types.js';
+import { ActivityStorage, SessionStorage } from './storage/interface.js';
 import { StreamActivitiesOptions } from './streaming.js';
 import {
   Activity,

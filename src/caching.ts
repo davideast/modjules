@@ -1,5 +1,5 @@
 import { SessionResource } from './types.js';
-import { CachedSession } from './storage/types.js';
+import { CachedSession } from './storage/interface.js';
 
 const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;

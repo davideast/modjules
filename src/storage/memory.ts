@@ -1,97 +1,68 @@
-import { Activity, SessionResource } from '../types.js';
+import { SessionResource, Activity } from '../types.js';
 import {
   ActivityStorage,
   SessionStorage,
   CachedSession,
   SessionIndexEntry,
-} from './types.js';
+} from './interface.js';
 
-/**
- * In-memory implementation of ActivityStorage.
- * Useful for testing or environments where persistence is not required.
- */
 export class MemoryStorage implements ActivityStorage {
-  private activities: Activity[] = [];
+  private activities = new Map<string, Activity>();
 
-  /**
-   * Initializes the storage. No-op for memory storage.
-   */
-  async init(): Promise<void> {
-    // No-op for memory
-  }
-
-  /**
-   * Closes the storage and clears memory.
-   */
+  async init(): Promise<void> {}
   async close(): Promise<void> {
-    this.activities = []; // Clear memory on close
+    this.activities.clear();
   }
 
-  /**
-   * Appends an activity to the in-memory list.
-   *
-   * **Guarantee:**
-   * - Idempotent: If an activity with the same ID exists, it updates it in place.
-   * - Append-only: New activities are always added to the end.
-   *
-   * **Side Effects:**
-   * - Modifies the internal `activities` array.
-   */
   async append(activity: Activity): Promise<void> {
-    // Upsert logic to maintain idempotency contract
-    const index = this.activities.findIndex((a) => a.id === activity.id);
-    if (index >= 0) {
-      // Maintain original position
-      this.activities[index] = activity;
-    } else {
-      this.activities.push(activity);
-    }
+    this.activities.set(activity.id, activity);
   }
 
-  /**
-   * Retrieves an activity by ID.
-   */
+  async appendActivities(activities: Activity[]): Promise<void> {
+    for (const a of activities) this.activities.set(a.id, a);
+  }
+
+  async writeActivities(activities: Activity[]): Promise<void> {
+    this.activities.clear();
+    for (const a of activities) this.activities.set(a.id, a);
+  }
+
   async get(activityId: string): Promise<Activity | undefined> {
-    return this.activities.find((a) => a.id === activityId);
+    return this.activities.get(activityId);
   }
 
-  /**
-   * Retrieves the latest activity.
-   */
   async latest(): Promise<Activity | undefined> {
-    if (this.activities.length === 0) return undefined;
-    return this.activities[this.activities.length - 1];
+    let latest: Activity | undefined;
+    for (const a of this.activities.values()) {
+      if (!latest || a.createTime > latest.createTime) {
+        latest = a;
+      }
+    }
+    return latest;
   }
 
-  /**
-   * Yields all activities in chronological order.
-   */
   async *scan(): AsyncIterable<Activity> {
-    for (const activity of this.activities) {
-      yield activity;
+    const sorted = [...this.activities.values()].sort((a, b) =>
+      a.createTime.localeCompare(b.createTime),
+    );
+    for (const a of sorted) {
+      yield a;
     }
   }
 }
 
-/**
- * In-memory implementation of SessionStorage.
- */
 export class MemorySessionStorage implements SessionStorage {
-  private sessions: Map<string, CachedSession> = new Map();
-  private index: SessionIndexEntry[] = [];
+  private sessions = new Map<string, CachedSession>();
+  private index = new Map<string, SessionIndexEntry>();
 
-  async init(): Promise<void> {
-    // No-op
-  }
+  async init(): Promise<void> {}
 
   async upsert(session: SessionResource): Promise<void> {
     this.sessions.set(session.id, {
       resource: session,
       _lastSyncedAt: Date.now(),
     });
-
-    // Append to index (mimicking file behavior)
-    this.index.push({
+    this.index.set(session.id, {
       id: session.id,
       title: session.title,
       state: session.state,
@@ -102,8 +73,8 @@ export class MemorySessionStorage implements SessionStorage {
   }
 
   async upsertMany(sessions: SessionResource[]): Promise<void> {
-    for (const s of sessions) {
-      await this.upsert(s);
+    for (const session of sessions) {
+      await this.upsert(session);
     }
   }
 
@@ -113,13 +84,66 @@ export class MemorySessionStorage implements SessionStorage {
 
   async delete(sessionId: string): Promise<void> {
     this.sessions.delete(sessionId);
-    // Index entries remain (append-only simulation), or we could filter them out.
-    // Spec says "We do NOT rewrite the index here for performance", so we leave them.
+    this.index.delete(sessionId);
   }
 
   async *scanIndex(): AsyncIterable<SessionIndexEntry> {
-    for (const entry of this.index) {
+    for (const entry of this.index.values()) {
       yield entry;
+    }
+  }
+
+  async updateSessionIndex(
+    sessionId: string,
+    updates: Partial<Omit<SessionIndexEntry, 'id'>>,
+  ): Promise<void> {
+    const existing = this.index.get(sessionId);
+    if (existing) {
+      this.index.set(sessionId, {
+        ...existing,
+        ...updates,
+        _updatedAt: Date.now(),
+      });
+    }
+  }
+
+  async getActivityHighWaterMark(sessionId: string): Promise<string | null> {
+    return this.index.get(sessionId)?.activityHighWaterMark ?? null;
+  }
+
+  async getSessionIndexEntry(
+    sessionId: string,
+  ): Promise<SessionIndexEntry | undefined> {
+    return this.index.get(sessionId);
+  }
+
+  async appendActivities(
+    sessionId: string,
+    activities: Activity[],
+  ): Promise<void> {
+    if (activities.length === 0) return;
+
+    const latestActivity = activities[activities.length - 1];
+    const existing = this.index.get(sessionId);
+
+    this.index.set(sessionId, {
+      ...existing!,
+      activityCount: (existing?.activityCount || 0) + activities.length,
+      activityHighWaterMark: latestActivity.createTime,
+    });
+  }
+
+  async writeActivities(
+    sessionId: string,
+    activities: Activity[],
+  ): Promise<void> {
+    if (activities.length > 0) {
+      const latestActivity = activities[activities.length - 1];
+      this.index.set(sessionId, {
+        ...this.index.get(sessionId)!,
+        activityCount: activities.length,
+        activityHighWaterMark: latestActivity.createTime,
+      });
     }
   }
 }

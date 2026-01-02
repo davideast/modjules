@@ -2,22 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JulesClientImpl } from '../src/client.js';
 import { ApiClient } from '../src/api.js';
 import { mockPlatform } from './mocks/platform.js';
-import { SessionResource } from '../src/types.js';
-import { NodeSessionStorage } from '../src/storage/node-fs.js';
-import { SessionCursor } from '../src/sessions.js';
-
-// Mock dependencies
-vi.mock('../src/api.js');
-vi.mock('../src/storage/node-fs.js');
-vi.mock('../src/sessions.js');
+import { SessionResource, StorageFactory } from '../src/types.js';
+import { MemorySessionStorage, MemoryStorage } from '../src/storage/memory.js';
+import { SessionClientImpl } from '../src/session.js';
 
 describe('JulesClient.sync() Repro', () => {
   let client: JulesClientImpl;
-  let mockApiClient: any;
-  let mockSessionStorage: any;
-  let mockActivityStorage: any;
-  let mockStorageFactory: any;
-  let mockCursor: any;
+  let sessionStorage: MemorySessionStorage;
+  let activityStorage: MemoryStorage;
+  let storageFactory: StorageFactory;
+  let mockApiClient: ApiClient;
 
   const session1: SessionResource = {
     id: 'session-1',
@@ -45,76 +39,59 @@ describe('JulesClient.sync() Repro', () => {
     outputs: [],
   };
 
-  beforeEach(() => {
-    mockApiClient = {
-      request: vi.fn(),
+  beforeEach(async () => {
+    mockApiClient = new ApiClient({
+      apiKey: 'test',
+      baseUrl: 'test',
+      requestTimeoutMs: 1000,
+    });
+    sessionStorage = new MemorySessionStorage();
+    activityStorage = new MemoryStorage();
+    storageFactory = {
+      session: () => sessionStorage,
+      activity: () => activityStorage,
     };
 
-    mockSessionStorage = {
-      upsert: vi.fn(),
-      scanIndex: vi.fn(async function* () {
-        // Simulating that we already have session2 (the newest one)
-        yield session2;
-      }),
-      get: vi.fn(),
-    };
+    // Pre-populate storage with the newer session
+    await sessionStorage.upsert(session2);
 
-    mockActivityStorage = {
-      scan: vi.fn(async function* () {}),
-      upsert: vi.fn(),
-    };
-
-    mockStorageFactory = {
-      session: () => mockSessionStorage,
-      activity: () => mockActivityStorage,
-    };
-
-    // Mock SessionCursor to yield session2 then session1 (newest first from API)
-    mockCursor = (async function* () {
-      yield session2;
-      yield session1;
-    })();
-
-    // Spy on sessions() to return our mock cursor
-    // We need to cast client to any or access prototype if we want to spy before instantiation?
-    // Or we can mock the method after instantiation.
+    client = new JulesClientImpl(
+      { apiKey: 'test-key' },
+      storageFactory,
+      mockPlatform,
+    );
+    (client as any).apiClient = mockApiClient;
   });
 
   it('fails to sync activities when session is already downloaded (incremental=true)', async () => {
-    client = new JulesClientImpl(
-      { apiKey: 'test-key' },
-      mockStorageFactory,
-      mockPlatform,
-    );
-
-    // Inject mock API client
-    (client as any).apiClient = mockApiClient;
-
-    // Mock sessions() method
+    const mockCursor = (async function* () {
+      yield session2;
+      yield session1;
+    })();
     vi.spyOn(client, 'sessions').mockReturnValue(mockCursor as any);
 
-    // Mock session() method to return a dummy session client for hydration
-    const mockSessionClient = {
-      history: vi.fn().mockReturnValue(
-        (async function* () {
-          yield { id: 'act-1', type: 'agentMessaged' };
-        })(),
-      ),
-    };
-    vi.spyOn(client, 'session').mockResolvedValue(mockSessionClient as any);
+    const mockSessionClient = new SessionClientImpl(
+      'session-1',
+      mockApiClient,
+      { pollingIntervalMs: 5000, requestTimeoutMs: 30000 },
+      activityStorage,
+      sessionStorage,
+      mockPlatform,
+    );
+    vi.spyOn(mockSessionClient, 'history').mockImplementation(
+      async function* () {
+        yield { id: 'act-1', type: 'agentMessaged' } as any;
+      },
+    );
+    vi.spyOn(client, 'session').mockReturnValue(mockSessionClient);
 
-    // Act
     const result = await client.sync({
       depth: 'activities',
       incremental: true,
       limit: 10,
     });
 
-    console.log('Sync result:', result);
-
-    // Assert
-    // Now expecting success because of the fix
-    expect(result.sessionsIngested).toBeGreaterThan(0);
-    expect(result.activitiesIngested).toBeGreaterThan(0);
+    expect(result.sessionsIngested).toBe(1); // session1
+    expect(result.activitiesIngested).toBe(1); // act-1
   });
 });

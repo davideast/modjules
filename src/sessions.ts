@@ -1,6 +1,6 @@
 import { ApiClient } from './api.js';
 import { SessionResource } from './types.js';
-import { SessionStorage } from './storage/types.js';
+import { SessionStorage } from './storage/interface.js';
 
 export type ListSessionsOptions = {
   pageSize?: number;

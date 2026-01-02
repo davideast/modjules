@@ -3,7 +3,7 @@ import {
   DefaultActivityClient,
   NetworkClient,
 } from '../../src/activities/client.js';
-import { ActivityStorage } from '../../src/storage/types.js';
+import { ActivityStorage } from '../../src/storage/interface.js';
 import { ActivityAgentMessaged } from '../../src/types.js';
 
 // Helper to create dummy activities

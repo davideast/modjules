@@ -1,5 +1,5 @@
 import { Activity } from '../types.js';
-import { ActivityStorage } from '../storage/types.js';
+import { ActivityStorage } from '../storage/interface.js';
 import { ActivityClient, ListOptions, SelectOptions } from './types.js';
 
 /**

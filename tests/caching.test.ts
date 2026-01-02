@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { determineCacheTier, isCacheValid } from '../src/caching.js';
-import { CachedSession } from '../src/storage/types.js';
+import { CachedSession } from '../src/storage/interface.js';
 import { SessionResource } from '../src/types.js';
 
 describe('Iceberg Caching Logic', () => {
