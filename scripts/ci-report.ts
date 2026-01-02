@@ -65,7 +65,7 @@ async function report() {
 
 I have a specialized script to fix this for you. Please run:
 \`\`\`bash
-npx tsx scripts/fix-attribution.ts "${trailer}"
+bun scripts/fix-attribution.ts "${trailer}"
 \`\`\``;
     }
 
