@@ -28,7 +28,9 @@ describe('Cache Directory Resolution', () => {
 
   it('CACHE-01: should return cwd when package.json exists', () => {
     vi.spyOn(process, 'cwd').mockReturnValue('/tmp/my-project');
-    fs.existsSync.mockImplementation((p) => p === '/tmp/my-project/package.json');
+    fs.existsSync.mockImplementation(
+      (p) => p === '/tmp/my-project/package.json',
+    );
 
     const rootDir = getRootDir();
     expect(rootDir).toBe('/tmp/my-project');
@@ -45,7 +47,9 @@ describe('Cache Directory Resolution', () => {
   it('CACHE-03: JULES_HOME should override everything', () => {
     process.env.JULES_HOME = '/data/jules-override';
     vi.spyOn(process, 'cwd').mockReturnValue('/tmp/my-project');
-    fs.existsSync.mockImplementation((p) => p === '/tmp/my-project/package.json');
+    fs.existsSync.mockImplementation(
+      (p) => p === '/tmp/my-project/package.json',
+    );
 
     const rootDir = getRootDir();
     expect(rootDir).toBe('/data/jules-override');
