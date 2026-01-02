@@ -4,11 +4,7 @@ import * as fs from 'fs';
 import * as yaml from 'yaml';
 import { SessionClientImpl } from '../../src/session.js';
 import { SessionSnapshotImpl } from '../../src/snapshot.js';
-import {
-  Activity,
-  SessionResource,
-  SessionSnapshot,
-} from '../../src/types.js';
+import { Activity, SessionResource, SessionSnapshot } from '../../src/types.js';
 
 // Load and parse the YAML test cases
 const casesFile = fs.readFileSync('spec/snapshot/cases.yaml', 'utf8');
@@ -85,11 +81,13 @@ describe('SessionSnapshot Implementation', () => {
       );
 
       vi.spyOn(mockSessionClient, 'info').mockResolvedValue(sessionResource);
-      vi.spyOn(mockSessionClient, 'history').mockImplementation(async function* () {
-        for (const activity of activities) {
-          yield activity;
-        }
-      });
+      vi.spyOn(mockSessionClient, 'history').mockImplementation(
+        async function* () {
+          for (const activity of activities) {
+            yield activity;
+          }
+        },
+      );
 
       // --- WHEN ---
       let result: any;
@@ -149,13 +147,19 @@ describe('SessionSnapshot Implementation', () => {
           const { insights: expectedInsights } = then.snapshot;
 
           if (expectedInsights.completionAttempts) {
-            expect(actualInsights.completionAttempts).toBe(expectedInsights.completionAttempts);
+            expect(actualInsights.completionAttempts).toBe(
+              expectedInsights.completionAttempts,
+            );
           }
           if (expectedInsights.planRegenerations) {
-            expect(actualInsights.planRegenerations).toBe(expectedInsights.planRegenerations);
+            expect(actualInsights.planRegenerations).toBe(
+              expectedInsights.planRegenerations,
+            );
           }
           if (expectedInsights.userInterventions) {
-            expect(actualInsights.userInterventions).toBe(expectedInsights.userInterventions);
+            expect(actualInsights.userInterventions).toBe(
+              expectedInsights.userInterventions,
+            );
           }
         }
         if (then.snapshot.pr === null) {

@@ -39,7 +39,9 @@ export class SessionSnapshotImpl implements SessionSnapshot {
     this.durationMs = this.updatedAt.getTime() - this.createdAt.getTime();
     this.prompt = session.prompt;
     this.title = session.title;
-    this.pr = session.outputs.find((o) => o.type === 'pullRequest')?.pullRequest;
+    this.pr = session.outputs.find(
+      (o) => o.type === 'pullRequest',
+    )?.pullRequest;
     this.activities = Object.freeze(activities);
 
     // Compute derived views
@@ -97,8 +99,8 @@ export class SessionSnapshotImpl implements SessionSnapshot {
   }
 
   private computeInsights(): SessionInsights {
-    const failedCommands = this.activities.filter(activity =>
-      activity.artifacts.some(artifact => {
+    const failedCommands = this.activities.filter((activity) =>
+      activity.artifacts.some((artifact) => {
         if (artifact.type === 'bashOutput') {
           return artifact.exitCode !== 0;
         }
