@@ -119,13 +119,13 @@ export class ApiClient {
         // Let's assume we can add a `retryCount` to options or just implement a simple loop inside `request` is better?
         // No, `request` is already doing recursion for auth.
 
-        // Let's implement retry logic.
+        // 3 retries, 1s base delay, exponential backoff (no jitter).
         const retryCount = (options as any)._retryCount || 0;
-        const MAX_RETRIES = 5;
+        const MAX_RETRIES = 3;
 
         if (retryCount < MAX_RETRIES) {
-          // Exponential Backoff: 1s, 2s, 4s, 8s, 16s + Jitter
-          const delay = Math.pow(2, retryCount) * 1000 + Math.random() * 500;
+          // Exponential Backoff: 1s, 2s, 4s
+          const delay = Math.pow(2, retryCount) * 1000;
           await new Promise((resolve) => setTimeout(resolve, delay));
           return this.request<T>(endpoint, {
             ...options,
