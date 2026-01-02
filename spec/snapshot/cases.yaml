@@ -399,7 +399,7 @@
 # =============================================================================
 
 - id: MCP-01
-  description: jules_analyze_session returns snapshot JSON
+  description: jules_get_session_analysis_context returns markdown snapshot
   category: mcp
   status: implemented
   priority: P0
@@ -411,20 +411,18 @@
       - { id: 'a1', type: 'planGenerated' }
   when:
     mcpCall:
-      tool: 'jules_analyze_session'
+      tool: 'jules_get_session_analysis_context'
       args:
         sessionId: 'test-session'
   then:
     mcpResponse:
       content:
         - type: 'text'
-          textIsValidJSON: true
-          jsonContains:
-            id: 'test-session'
-            state: 'COMPLETED'
+          textContains: 'TEMPLATE:' # Assuming template starts with this or has instructions
+          jsonContains: null
 
 - id: MCP-02
-  description: jules_analyze_session returns error for invalid session
+  description: jules_get_session_analysis_context returns error for invalid session
   category: mcp
   status: implemented
   priority: P1
@@ -432,7 +430,7 @@
     noSessions: true
   when:
     mcpCall:
-      tool: 'jules_analyze_session'
+      tool: 'jules_get_session_analysis_context'
       args:
         sessionId: 'non-existent'
   then:

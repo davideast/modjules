@@ -236,7 +236,20 @@ The MCP server exposes prompt templates to enable client-side inference.
 | PRM-02 | `get_prompt` with valid `sessionId` returns template+JSON | pending |
 | PRM-03 | Missing `sessionId` throws error                          | pending |
 
----
+### 6.3 Tools
+
+Exposes analysis capabilities for autonomous agents.
+
+**Tool: `jules_get_session_analysis_context`**
+
+- **Purpose**: Retrieve full session analysis context (snapshot + instructions) for the agent to self-diagnose.
+- **Input**: `{ sessionId: string }`
+- **Output**: `{ content: [{ type: 'text', text: "..." }] }` (Markdown)
+
+| ID      | Behavior                                       | Status |
+| ------- | ---------------------------------------------- | ------ |
+| TOOL-01 | `call_tool` returns formatted analysis context | passed |
+| TOOL-02 | `call_tool` throws if sessionId missing        | passed |
 
 ## 7. Test Cases
 
