@@ -251,6 +251,9 @@
           createTime: '2023-01-01T00:03:00Z'
         - id: 'act-4'
           createTime: '2023-01-01T00:04:00Z'
+    apiSessions:
+      - id: 's1'
+        createTime: '2023-01-01T00:00:00Z'
     options:
       depth: activities
   when: sync
@@ -281,6 +284,9 @@
           createTime: '2023-01-01T12:01:00Z'
         - id: 'act-3'
           createTime: '2023-01-02T09:00:00Z' # NEW
+    apiSessions:
+      - id: 's1'
+        createTime: '2023-01-01T00:00:00Z'
     options:
       depth: activities
   when: sync
@@ -304,6 +310,9 @@
         - id: 'act-1'
         - id: 'act-2'
         - id: 'act-3'
+    apiSessions:
+      - id: 's1'
+        createTime: '2023-01-01T00:00:00Z'
     options:
       depth: activities
       incremental: true
