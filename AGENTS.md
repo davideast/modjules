@@ -11,10 +11,16 @@ npm run precommit
 ```
 
 **Attribution:**
-If you receive a CI attribution error, run this script (it has been fixed to use the correct ID):
+If you receive a CI attribution error, run this script (automatically finds the ID for a username):
 
 ```bash
-npx tsx scripts/fix-attribution.ts "<Co-authored-by string>"
+bun scripts/fix-attribution.ts <username>
+```
+
+Or with the full string:
+
+```bash
+bun scripts/fix-attribution.ts "<Co-authored-by string>"
 ```
 
 ## 🛠 Development Workflow

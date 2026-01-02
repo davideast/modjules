@@ -67,7 +67,7 @@
     "type-check": "tsc --project tsconfig.test.json",
     "ci:report": "tsx scripts/ci-report.ts",
     "preflight": "tsx scripts/preflight.ts",
-    "fix-attribution": "tsx scripts/fix-attribution.ts",
+    "fix-attribution": "bun scripts/fix-attribution.ts",
     "verify": "tsx scripts/verify.ts",
     "prepare": "husky",
     "changeset": "changeset",
