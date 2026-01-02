@@ -465,6 +465,71 @@
       - '/tmp/jules-fresh/.jules/cache/s1'
 
 # =============================================================================
+# CACHE DIRECTORY RESOLUTION
+# =============================================================================
+
+- id: CACHE-01
+  description: Uses cwd when package.json exists (project-first)
+  category: cache_resolution
+  status: pending
+  priority: P1
+  given:
+    cwd: '/tmp/my-project'
+    hasPackageJson: true
+    env: {}
+  when: getRootDir
+  then:
+    rootDir: '/tmp/my-project'
+    cacheDir: '/tmp/my-project/.jules/cache'
+
+- id: CACHE-02
+  description: Uses home when no package.json in cwd
+  category: cache_resolution
+  status: pending
+  priority: P1
+  given:
+    cwd: '/tmp/random-dir'
+    hasPackageJson: false
+    env:
+      HOME: '/Users/david'
+  when: getRootDir
+  then:
+    rootDir: '/Users/david'
+    cacheDir: '/Users/david/.jules/cache'
+
+- id: CACHE-03
+  description: JULES_HOME overrides all detection
+  category: cache_resolution
+  status: pending
+  priority: P1
+  given:
+    cwd: '/tmp/my-project'
+    hasPackageJson: true
+    env:
+      JULES_HOME: '/data/jules-override'
+  when: getRootDir
+  then:
+    rootDir: '/data/jules-override'
+    cacheDir: '/data/jules-override/.jules/cache'
+
+- id: CACHE-04
+  description: Falls back to TMPDIR when home not writable
+  category: cache_resolution
+  status: pending
+  priority: P2
+  given:
+    cwd: '/'
+    hasPackageJson: false
+    env:
+      HOME: '/nonexistent'
+      TMPDIR: '/tmp'
+    homeWritable: false
+  when: getRootDir
+  then:
+    rootDir: '/tmp'
+    cacheDir: '/tmp/.jules/cache'
+
+# =============================================================================
 # EDGE CASES
 # =============================================================================
 

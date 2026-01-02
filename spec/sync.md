@@ -213,7 +213,64 @@ EXPECT: storage.upsert NOT called for session 1
 ### 2.6 Storage Structure
 
 > [!NOTE]
-> Data is stored in `.jules/cache/` relative to the project root (or configured `rootDir`).
+> Data is stored in `.jules/cache/` relative to the **resolved root directory** (see below).
+
+#### 2.6.0 Cache Directory Resolution
+
+The SDK uses **context-aware detection** to determine where to store cache data:
+
+| Priority | Condition                      | Cache Location        | Use Case               |
+| -------- | ------------------------------ | --------------------- | ---------------------- |
+| 1        | `JULES_HOME` env var set       | `$JULES_HOME/.jules/` | Explicit override      |
+| 2        | `package.json` exists in `cwd` | `./jules/`            | SDK in project         |
+| 3        | `HOME` env var set             | `~/.jules/`           | CLI/global usage       |
+| 4        | `os.homedir()` exists          | `~/.jules/`           | Fallback               |
+| 5        | None of above                  | `$TMPDIR/.jules/`     | Sandboxed environments |
+
+**Examples:**
+
+```bash
+# SDK in project (package.json exists)
+cd ~/Code/my-project
+bun index.ts  # Cache at ~/Code/my-project/.jules/cache/
+
+# CLI global usage (no package.json in cwd)
+cd /tmp
+npx modjules-mcp  # Cache at ~/.jules/cache/
+
+# Explicit override
+JULES_HOME=/data/jules bun script.ts  # Cache at /data/jules/.jules/cache/
+```
+
+**Resolution algorithm:**
+
+```typescript
+function getRootDir(): string {
+  // 1. Explicit override always wins
+  if (process.env.JULES_HOME && isWritable(process.env.JULES_HOME)) {
+    return process.env.JULES_HOME;
+  }
+
+  // 2. Project-first: If package.json exists, use project-local cache
+  const cwd = process.cwd();
+  if (
+    existsSync(path.join(cwd, 'package.json')) &&
+    cwd !== '/' &&
+    isWritable(cwd)
+  ) {
+    return cwd;
+  }
+
+  // 3. Fallback to home for CLI/global usage
+  const home = process.env.HOME || homedir();
+  if (home && home !== '/' && isWritable(home)) {
+    return home;
+  }
+
+  // 4. Last resort: temp directory
+  return process.env.TMPDIR || '/tmp';
+}
+```
 
 #### 2.6.1 File Layout
 
