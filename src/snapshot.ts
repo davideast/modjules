@@ -158,7 +158,9 @@ export class SessionSnapshotImpl implements SessionSnapshot {
 
     // Insights
     lines.push('## Insights');
-    lines.push(`- **Completion Attempts**: ${this.insights.completionAttempts}`);
+    lines.push(
+      `- **Completion Attempts**: ${this.insights.completionAttempts}`,
+    );
     lines.push(`- **Plan Regenerations**: ${this.insights.planRegenerations}`);
     lines.push(`- **User Interventions**: ${this.insights.userInterventions}`);
     lines.push(`- **Failed Commands**: ${this.insights.failedCommands.length}`);
