@@ -3,7 +3,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import fs from 'fs/promises';
+import path from 'path';
 import {
   jules,
   JulesClient,
@@ -27,6 +31,7 @@ export class JulesMCPServer {
       {
         capabilities: {
           tools: {},
+          prompts: {},
         },
       },
     );
@@ -35,6 +40,14 @@ export class JulesMCPServer {
   }
 
   private setupHandlers() {
+    this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
+      return this.handleListPrompts();
+    });
+
+    this.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+      return this.handleGetPrompt(request.params);
+    });
+
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
         tools: [
@@ -212,6 +225,73 @@ export class JulesMCPServer {
         };
       }
     });
+  }
+
+  private async handleListPrompts() {
+    return {
+      prompts: [
+        {
+          name: 'analyze_session',
+          description: 'Analyze a Jules session with the LLM',
+          arguments: [
+            {
+              name: 'sessionId',
+              description: 'The Session ID to analyze',
+              required: true,
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  private async handleGetPrompt(args: any) {
+    const { name, arguments: promptArgs } = args;
+
+    if (name === 'analyze_session') {
+      const sessionId = promptArgs?.sessionId as string;
+      if (!sessionId) {
+        throw new Error('sessionId is required for analyze_session prompt');
+      }
+
+      const client = this.julesClient.session(sessionId);
+      const snapshot = await client.snapshot();
+
+      // Read template from context/session-analysis.md
+      // We assume the server is running from the project root
+      const templatePath = path.resolve(
+        process.cwd(),
+        'context/session-analysis.md',
+      );
+      let templateContent;
+
+      try {
+        templateContent = await fs.readFile(templatePath, 'utf-8');
+      } catch (error) {
+        throw new Error(
+          `Failed to read prompt template at ${templatePath}. Ensure you are running from the project root.`,
+        );
+      }
+
+      const content = templateContent.replace(
+        '{INSERT_SNAPSHOT_JSON_HERE}',
+        JSON.stringify(snapshot.toJSON(), null, 2),
+      );
+
+      return {
+        messages: [
+          {
+            role: 'user',
+            content: {
+              type: 'text',
+              text: content,
+            },
+          },
+        ],
+      };
+    }
+
+    throw new Error(`Prompt not found: ${name}`);
   }
 
   private async handleCreateSession(args: any) {
