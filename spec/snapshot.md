@@ -61,6 +61,7 @@ interface SessionSnapshot {
 
   // Serialization
   toJSON(): SerializedSnapshot;
+  toMarkdown(): string;
 }
 ```
 
@@ -183,6 +184,13 @@ interface SerializedSnapshot {
 | SER-02 | Output is JSON.stringify-safe                          | pending |
 | SER-03 | Dates are serialized as ISO strings                    | pending |
 | SER-04 | `failedCommands` becomes `failedCommandCount` (number) | pending |
+
+### 5.2 Markdown Output
+
+| ID    | Behavior                                                  | Status  |
+| ----- | --------------------------------------------------------- | ------- |
+| MD-01 | `toMarkdown()` returns formatted summary with sections    | pending |
+| MD-02 | Markdown includes Timeline, Insights, and Errors sections | pending |
 
 ---
 

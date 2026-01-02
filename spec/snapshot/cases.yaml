@@ -334,6 +334,30 @@
     isValidJSON: true
 
 # =============================================================================
+# MARKDOWN GENERATION
+# =============================================================================
+
+- id: MD-01
+  description: toMarkdown returns formatted summary
+  category: serialization
+  status: pending
+  priority: P0
+  given:
+    session:
+      id: 'test-session'
+      state: 'COMPLETED'
+      title: 'Fix Bug'
+    activities:
+      - { id: 'a1', type: 'planGenerated' }
+      - { id: 'a2', type: 'sessionCompleted' }
+  when: snapshotToMarkdown
+  then:
+    markdownContains:
+      - '# Session: Fix Bug'
+      - '## Timeline'
+      - '## Insights'
+
+# =============================================================================
 # NETWORK/CACHE BEHAVIOR
 # =============================================================================
 
