@@ -138,12 +138,12 @@ export async function select<T extends JulesDomain>(
       await pMap(
         results,
         async (session) => {
-          // Use history() to ensure we get data (cold stream)
+          // Use select() to ensure strictly local access
           const sessionClient = await client.session(session.id);
-          const history = sessionClient.history();
+          const localActivities = await sessionClient.activities.select({});
           const activities: any[] = [];
-          for await (const act of history) {
-            // Apply limit manually if needed since history yields all
+          for (const act of localActivities) {
+            // Apply limit manually
             if (
               mappedOptions.limit &&
               activities.length >= mappedOptions.limit
@@ -203,10 +203,10 @@ export async function select<T extends JulesDomain>(
 
       const sessionClient = await client.session(sessionEntry.id);
 
-      // Use history() to ensure finite stream and correct hydration
-      const history = sessionClient.history();
+      // Use select() to ensure strictly local access
+      const localActivities = await sessionClient.activities.select({});
 
-      for await (const act of history) {
+      for (const act of localActivities) {
         if (results.length >= limit) break;
 
         // Apply filters manually since we are consuming the raw history stream

@@ -188,9 +188,9 @@ describe('Unified Query Engine (select)', () => {
       expect(session.activities[0].message).toBe('Hello');
     });
 
-    it('should use finite history() instead of infinite stream() to prevent hanging', async () => {
+    it('should use finite local select() instead of infinite stream() to prevent hanging', async () => {
       const sessionClient = mockClient.session('sess_1');
-      const historySpy = vi.spyOn(sessionClient, 'history');
+      const selectSpy = vi.spyOn(sessionClient.activities, 'select');
       const streamSpy = vi.spyOn(sessionClient, 'stream');
 
       await select(mockClient as any, {
@@ -198,8 +198,8 @@ describe('Unified Query Engine (select)', () => {
         include: { activities: true },
       });
 
-      // CRITICAL: history() yields a finite set of local data
-      expect(historySpy).toHaveBeenCalled();
+      // CRITICAL: select({}) returns finite local data
+      expect(selectSpy).toHaveBeenCalled();
       // CRITICAL: stream() is an infinite poll; using it here is a bug
       expect(streamSpy).not.toHaveBeenCalled();
     });
