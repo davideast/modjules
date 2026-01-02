@@ -220,6 +220,22 @@ A new MCP tool `jules_analyze_session` exposes snapshot functionality.
 | MCP-02 | Invalid session ID returns error                    | pending |
 | MCP-03 | Output is valid JSON in MCP response format         | pending |
 
+### 6.2 Prompt Resources
+
+The MCP server exposes prompt templates to enable client-side inference.
+
+**Prompt: `analyze_session`**
+
+- **Arguments**: `sessionId`
+- **Behavior**: Retrieves session snapshot and injects it into the `context/session-analysis.md` template.
+- **Output**: A single user message containing the analysis instructions and the full JSON snapshot.
+
+| ID     | Behavior                                                  | Status  |
+| ------ | --------------------------------------------------------- | ------- |
+| PRM-01 | `list_prompts` returns `analyze_session`                  | pending |
+| PRM-02 | `get_prompt` with valid `sessionId` returns template+JSON | pending |
+| PRM-03 | Missing `sessionId` throws error                          | pending |
+
 ---
 
 ## 7. Test Cases
