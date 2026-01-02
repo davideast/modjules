@@ -71,7 +71,9 @@
     "prepare": "husky",
     "changeset": "changeset",
     "release": "changeset publish",
-    "mcp-server": "tsx src/mcp/cli.ts"
+    "mcp-server": "tsx src/mcp/cli.ts",
+    "spec:pending": "grep -B2 'status: pending' spec/sync/cases.yaml | grep -E '^- id:|description:'",
+    "spec:status": "echo '📊 Spec Status:' && echo 'Implemented:' $(grep -c 'status: implemented' spec/sync/cases.yaml) && echo 'Pending:' $(grep -c 'status: pending' spec/sync/cases.yaml) && echo 'Skipped:' $(grep -c 'status: skipped' spec/sync/cases.yaml)"
   },
   "keywords": [
     "jules",
@@ -114,7 +116,8 @@
     "typescript": "^5.9.3",
     "vite": "^7.2.2",
     "vite-plugin-dts": "^4.5.4",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "yaml": "^2.8.2"
   },
   "dependencies": {
     "@inquirer/prompts": "^7.10.1",
