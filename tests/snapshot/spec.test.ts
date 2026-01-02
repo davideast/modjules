@@ -40,7 +40,7 @@ describe('SessionSnapshot Implementation', () => {
         createTime: sessionData.createTime ?? new Date().toISOString(),
         updateTime: sessionData.updateTime ?? new Date().toISOString(),
         prompt: 'test prompt',
-        title: 'test title',
+        title: sessionData.title || 'test title',
         url: 'http://test.url',
         sourceContext: {} as any,
         outputs: sessionData.outputs ?? [],
@@ -108,6 +108,9 @@ describe('SessionSnapshot Implementation', () => {
         } catch {
           result = { isValidJSON: false };
         }
+      } else if (testCase.when === 'snapshotToMarkdown') {
+        const snapshot = await mockSessionClient.snapshot();
+        result = { markdown: snapshot.toMarkdown() };
       }
 
       // --- THEN ---
@@ -188,6 +191,12 @@ describe('SessionSnapshot Implementation', () => {
 
       if (then.isValidJSON !== undefined) {
         expect(result.isValidJSON).toBe(then.isValidJSON);
+      }
+
+      if (then.markdownContains) {
+        for (const str of then.markdownContains) {
+          expect(result.markdown).toContain(str);
+        }
       }
     });
   }

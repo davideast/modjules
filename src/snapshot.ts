@@ -138,4 +138,53 @@ export class SessionSnapshotImpl implements SessionSnapshot {
       pr: this.pr,
     };
   }
+
+  toMarkdown(): string {
+    const lines: string[] = [];
+
+    // Header
+    lines.push(`# Session: ${this.title}`);
+    lines.push(`**Status**: \`${this.state}\` | **ID**: \`${this.id}\``);
+    lines.push('');
+
+    // Stats & PR
+    lines.push('## Overview');
+    lines.push(`- **Duration**: ${Math.round(this.durationMs / 1000)}s`);
+    lines.push(`- **Total Activities**: ${this.activities.length}`);
+    if (this.pr) {
+      lines.push(`- **Pull Request**: [${this.pr.title}](${this.pr.url})`);
+    }
+    lines.push('');
+
+    // Insights
+    lines.push('## Insights');
+    lines.push(`- **Completion Attempts**: ${this.insights.completionAttempts}`);
+    lines.push(`- **Plan Regenerations**: ${this.insights.planRegenerations}`);
+    lines.push(`- **User Interventions**: ${this.insights.userInterventions}`);
+    lines.push(`- **Failed Commands**: ${this.insights.failedCommands.length}`);
+    lines.push('');
+
+    // Timeline
+    lines.push('## Timeline');
+    if (this.timeline.length === 0) {
+      lines.push('_No activities recorded._');
+    } else {
+      for (const entry of this.timeline) {
+        lines.push(`- **[${entry.type}]** ${entry.summary} _(${entry.time})_`);
+      }
+    }
+    lines.push('');
+
+    // Activity Counts
+    if (Object.keys(this.activityCounts).length > 0) {
+      lines.push('## Activity Counts');
+      lines.push('```');
+      for (const [type, count] of Object.entries(this.activityCounts)) {
+        lines.push(`${type.padEnd(20)}: ${count}`);
+      }
+      lines.push('```');
+    }
+
+    return lines.join('\n');
+  }
 }

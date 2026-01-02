@@ -933,6 +933,7 @@ export interface SessionSnapshot {
   readonly timeline: readonly TimelineEntry[];
   readonly insights: SessionInsights;
   toJSON(): SerializedSnapshot;
+  toMarkdown(): string;
 }
 
 /**

@@ -340,7 +340,7 @@
 - id: MD-01
   description: toMarkdown returns formatted summary
   category: serialization
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
