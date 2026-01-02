@@ -236,8 +236,6 @@ The MCP server exposes prompt templates to enable client-side inference.
 | PRM-02 | `get_prompt` with valid `sessionId` returns template+JSON | pending |
 | PRM-03 | Missing `sessionId` throws error                          | pending |
 
----
-
 ## 7. Test Cases
 
 See [spec/snapshot/cases.yaml](./snapshot/cases.yaml) for machine-readable test cases.

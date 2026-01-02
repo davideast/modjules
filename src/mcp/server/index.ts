@@ -1,15 +1,15 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
-  CallToolRequestSchema,
   ListToolsRequestSchema,
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
+  CallToolRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import {
-  jules,
   JulesClient,
   JulesQuery,
   JulesDomain,
@@ -17,15 +17,18 @@ import {
   Activity,
 } from '../../index.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export class JulesMCPServer {
   private server: Server;
   private julesClient: JulesClient;
 
-  constructor(client: JulesClient = jules) {
-    this.julesClient = client;
+  constructor(julesClient: JulesClient) {
+    this.julesClient = julesClient;
     this.server = new Server(
       {
-        name: 'jules-mcp-server',
+        name: 'modjules-local',
         version: '0.1.0',
       },
       {
@@ -36,10 +39,10 @@ export class JulesMCPServer {
       },
     );
 
-    this.setupHandlers();
+    this.registerHandlers();
   }
 
-  private setupHandlers() {
+  private registerHandlers() {
     this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
       return this.handleListPrompts();
     });
@@ -66,7 +69,10 @@ export class JulesMCPServer {
                   type: 'string',
                   description: 'GitHub repository (owner/repo).',
                 },
-                branch: { type: 'string', description: 'Target branch.' },
+                branch: {
+                  type: 'string',
+                  description: 'Target branch.',
+                },
                 interactive: {
                   type: 'boolean',
                   description:
@@ -99,6 +105,16 @@ export class JulesMCPServer {
             },
           },
           {
+            name: 'jules_list_sessions',
+            description: 'Lists recent Jules sessions.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                pageSize: { type: 'number' },
+              },
+            },
+          },
+          {
             name: 'jules_interact',
             description:
               'Interacts with an active session (approving plans or sending messages).',
@@ -118,16 +134,6 @@ export class JulesMCPServer {
                 },
               },
               required: ['sessionId', 'action'],
-            },
-          },
-          {
-            name: 'jules_list_sessions',
-            description: 'Lists recent Jules sessions.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                pageSize: { type: 'number', default: 10 },
-              },
             },
           },
           {
@@ -156,10 +162,6 @@ export class JulesMCPServer {
                       type: 'object',
                       description: 'Filter criteria.',
                     },
-                    include: {
-                      type: 'object',
-                      description: 'Related data to include.',
-                    },
                     limit: {
                       type: 'number',
                       description: 'Maximum number of results to return.',
@@ -167,6 +169,10 @@ export class JulesMCPServer {
                     offset: {
                       type: 'number',
                       description: 'Number of results to skip.',
+                    },
+                    include: {
+                      type: 'object',
+                      description: 'Related data to include.',
                     },
                   },
                   required: ['from'],
@@ -254,29 +260,7 @@ export class JulesMCPServer {
         throw new Error('sessionId is required for analyze_session prompt');
       }
 
-      const client = this.julesClient.session(sessionId);
-      const snapshot = await client.snapshot();
-
-      // Read template from context/session-analysis.md
-      // We assume the server is running from the project root
-      const templatePath = path.resolve(
-        process.cwd(),
-        'context/session-analysis.md',
-      );
-      let templateContent;
-
-      try {
-        templateContent = await fs.readFile(templatePath, 'utf-8');
-      } catch (error) {
-        throw new Error(
-          `Failed to read prompt template at ${templatePath}. Ensure you are running from the project root.`,
-        );
-      }
-
-      const content = templateContent.replace(
-        '{INSERT_SNAPSHOT_JSON_HERE}',
-        JSON.stringify(snapshot.toJSON(), null, 2),
-      );
+      const content = await this.getAnalysisContent(sessionId);
 
       return {
         messages: [
@@ -292,6 +276,32 @@ export class JulesMCPServer {
     }
 
     throw new Error(`Prompt not found: ${name}`);
+  }
+
+  private async getAnalysisContent(sessionId: string): Promise<string> {
+    const client = this.julesClient.session(sessionId);
+    const snapshot = await client.snapshot();
+
+    // Read template from context/session-analysis.md
+    // We assume the server is running from the project root
+    const templatePath = path.resolve(
+      process.cwd(),
+      'context/session-analysis.md',
+    );
+    let templateContent;
+
+    try {
+      templateContent = await fs.readFile(templatePath, 'utf-8');
+    } catch (error) {
+      throw new Error(
+        `Failed to read prompt template at ${templatePath}. Ensure you are running from the project root.`,
+      );
+    }
+
+    return templateContent.replace(
+      '{INSERT_SNAPSHOT_JSON_HERE}',
+      JSON.stringify(snapshot.toJSON(), null, 2),
+    );
   }
 
   private async handleCreateSession(args: any) {
