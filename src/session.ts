@@ -18,6 +18,21 @@ import {
   SessionState,
 } from './types.js';
 import { isCacheValid } from './caching.js';
+import { SessionSnapshotImpl } from './snapshot.js';
+import { SessionSnapshot } from './types.js';
+
+/**
+ * Helper function to collect all items from an async iterable into an array.
+ * @param iterable The async iterable to collect.
+ * @returns A promise that resolves to an array of items.
+ */
+async function collectAsync<T>(iterable: AsyncIterable<T>): Promise<T[]> {
+  const items: T[] = [];
+  for await (const item of iterable) {
+    items.push(item);
+  }
+  return items;
+}
 
 /**
  * Implementation of the SessionClient interface.
@@ -292,5 +307,19 @@ export class SessionClientImpl implements SessionClient {
       }
       throw e;
     }
+  }
+
+  /**
+   * Creates a point-in-time snapshot of the session.
+   * This is a network operation that fetches the latest session info and all activities.
+   *
+   * @returns A `SessionSnapshot` instance.
+   */
+  async snapshot(): Promise<SessionSnapshot> {
+    const [info, activities] = await Promise.all([
+      this.info(),
+      collectAsync(this.history()),
+    ]);
+    return new SessionSnapshotImpl(info, activities);
   }
 }

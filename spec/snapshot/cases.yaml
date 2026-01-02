@@ -18,7 +18,7 @@
 - id: SNAP-01
   description: Snapshot returns all activities
   category: core
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -46,7 +46,7 @@
 - id: SNAP-02
   description: Snapshot is immutable (multiple calls return independent instances)
   category: core
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -59,7 +59,7 @@
 - id: SNAP-03
   description: Snapshot computes durationMs correctly
   category: core
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -79,7 +79,7 @@
 - id: AC-01
   description: Activity counts map type to occurrence count
   category: activity_counts
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -104,7 +104,7 @@
 - id: AC-02
   description: Activity counts omit types with zero occurrences
   category: activity_counts
-  status: pending
+  status: implemented
   priority: P1
   given:
     session:
@@ -126,7 +126,7 @@
 - id: TL-01
   description: Timeline entries match activity count
   category: timeline
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -143,7 +143,7 @@
 - id: TL-02
   description: Timeline entry has time, type, and summary
   category: timeline
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -166,7 +166,7 @@
 - id: TL-03
   description: Timeline summary for userMessaged truncates to 100 chars
   category: timeline
-  status: pending
+  status: implemented
   priority: P1
   given:
     session:
@@ -191,7 +191,7 @@
 - id: INS-01
   description: Insights counts completionAttempts correctly
   category: insights
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -212,7 +212,7 @@
 - id: INS-02
   description: Insights counts planRegenerations correctly
   category: insights
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -232,7 +232,7 @@
 - id: INS-03
   description: Insights counts userInterventions correctly
   category: insights
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -259,7 +259,7 @@
 - id: PR-01
   description: Snapshot extracts PR from session outputs
   category: pull_request
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -281,7 +281,7 @@
 - id: PR-02
   description: Snapshot pr is undefined when no PR output
   category: pull_request
-  status: pending
+  status: implemented
   priority: P1
   given:
     session:
@@ -300,7 +300,7 @@
 - id: SER-01
   description: toJSON returns plain object
   category: serialization
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -321,7 +321,7 @@
 - id: SER-02
   description: toJSON is JSON.stringify safe
   category: serialization
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -340,7 +340,7 @@
 - id: NET-01
   description: Snapshot calls info() and history() in parallel
   category: network
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -359,7 +359,7 @@
 - id: NET-02
   description: Snapshot inherits cache behavior from info()
   category: network
-  status: pending
+  status: implemented
   priority: P1
   given:
     cachedSession:
@@ -377,7 +377,7 @@
 - id: MCP-01
   description: jules_analyze_session returns snapshot JSON
   category: mcp
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -402,7 +402,7 @@
 - id: MCP-02
   description: jules_analyze_session returns error for invalid session
   category: mcp
-  status: pending
+  status: implemented
   priority: P1
   given:
     noSessions: true

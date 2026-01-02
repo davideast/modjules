@@ -901,6 +901,81 @@ export interface SessionClient {
    * console.log(`Current state: ${sessionInfo.state}`);
    */
   info(): Promise<SessionResource>;
+
+  /**
+   * Creates a point-in-time snapshot of the session with all activities loaded and derived analytics computed.
+   * This is a network operation with cache heuristics.
+   *
+   * @returns A Promise resolving to the session snapshot.
+   */
+  snapshot(): Promise<SessionSnapshot>;
+}
+
+// -----------------------------------------------------------------------------
+// Snapshot Types
+// -----------------------------------------------------------------------------
+
+/**
+ * A point-in-time, immutable view of a session with all activities loaded and derived analytics computed.
+ */
+export interface SessionSnapshot {
+  readonly id: string;
+  readonly state: SessionState;
+  readonly url: string;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly durationMs: number;
+  readonly prompt: string;
+  readonly title: string;
+  readonly pr?: PullRequest;
+  readonly activities: readonly Activity[];
+  readonly activityCounts: Readonly<Record<string, number>>;
+  readonly timeline: readonly TimelineEntry[];
+  readonly insights: SessionInsights;
+  toJSON(): SerializedSnapshot;
+}
+
+/**
+ * An entry in the computed session timeline, representing a single activity.
+ */
+export interface TimelineEntry {
+  readonly time: string;
+  readonly type: string;
+  readonly summary: string;
+}
+
+/**
+ * Computed analytics and insights derived from the session's activities.
+ */
+export interface SessionInsights {
+  readonly completionAttempts: number;
+  readonly planRegenerations: number;
+  readonly userInterventions: number;
+  readonly failedCommands: readonly Activity[];
+}
+
+/**
+ * The JSON-serializable representation of a SessionSnapshot.
+ */
+export interface SerializedSnapshot {
+  id: string;
+  state: string;
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+  durationMs: number;
+  prompt: string;
+  title: string;
+  activities: Activity[];
+  activityCounts: Record<string, number>;
+  timeline: TimelineEntry[];
+  insights: {
+    completionAttempts: number;
+    planRegenerations: number;
+    userInterventions: number;
+    failedCommandCount: number;
+  };
+  pr?: { url: string; title: string; description: string };
 }
 
 // -----------------------------------------------------------------------------
