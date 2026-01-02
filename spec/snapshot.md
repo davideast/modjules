@@ -1,6 +1,6 @@
 # SessionClient.snapshot() Specification
 
-> **Status**: Draft  
+> **Status**: Implemented  
 > **Last Updated**: 2026-01-02  
 > **Purpose**: Define expected behavior for `session.snapshot()` to enable comprehensive session analysis
 
@@ -107,13 +107,13 @@ interface SerializedSnapshot {
 
 ## 2. Core Behaviors
 
-| ID      | Behavior                                                          | Status  |
-| ------- | ----------------------------------------------------------------- | ------- |
-| SNAP-01 | `snapshot()` returns a SessionSnapshot with all activities loaded | pending |
-| SNAP-02 | `snapshot()` is immutable - represents point-in-time state        | pending |
-| SNAP-03 | Multiple calls return independent snapshot instances              | pending |
-| SNAP-04 | Snapshot includes all activities from `history()`                 | pending |
-| SNAP-05 | Snapshot includes session info from `info()`                      | pending |
+| ID      | Behavior                                                          | Status      |
+| ------- | ----------------------------------------------------------------- | ----------- |
+| SNAP-01 | `snapshot()` returns a SessionSnapshot with all activities loaded | implemented |
+| SNAP-02 | `snapshot()` is immutable - represents point-in-time state        | implemented |
+| SNAP-03 | Multiple calls return independent snapshot instances              | implemented |
+| SNAP-04 | Snapshot includes all activities from `history()`                 | implemented |
+| SNAP-05 | Snapshot includes session info from `info()`                      | implemented |
 
 ---
 
@@ -124,12 +124,12 @@ interface SerializedSnapshot {
 - `info()` - uses existing session caching
 - `history()` - uses existing activity caching
 
-| ID     | Behavior                                                   | Status  |
-| ------ | ---------------------------------------------------------- | ------- |
-| NET-01 | Uses `info()` for session data (inherits cache heuristic)  | pending |
-| NET-02 | Uses `history()` for activities (inherits cache heuristic) | pending |
-| NET-03 | Both calls happen in parallel (`Promise.all`)              | pending |
-| NET-04 | No additional network calls beyond `info()` + `history()`  | pending |
+| ID     | Behavior                                                   | Status      |
+| ------ | ---------------------------------------------------------- | ----------- |
+| NET-01 | Uses `info()` for session data (inherits cache heuristic)  | implemented |
+| NET-02 | Uses `history()` for activities (inherits cache heuristic) | implemented |
+| NET-03 | Both calls happen in parallel (`Promise.all`)              | implemented |
+| NET-04 | No additional network calls beyond `info()` + `history()`  | implemented |
 
 ---
 
@@ -137,12 +137,12 @@ interface SerializedSnapshot {
 
 ### 4.1 Timeline Generation
 
-| ID    | Behavior                                            | Status  |
-| ----- | --------------------------------------------------- | ------- |
-| TL-01 | Each activity maps to one timeline entry            | pending |
-| TL-02 | `time` is ISO string from `activity.createTime`     | pending |
-| TL-03 | `type` matches `activity.type`                      | pending |
-| TL-04 | `summary` is human-readable description of activity | pending |
+| ID    | Behavior                                            | Status      |
+| ----- | --------------------------------------------------- | ----------- |
+| TL-01 | Each activity maps to one timeline entry            | implemented |
+| TL-02 | `time` is ISO string from `activity.createTime`     | implemented |
+| TL-03 | `type` matches `activity.type`                      | implemented |
+| TL-04 | `summary` is human-readable description of activity | implemented |
 
 ### Summary Generation Rules
 
@@ -159,38 +159,38 @@ interface SerializedSnapshot {
 
 ### 4.2 Activity Counts
 
-| ID    | Behavior                                     | Status  |
-| ----- | -------------------------------------------- | ------- |
-| AC-01 | Counts map activity type to occurrence count | pending |
-| AC-02 | All observed types are included              | pending |
-| AC-03 | Types with 0 occurrences are omitted         | pending |
+| ID    | Behavior                                     | Status      |
+| ----- | -------------------------------------------- | ----------- |
+| AC-01 | Counts map activity type to occurrence count | implemented |
+| AC-02 | All observed types are included              | implemented |
+| AC-03 | Types with 0 occurrences are omitted         | implemented |
 
 ### 4.3 Insights Computation
 
-| ID     | Behavior                                                       | Status  |
-| ------ | -------------------------------------------------------------- | ------- |
-| INS-01 | `completionAttempts` = count of `sessionCompleted` activities  | pending |
-| INS-02 | `planRegenerations` = count of `planGenerated` activities      | pending |
-| INS-03 | `userInterventions` = count of `userMessaged` activities       | pending |
-| INS-04 | `failedCommands` = activities with `bashOutput.exitCode !== 0` | pending |
+| ID     | Behavior                                                       | Status      |
+| ------ | -------------------------------------------------------------- | ----------- |
+| INS-01 | `completionAttempts` = count of `sessionCompleted` activities  | implemented |
+| INS-02 | `planRegenerations` = count of `planGenerated` activities      | implemented |
+| INS-03 | `userInterventions` = count of `userMessaged` activities       | implemented |
+| INS-04 | `failedCommands` = activities with `bashOutput.exitCode !== 0` | implemented |
 
 ---
 
 ## 5. Serialization
 
-| ID     | Behavior                                               | Status  |
-| ------ | ------------------------------------------------------ | ------- |
-| SER-01 | `toJSON()` returns plain object (no methods)           | pending |
-| SER-02 | Output is JSON.stringify-safe                          | pending |
-| SER-03 | Dates are serialized as ISO strings                    | pending |
-| SER-04 | `failedCommands` becomes `failedCommandCount` (number) | pending |
+| ID     | Behavior                                               | Status      |
+| ------ | ------------------------------------------------------ | ----------- |
+| SER-01 | `toJSON()` returns plain object (no methods)           | implemented |
+| SER-02 | Output is JSON.stringify-safe                          | implemented |
+| SER-03 | Dates are serialized as ISO strings                    | implemented |
+| SER-04 | `failedCommands` becomes `failedCommandCount` (number) | implemented |
 
 ### 5.2 Markdown Output
 
-| ID    | Behavior                                                  | Status  |
-| ----- | --------------------------------------------------------- | ------- |
-| MD-01 | `toMarkdown()` returns formatted summary with sections    | pending |
-| MD-02 | Markdown includes Timeline, Insights, and Errors sections | pending |
+| ID    | Behavior                                                  | Status      |
+| ----- | --------------------------------------------------------- | ----------- |
+| MD-01 | `toMarkdown()` returns formatted summary with sections    | implemented |
+| MD-02 | Markdown includes Timeline, Insights, and Errors sections | implemented |
 
 ---
 
@@ -254,3 +254,41 @@ Exposes analysis capabilities for autonomous agents.
 ## 7. Test Cases
 
 See [spec/snapshot/cases.yaml](./snapshot/cases.yaml) for machine-readable test cases.
+
+---
+
+## Implementation Status
+
+### ✅ Completed Features
+
+The `SessionSnapshot` feature is **fully implemented** in `src/snapshot.ts`:
+
+- **Core Snapshot** (`SessionSnapshotImpl`)
+  - All properties (id, state, url, dates, activities, etc.)
+  - Immutability (Object.freeze)
+  - Independent instances on each call
+
+- **Network Strategy**
+  - Parallel `Promise.all([info(), history()])`
+  - Leverages existing cache heuristics from both methods
+
+- **Computed Views**
+  - **Timeline**: Maps activities to human-readable summaries
+  - **Activity Counts**: Aggregates by activity type
+  - **Insights**: Calculates completion attempts, plan regenerations, user interventions, and failed commands
+
+- **Serialization**
+  - `toJSON()`: Plain object with ISO date strings
+  - `toMarkdown()`: Formatted report with Overview, Insights, Timeline, and Activity Counts
+
+### 🔨 MCP Integration Status
+
+- ✅ **Prompts**: `analyze_session` prompt (implemented, tested)
+- ✅ **Tools**: `jules_get_session_analysis_context` tool (implemented, tested)
+- ⏸️ **Tests**: Core snapshot tests not yet written (spec test cases pending)
+
+### Next Steps
+
+1. Write comprehensive test suite for `SessionSnapshot` covering all 20+ behaviors
+2. Add edge case tests (empty sessions, missing data, etc.)
+3. Performance testing for large sessions (1000+ activities)
