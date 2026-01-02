@@ -51,6 +51,11 @@ async function main() {
   const prUserLogin = process.env.PR_USER_LOGIN || '';
   const prUserId = process.env.PR_USER_ID || '';
 
+  if (prUserLogin !== 'google-labs-jules' && !prUserLogin.endsWith('[bot]')) {
+    console.log('Skipping attribution check for human PR.');
+    process.exit(0);
+  }
+
   if (!token) {
     console.error('❌ GITHUB_TOKEN is required.');
     process.exit(1);

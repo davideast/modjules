@@ -40,16 +40,19 @@ jobs:
       # 2. Quality Checks (Each captures errors into GITHUB_OUTPUT)
       - name: Check Formatting
         id: format
+        continue-on-error: true
         run: |
           npm run format:check || (echo "log=$(echo 'Formatting/Linting failed. Run npm run format.' | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
 
       - name: Type Check
         id: types
+        continue-on-error: true
         run: |
           npm run type-check > ts_error.txt 2>&1 || (echo "log=$(head -n 15 ts_error.txt | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
 
       - name: Run Tests
         id: tests
+        continue-on-error: true
         run: |
           npm test > test_log.txt 2>&1 || (echo "log=$(tail -n 20 test_log.txt | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
 
@@ -58,6 +61,7 @@ jobs:
 
       - name: Smoke Test
         id: smoke
+        continue-on-error: true
         run: |
           npm run test:smoke > smoke_log.txt 2>&1 || (echo "log=$(tail -n 20 smoke_log.txt | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
 
@@ -65,6 +69,7 @@ jobs:
       - name: Verify Attribution
         if: github.event_name == 'pull_request'
         id: attribution
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_BODY: ${{ github.event.pull_request.body }}
@@ -77,7 +82,7 @@ jobs:
 
       # 4. Report Failures to Jules via modjules
       - name: Report Failure to Jules
-        if: failure()
+        if: always() && github.event_name == 'pull_request' && (github.event.pull_request.user.login == 'google-labs-jules' || endsWith(github.event.pull_request.user.login, '[bot]'))
         env:
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
           BRANCH_NAME: ${{ github.head_ref }}
@@ -111,9 +116,18 @@ jobs:
             export ERROR_TYPE="Smoke Test Failure"
             export ERROR_LOG_B64="$SMOKE_LOG"
           else
-            export ERROR_TYPE="General Quality Gate"
-            export ERROR_LOG_B64=""
+             # No errors detected
+             echo "No failures detected. Skipping report."
+             exit 0
           fi
 
           # Run the reporting script
           npx tsx scripts/ci-report.ts
+
+      - name: Fail Job if Errors
+        if: always()
+        run: |
+          if [ -n "${{ steps.format.outputs.log }}" ] || [ -n "${{ steps.types.outputs.log }}" ] || [ -n "${{ steps.tests.outputs.log }}" ] || [ -n "${{ steps.smoke.outputs.log }}" ] || [ -n "${{ steps.attribution.outputs.log }}" ]; then
+            echo "One or more checks failed."
+            exit 1
+          fi
