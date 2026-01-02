@@ -1,6 +1,7 @@
 // src/index.ts
 import { homedir } from 'node:os';
-import { accessSync, constants } from 'node:fs';
+import { accessSync, constants, existsSync } from 'node:fs';
+import * as path from 'node:path';
 import { JulesClientImpl } from './client.js';
 import { NodeFileStorage, NodeSessionStorage } from './storage/node-fs.js';
 import { NodePlatform } from './platform/node.js';
@@ -22,22 +23,23 @@ export function getRootDir(): string {
     return julesHome;
   }
 
-  // 2. HOME environment variable
+  // 2. Project-first: If package.json exists in cwd, use project-local cache
+  const cwd = process.cwd();
+  const isInProject = existsSync(path.join(cwd, 'package.json'));
+  if (isInProject && cwd !== '/' && isWritable(cwd)) {
+    return cwd;
+  }
+
+  // 3. HOME environment variable
   const home = process.env.HOME;
   if (home && home !== '/' && isWritable(home)) {
     return home;
   }
 
-  // 3. os.homedir() (may use /etc/passwd on Unix)
+  // 4. os.homedir() (may use /etc/passwd on Unix)
   const osHome = homedir();
   if (osHome && osHome !== '/' && isWritable(osHome)) {
     return osHome;
-  }
-
-  // 4. process.cwd() (original behavior, for backwards compat)
-  const cwd = process.cwd();
-  if (cwd && cwd !== '/' && isWritable(cwd)) {
-    return cwd;
   }
 
   // 5. Temporary directory as last resort

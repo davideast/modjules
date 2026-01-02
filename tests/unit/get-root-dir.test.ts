@@ -39,16 +39,6 @@ describe('getRootDir', () => {
     expect(getRootDir()).toBe('/home/os-user');
   });
 
-  test('falls back to process.cwd() when other homes fail', () => {
-    delete process.env.JULES_HOME;
-    delete process.env.HOME;
-    vi.mocked(os.homedir).mockReturnValue('/'); // Invalid root
-    const cwd = process.cwd();
-    vi.mocked(fs.accessSync).mockImplementation(() => {});
-
-    expect(getRootDir()).toBe(cwd);
-  });
-
   test('uses TMPDIR as last resort when all else fails', () => {
     delete process.env.JULES_HOME;
     delete process.env.HOME;
