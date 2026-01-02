@@ -1023,15 +1023,15 @@ bun test tests/sync/spec.test.ts --grep "HWM-01"
 | HYD-PARTIAL-02 | Hydration                | P0       | ❌ Missing                     |
 | HYD-PARTIAL-03 | Hydration                | P1       | ❌ Missing                     |
 | HYD-PARTIAL-04 | Hydration                | P0       | ❌ Missing                     |
-| HYD-PARTIAL-05 | Hydration                | P0       | ❌ Missing                     |
-| STOR-01        | Storage                  | P1       | ❌ Missing                     |
-| STOR-02        | Storage                  | P1       | ❌ Missing                     |
-| STOR-03        | Storage                  | P1       | ❌ Missing                     |
-| STOR-04        | Storage                  | P1       | ❌ Missing                     |
+| HYD-PARTIAL-05 | Hydration                | P0       | ✅ Covered                     |
+| STOR-01        | Storage                  | P1       | ✅ Covered                     |
+| STOR-02        | Storage                  | P1       | ✅ Covered                     |
+| STOR-03        | Storage                  | P1       | ✅ Covered                     |
+| STOR-04        | Storage                  | P1       | ✅ Covered                     |
 | ERR-20         | Partial Success          | P1       | ⚠️ Partial                     |
 | PRG-01         | Progress Reporting       | P1       | ✅ Covered                     |
-| EDGE-01        | Edge Cases               | P2       | ❌ Missing                     |
-| EDGE-12        | Edge Cases               | P1       | ❌ Missing                     |
+| EDGE-01        | Edge Cases               | P2       | ✅ Covered                     |
+| EDGE-12        | Edge Cases               | P1       | ✅ Covered                     |
 
 ---
 

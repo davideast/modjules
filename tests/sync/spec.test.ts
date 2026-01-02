@@ -21,6 +21,30 @@ import { join } from 'path';
 import { parse } from 'yaml';
 import { JulesClientImpl } from '../../src/client.js';
 import { ApiClient } from '../../src/api.js';
+import { getRootDir, isWritable } from '../../src/index.js';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+
+vi.mock('node:os', async () => {
+  const actual = await vi.importActual<typeof import('node:os')>('node:os');
+  return {
+    ...actual,
+    homedir: vi.fn(actual.homedir),
+  };
+});
+
+vi.mock('node:fs', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  return {
+    ...actual,
+    existsSync: vi.fn(actual.existsSync),
+    accessSync: vi.fn(actual.accessSync),
+    mkdirSync: vi.fn(actual.mkdirSync),
+    writeFileSync: vi.fn(actual.writeFileSync),
+    appendFileSync: vi.fn(actual.appendFileSync),
+  };
+});
 
 // =============================================================================
 // Types
@@ -49,8 +73,12 @@ interface TestCase {
     checkpoint?: Record<string, unknown>;
     syncInProgress?: boolean;
     abortAfterSessions?: number;
+    cwd?: string;
+    hasPackageJson?: boolean;
+    env?: Record<string, string>;
+    homeWritable?: boolean;
   };
-  when: 'sync';
+  when: 'sync' | 'getRootDir';
   then: {
     stats?: {
       sessionsIngested?: number;
@@ -61,6 +89,8 @@ interface TestCase {
     throws?: { error: string; status?: number } | null;
     delays?: number[];
     startedFromSession?: string;
+    rootDir?: string;
+    cacheDir?: string;
   };
 }
 
@@ -141,9 +171,11 @@ function createMockApiResponses(
   }
 
   return vi.fn(async () => {
-    const response =
-      expandedResponses[callIndex] ||
-      expandedResponses[expandedResponses.length - 1];
+    const response = expandedResponses[callIndex] ||
+      expandedResponses[expandedResponses.length - 1] || {
+        status: 200,
+        body: { sessions: [] },
+      };
     callIndex++;
     return {
       ok: response.status >= 200 && response.status < 300,
@@ -195,6 +227,57 @@ function executeTest(tc: TestCase) {
       return;
     }
 
+    if (tc.when === 'getRootDir') {
+      const originalEnv = process.env;
+      const originalCwd = process.cwd();
+
+      try {
+        if (tc.given.env) {
+          process.env = { ...originalEnv, ...tc.given.env };
+        }
+        if (tc.given.cwd) {
+          vi.spyOn(process, 'cwd').mockReturnValue(tc.given.cwd);
+        }
+
+        // Mock os.homedir to return a predictable value for tests
+        vi.mocked(os.homedir).mockReturnValue(
+          tc.given.env?.HOME || '/Users/test',
+        );
+
+        vi.mocked(fs.existsSync).mockImplementation((p: any) => {
+          if (typeof p === 'string' && p.endsWith('package.json')) {
+            return !!tc.given.hasPackageJson;
+          }
+          return false;
+        });
+
+        vi.mocked(fs.accessSync).mockImplementation((p: any) => {
+          if (tc.given.homeWritable === false) {
+            // If home is not writable, fail on anything that looks like home or root
+            const home = tc.given.env?.HOME || '/Users/test';
+            if (
+              p === home ||
+              p === '/nonexistent' ||
+              p === '/root' ||
+              p === '/'
+            ) {
+              throw new Error('EACCES');
+            }
+          }
+        });
+
+        const rootDir = getRootDir();
+
+        if (tc.then.rootDir) {
+          expect(rootDir).toBe(tc.then.rootDir);
+        }
+      } finally {
+        process.env = originalEnv;
+        vi.restoreAllMocks();
+      }
+      return;
+    }
+
     // Setup mocks
     const mockStorage = createMockStorage();
     const mockActivityStorages = new Map<
@@ -240,13 +323,23 @@ function executeTest(tc: TestCase) {
       requestTimeoutMs: 1000,
     });
 
-    // Mock sessions() to return API sessions
+    // Mock apiClient.request to prevent real network calls and support apiResponses
+    const mockResponses = tc.given.apiResponses || [];
+    const mockApi = createMockApiResponses(mockResponses);
+    vi.spyOn((client as any).apiClient, 'request').mockImplementation(mockApi);
+
+    // Mock sessions() to return API sessions if provided
     if (tc.given.apiSessions) {
       const sessions = expandSessions(tc.given.apiSessions);
       vi.spyOn(client, 'sessions').mockImplementation(() => {
         return (async function* () {
           for (const s of sessions) yield s;
         })() as any;
+      });
+    } else if (!tc.given.apiResponses) {
+      // Default: empty sessions stream to prevent ENOTFOUND
+      vi.spyOn(client, 'sessions').mockImplementation(() => {
+        return (async function* () {})() as any;
       });
     }
 
@@ -257,13 +350,15 @@ function executeTest(tc: TestCase) {
       }),
     };
 
-    if (tc.given.sessionActivities) {
+    const serverActivities =
+      tc.given.serverActivities || tc.given.sessionActivities;
+
+    if (serverActivities) {
       mockSessionClient.history = vi.fn(async function* () {
-        // This is simplified - real implementation would need session context
-        for (const activitiesArray of Object.values(
-          tc.given.sessionActivities!,
-        )) {
-          for (const act of activitiesArray) {
+        for (const [sessId, activities] of Object.entries(serverActivities)) {
+          // In a real scenario, we'd filter by current session, but for tests
+          // we often only have one session context.
+          for (const act of activities) {
             yield act;
           }
         }

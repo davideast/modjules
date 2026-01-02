@@ -251,6 +251,9 @@
           createTime: '2023-01-01T00:03:00Z'
         - id: 'act-4'
           createTime: '2023-01-01T00:04:00Z'
+    apiSessions:
+      - id: 's1'
+        createTime: '2023-01-01T00:00:00Z'
     options:
       depth: activities
   when: sync
@@ -281,6 +284,9 @@
           createTime: '2023-01-01T12:01:00Z'
         - id: 'act-3'
           createTime: '2023-01-02T09:00:00Z' # NEW
+    apiSessions:
+      - id: 's1'
+        createTime: '2023-01-01T00:00:00Z'
     options:
       depth: activities
   when: sync
@@ -291,7 +297,7 @@
 - id: HYD-PARTIAL-05
   description: Empty activity cache triggers full hydration
   category: hydration
-  status: pending
+  status: implemented
   priority: P0
   given:
     localSessions:
@@ -304,6 +310,9 @@
         - id: 'act-1'
         - id: 'act-2'
         - id: 'act-3'
+    apiSessions:
+      - id: 's1'
+        createTime: '2023-01-01T00:00:00Z'
     options:
       depth: activities
       incremental: true
@@ -380,7 +389,7 @@
 - id: STOR-01
   description: Sessions written to session.json in session directory
   category: storage
-  status: pending
+  status: implemented
   priority: P1
   given:
     localSessions: []
@@ -400,7 +409,7 @@
 - id: STOR-02
   description: Session index appended to sessions.jsonl
   category: storage
-  status: pending
+  status: implemented
   priority: P1
   given:
     localSessions: []
@@ -422,7 +431,7 @@
 - id: STOR-03
   description: Activities written to activities.jsonl in session directory
   category: storage
-  status: pending
+  status: implemented
   priority: P1
   given:
     localSessions: []
@@ -449,7 +458,7 @@
 - id: STOR-04
   description: Cache directory created automatically
   category: storage
-  status: pending
+  status: implemented
   priority: P1
   given:
     localSessions: []
@@ -471,7 +480,7 @@
 - id: CACHE-01
   description: Uses cwd when package.json exists (project-first)
   category: cache_resolution
-  status: pending
+  status: implemented
   priority: P1
   given:
     cwd: '/tmp/my-project'
@@ -485,7 +494,7 @@
 - id: CACHE-02
   description: Uses home when no package.json in cwd
   category: cache_resolution
-  status: pending
+  status: implemented
   priority: P1
   given:
     cwd: '/tmp/random-dir'
@@ -500,7 +509,7 @@
 - id: CACHE-03
   description: JULES_HOME overrides all detection
   category: cache_resolution
-  status: pending
+  status: implemented
   priority: P1
   given:
     cwd: '/tmp/my-project'
@@ -515,7 +524,7 @@
 - id: CACHE-04
   description: Falls back to TMPDIR when home not writable
   category: cache_resolution
-  status: pending
+  status: implemented
   priority: P2
   given:
     cwd: '/'
@@ -536,7 +545,7 @@
 - id: EDGE-01
   description: Empty API response
   category: edge_cases
-  status: pending
+  status: implemented
   priority: P2
   given:
     localSessions: []
@@ -551,7 +560,7 @@
 - id: EDGE-12
   description: Exact high-water mark match stops iteration
   category: edge_cases
-  status: pending
+  status: implemented
   priority: P1
   given:
     localSessions:
