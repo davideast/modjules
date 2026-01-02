@@ -182,9 +182,9 @@ export class JulesMCPServer {
             },
           },
           {
-            name: 'jules_analyze_session',
+            name: 'jules_get_session_analysis_context',
             description:
-              'Returns full analysis of a session including timeline, activity counts, and insights.',
+              'Returns full analysis context of a session including guidelines, timeline, and activity counts.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -214,8 +214,8 @@ export class JulesMCPServer {
             return await this.handleListSessions(args);
           case 'jules_select':
             return await this.handleSelect(args);
-          case 'jules_analyze_session':
-            return await this.handleAnalyzeSession(args);
+          case 'jules_get_session_analysis_context':
+            return await this.handleGetSessionAnalysisContext(args);
           default:
             throw new Error(`Tool not found: ${name}`);
         }
@@ -283,10 +283,10 @@ export class JulesMCPServer {
     const snapshot = await client.snapshot();
 
     // Read template from context/session-analysis.md
-    // We assume the server is running from the project root
+    // Resolve path relative to this file: src/mcp/server/index.ts -> ../../../context/session-analysis.md
     const templatePath = path.resolve(
-      process.cwd(),
-      'context/session-analysis.md',
+      __dirname,
+      '../../../context/session-analysis.md',
     );
     let templateContent;
 
@@ -352,20 +352,19 @@ export class JulesMCPServer {
     };
   }
 
-  private async handleAnalyzeSession(args: any) {
+  private async handleGetSessionAnalysisContext(args: any) {
     const sessionId = args?.sessionId as string;
     if (!sessionId) {
       throw new Error('sessionId is required');
     }
 
-    const client = this.julesClient.session(sessionId);
-    const snapshot = await client.snapshot();
+    const content = await this.getAnalysisContent(sessionId);
 
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(snapshot.toJSON(), null, 2),
+          text: content,
         },
       ],
     };
