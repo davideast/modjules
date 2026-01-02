@@ -2,17 +2,10 @@ import { execSync } from 'child_process';
 import { writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 
-const attributionArg = process.argv[2];
+const defaultAttribution =
+  'Co-authored-by: davideast <4570265+davideast@users.noreply.github.com>';
 
-if (!attributionArg) {
-  console.error(
-    'Error: Please provide the "Co-authored-by: ..." string as the first argument.',
-  );
-  console.error(
-    'Usage: npx tsx scripts/fix-attribution.ts "Co-authored-by: Name <email>"',
-  );
-  process.exit(1);
-}
+const attributionArg = process.argv[2] || defaultAttribution;
 
 if (!attributionArg.startsWith('Co-authored-by: ')) {
   console.error('Error: Argument must start with "Co-authored-by: "');
