@@ -9,11 +9,18 @@ import {
   MissingApiKeyError,
 } from './errors.js';
 
+export type RateLimitRetryConfig = {
+  maxRetryTimeMs: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+};
+
 export type ApiClientOptions = {
   apiKey: string | undefined;
   baseUrl: string;
   requestTimeoutMs: number;
   proxy?: ProxyConfig;
+  rateLimitRetry?: Partial<RateLimitRetryConfig>;
 };
 
 export type HandshakeContext =
@@ -38,6 +45,7 @@ export class ApiClient {
   private readonly baseUrl: string;
   private readonly requestTimeoutMs: number;
   private readonly proxy?: ProxyConfig;
+  private readonly rateLimitConfig: RateLimitRetryConfig;
   private capabilityToken: string | null = null;
   // Cache the handshake promise to prevent parallel handshakes (thundering herd)
   private handshakePromise: Promise<string> | null = null;
@@ -47,6 +55,11 @@ export class ApiClient {
     this.baseUrl = options.baseUrl;
     this.requestTimeoutMs = options.requestTimeoutMs;
     this.proxy = options.proxy;
+    this.rateLimitConfig = {
+      maxRetryTimeMs: options.rateLimitRetry?.maxRetryTimeMs ?? 300000, // 5 minutes
+      baseDelayMs: options.rateLimitRetry?.baseDelayMs ?? 1000,
+      maxDelayMs: options.rateLimitRetry?.maxDelayMs ?? 30000,
+    };
   }
 
   async request<T>(
@@ -111,25 +124,21 @@ export class ApiClient {
 
     if (!response.ok) {
       if (response.status === 429) {
-        // If we haven't exceeded retry limit, back off and retry.
-        // We reuse `_isRetry` loosely here, but really we want a counter.
-        // Since we don't have a retry count in options, we can add one or handle it locally if we change architecture.
-        // However, given the recursive structure, let's just use a simple randomized exponential backoff if we want to be fancy,
-        // but `request` is recursive.
-        // Let's assume we can add a `retryCount` to options or just implement a simple loop inside `request` is better?
-        // No, `request` is already doing recursion for auth.
+        // Time-based retry: Keep retrying until maxRetryTimeMs is exhausted
+        const startTime = (options as any)._rateLimitStartTime || Date.now();
+        const elapsed = Date.now() - startTime;
+        const retryCount = (options as any)._rateLimitRetryCount || 0;
 
-        // 3 retries, 1s base delay, exponential backoff (no jitter).
-        const retryCount = (options as any)._retryCount || 0;
-        const MAX_RETRIES = 3;
-
-        if (retryCount < MAX_RETRIES) {
-          // Exponential Backoff: 1s, 2s, 4s
-          const delay = Math.pow(2, retryCount) * 1000;
+        if (elapsed < this.rateLimitConfig.maxRetryTimeMs) {
+          // Exponential backoff capped at maxDelayMs
+          const rawDelay =
+            this.rateLimitConfig.baseDelayMs * Math.pow(2, retryCount);
+          const delay = Math.min(rawDelay, this.rateLimitConfig.maxDelayMs);
           await new Promise((resolve) => setTimeout(resolve, delay));
           return this.request<T>(endpoint, {
             ...options,
-            _retryCount: retryCount + 1,
+            _rateLimitStartTime: startTime,
+            _rateLimitRetryCount: retryCount + 1,
           } as any);
         }
 
