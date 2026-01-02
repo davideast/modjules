@@ -100,6 +100,28 @@ export interface JulesOptions {
      * @default 30000
      */
     requestTimeoutMs?: number;
+    /**
+     * Configuration for 429 rate limit retry behavior.
+     * The SDK will automatically retry rate-limited requests with exponential backoff
+     * until the configured time window is exhausted.
+     */
+    rateLimitRetry?: {
+      /**
+       * Maximum time in milliseconds to keep retrying before throwing JulesRateLimitError.
+       * @default 300000 (5 minutes)
+       */
+      maxRetryTimeMs?: number;
+      /**
+       * Base delay in milliseconds for exponential backoff.
+       * @default 1000
+       */
+      baseDelayMs?: number;
+      /**
+       * Maximum delay in milliseconds between retry attempts.
+       * @default 30000
+       */
+      maxDelayMs?: number;
+    };
   };
 }
 

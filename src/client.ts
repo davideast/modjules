@@ -108,6 +108,7 @@ export class JulesClientImpl implements JulesClient {
       baseUrl,
       requestTimeoutMs: this.config.requestTimeoutMs,
       proxy: options.proxy,
+      rateLimitRetry: options.config?.rateLimitRetry,
     });
     this.sources = createSourceManager(this.apiClient);
   }

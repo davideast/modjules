@@ -104,7 +104,18 @@ describe('Error Handling', () => {
     // Use fake timers to fast-forward through retries
     vi.useFakeTimers();
 
-    const promise = jules.session({
+    // Create a client with a short retry timeout for testing
+    const testJules = defaultJules.with({
+      apiKey: TEST_API_KEY,
+      baseUrl: TEST_BASE_URL,
+      config: {
+        rateLimitRetry: {
+          maxRetryTimeMs: 7000, // 7 seconds for quick test
+        },
+      },
+    });
+
+    const promise = testJules.session({
       prompt: 'test',
       source: { github: 'test/repo', branch: 'main' },
     });
@@ -112,8 +123,8 @@ describe('Error Handling', () => {
     // Attach expectation before advancing timers
     const expectation = expect(promise).rejects.toThrow(JulesRateLimitError);
 
-    // Advance time enough to cover 5 retries (approx 31s)
-    await vi.advanceTimersByTimeAsync(100000);
+    // Advance time enough to exceed the 7s timeout (1s + 2s + 4s = 7s)
+    await vi.advanceTimersByTimeAsync(10000);
 
     await expectation;
     await expect(promise).rejects.toHaveProperty('url', expectedUrl);
