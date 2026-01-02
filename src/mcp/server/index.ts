@@ -162,6 +162,21 @@ export class JulesMCPServer {
               required: ['query'],
             },
           },
+          {
+            name: 'jules_analyze_session',
+            description:
+              'Returns full analysis of a session including timeline, activity counts, and insights.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                sessionId: {
+                  type: 'string',
+                  description: 'The session ID to analyze',
+                },
+              },
+              required: ['sessionId'],
+            },
+          },
         ],
       };
     });
@@ -180,6 +195,8 @@ export class JulesMCPServer {
             return await this.handleListSessions(args);
           case 'jules_select':
             return await this.handleSelect(args);
+          case 'jules_analyze_session':
+            return await this.handleAnalyzeSession(args);
           default:
             throw new Error(`Tool not found: ${name}`);
         }
@@ -240,6 +257,25 @@ export class JulesMCPServer {
             null,
             2,
           ),
+        },
+      ],
+    };
+  }
+
+  private async handleAnalyzeSession(args: any) {
+    const sessionId = args?.sessionId as string;
+    if (!sessionId) {
+      throw new Error('sessionId is required');
+    }
+
+    const client = this.julesClient.session(sessionId);
+    const snapshot = await client.snapshot();
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(snapshot.toJSON(), null, 2),
         },
       ],
     };
