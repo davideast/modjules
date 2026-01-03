@@ -164,13 +164,16 @@ export class JulesClientImpl implements JulesClient {
       // Precise Reconciliation: Stop if we hit the water mark
       if (highWaterMark && new Date(session.createTime) <= highWaterMark) {
         if (depth === 'activities') {
-          // This session is at the boundary. We need to check it for new activities,
-          // but we don't need to check any sessions older than it.
-          // Add it to the candidates for hydration and then stop the session loop.
+          // This session is older than our newest record, but we're doing a deep sync.
+          // We should still consider it for activity hydration, as it might be missing locally.
+          // We continue, but do not increment sessionsIngested as it's not "new".
           await this.storage.upsert(session);
           candidates.push(session);
+          continue; // Continue to check even older sessions for gaps
+        } else {
+          // If we're not hydrating activities, we can stop completely.
+          break;
         }
-        break;
       }
 
       // 2.1 Persistence: Save metadata to local cache

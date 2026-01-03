@@ -39,7 +39,11 @@ describe('Ingestion Depth', () => {
       {},
       {
         session: () => mockStorage,
-        activity: vi.fn() as any,
+        activity: () => ({
+          init: vi.fn(),
+          latest: vi.fn(),
+          append: vi.fn(),
+        }),
       },
       { getEnv: vi.fn() } as any,
     );
@@ -50,7 +54,7 @@ describe('Ingestion Depth', () => {
     });
 
     // Mock session() to return a mock client
-    vi.spyOn(client, 'session').mockResolvedValue(mockSessionClient);
+    vi.spyOn(client, 'session').mockReturnValue(mockSessionClient as any);
   });
 
   it('Metadata Only: Does not hydrate activities', async () => {
