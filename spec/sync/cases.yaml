@@ -350,7 +350,7 @@
 - id: PROD-CKPT-02
   description: Resume from checkpoint after crash
   category: production_checkpoint
-  status: pending
+  status: implemented
   priority: P0
   given:
     checkpoint:
@@ -363,7 +363,7 @@
   when: sync
   then:
     stats:
-      sessionsIngested: 50 # Only remaining 50
+      sessionsIngested: 49 # s51-s99
     startedFromSession: 's51'
 
 # =============================================================================

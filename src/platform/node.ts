@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { writeFile, readFile, rm } from 'node:fs/promises';
 import { Buffer } from 'node:buffer';
 import { setTimeout } from 'node:timers/promises';
 import * as crypto from 'node:crypto';
@@ -77,5 +77,17 @@ export class NodePlatform implements Platform {
 
   getEnv(key: string): string | undefined {
     return process.env[key];
+  }
+
+  async readFile(path: string): Promise<string> {
+    return readFile(path, 'utf-8');
+  }
+
+  async writeFile(path: string, content: string): Promise<void> {
+    await writeFile(path, content, 'utf-8');
+  }
+
+  async deleteFile(path: string): Promise<void> {
+    await rm(path, { force: true });
   }
 }

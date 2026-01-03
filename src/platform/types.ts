@@ -82,4 +82,10 @@ export interface Platform {
    * @returns The value of the environment variable, or `undefined` if not set.
    */
   getEnv(key: string): string | undefined;
+
+  // These are optional because they are only used for checkpointing,
+  // which is a Node-specific feature.
+  readFile?(path: string): Promise<string>;
+  writeFile?(path: string, content: string): Promise<void>;
+  deleteFile?(path: string): Promise<void>;
 }

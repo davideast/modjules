@@ -1,6 +1,8 @@
 // src/client.ts
 import { ApiClient } from './api.js';
 import { createSourceManager } from './sources.js';
+import { join } from 'node:path';
+import { getRootDir } from './storage/root.js';
 import {
   JulesClient,
   JulesOptions,
@@ -27,6 +29,7 @@ import {
   JulesQuery,
   JulesDomain,
   QueryResult,
+  SyncCheckpoint,
   SyncOptions,
   SyncStats,
 } from './types.js';
@@ -141,10 +144,24 @@ export class JulesClientImpl implements JulesClient {
       incremental = true,
       concurrency = 3,
       onProgress,
+      checkpoint: useCheckpoint = false, // Add this
     } = options;
 
-    let sessionsIngested = 0;
+    // Load checkpoint if enabled
+    let resumeFromId: string | null = null;
+    let startingCount = 0;
+
+    if (useCheckpoint) {
+      const ckpt = await this.loadCheckpoint();
+      if (ckpt) {
+        resumeFromId = ckpt.lastProcessedSessionId;
+        startingCount = ckpt.sessionsProcessed;
+      }
+    }
+
+    let sessionsIngestedThisRun = 0;
     let activitiesIngested = 0;
+    let skipUntilPast = !!resumeFromId;
 
     // 1. High-Water Mark check
     const highWaterMark = incremental ? await this._getHighWaterMark() : null;
@@ -161,6 +178,15 @@ export class JulesClientImpl implements JulesClient {
     onProgress?.({ phase: 'fetching_list', current: 0 });
 
     for await (const session of cursor) {
+      // Skip sessions until we're past the checkpoint
+      if (skipUntilPast) {
+        if (session.id === resumeFromId) {
+          skipUntilPast = false; // Found it, skip this one but process next
+          continue;
+        }
+        continue;
+      }
+
       // Precise Reconciliation: Stop if we hit the water mark
       if (highWaterMark && new Date(session.createTime) <= highWaterMark) {
         let shouldSkip = true;
@@ -192,11 +218,20 @@ export class JulesClientImpl implements JulesClient {
       await this.storage.upsert(session);
 
       candidates.push(session);
-      sessionsIngested++;
+      sessionsIngestedThisRun++;
+
+      // Save checkpoint after each session if enabled
+      if (useCheckpoint) {
+        await this.saveCheckpoint({
+          lastProcessedSessionId: session.id,
+          sessionsProcessed: startingCount + sessionsIngestedThisRun,
+          startedAt: new Date(startTime).toISOString(),
+        });
+      }
 
       onProgress?.({
         phase: 'fetching_list',
-        current: sessionsIngested,
+        current: sessionsIngestedThisRun,
         lastIngestedId: session.id,
       });
 
@@ -246,12 +281,50 @@ export class JulesClientImpl implements JulesClient {
       );
     }
 
+    // Clear checkpoint on successful completion
+    if (useCheckpoint) {
+      await this.clearCheckpoint();
+    }
+
     return {
-      sessionsIngested,
+      sessionsIngested: sessionsIngestedThisRun,
       activitiesIngested,
       isComplete: true,
       durationMs: Date.now() - startTime,
     };
+  }
+
+  private getCheckpointPath(): string {
+    // Assumes storage has a way to get the cache directory
+    // Or use getRootDir() from index.ts
+    return join(getRootDir(), '.jules', 'cache', 'sync-checkpoint.json');
+  }
+
+  private async loadCheckpoint(): Promise<SyncCheckpoint | null> {
+    if (!this.platform.readFile) return null;
+    try {
+      const path = this.getCheckpointPath();
+      const data = await this.platform.readFile(path);
+      return JSON.parse(data) as SyncCheckpoint;
+    } catch {
+      return null; // No checkpoint or invalid
+    }
+  }
+
+  private async saveCheckpoint(checkpoint: SyncCheckpoint): Promise<void> {
+    if (!this.platform.writeFile) return;
+    const path = this.getCheckpointPath();
+    await this.platform.writeFile(path, JSON.stringify(checkpoint, null, 2));
+  }
+
+  private async clearCheckpoint(): Promise<void> {
+    if (!this.platform.deleteFile) return;
+    try {
+      const path = this.getCheckpointPath();
+      await this.platform.deleteFile(path);
+    } catch {
+      // Ignore if doesn't exist
+    }
   }
 
   private async _getHighWaterMark(): Promise<Date | null> {
