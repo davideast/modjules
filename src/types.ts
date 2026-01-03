@@ -1265,7 +1265,9 @@ export interface SyncOptions {
   checkpoint?: boolean;
 
   /**
-   * Optional AbortSignal to cancel the sync operation.
+   * AbortSignal to gracefully cancel the sync operation.
+   * When aborted, sync returns partial stats with isComplete: false.
+   * Does NOT throw an error.
    */
   signal?: AbortSignal;
 }
