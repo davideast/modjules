@@ -210,6 +210,7 @@
   description: Expected - unlimited retries never throw 429
   category: rate_limiting
   status: implemented
+  testedIn: tests/api-retry.test.ts # Tested at ApiClient unit level, not via spec runner
   priority: P0
   given:
     apiResponses:

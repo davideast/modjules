@@ -55,6 +55,7 @@ interface TestCase {
   description: string;
   category: string;
   status: 'implemented' | 'pending' | 'skipped';
+  testedIn?: string; // If set, test is run elsewhere (skip in spec runner)
   priority: 'P0' | 'P1' | 'P2' | 'P3';
   given: {
     localSessions?: Array<{ id: string; createTime: string }>;
@@ -224,6 +225,10 @@ function executeTest(tc: TestCase) {
     }
     if (tc.status === 'skipped') {
       console.log(`⏭️ Skipping test: ${tc.id}`);
+      return;
+    }
+    if (tc.testedIn) {
+      console.log(`✅ [${tc.id}] Tested in: ${tc.testedIn}`);
       return;
     }
 
