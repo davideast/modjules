@@ -45,6 +45,10 @@
       "types": "./dist/mcp/cli.d.ts",
       "import": "./dist/mcp/cli.mjs"
     },
+    "./server/auth/rbac": {
+      "types": "./dist/server/auth/rbac.d.ts",
+      "import": "./dist/server/auth/rbac.mjs"
+    },
     "./types": {
       "types": "./dist/types.d.ts"
     },

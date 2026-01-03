@@ -3,7 +3,7 @@ import { connect } from '../../src/browser.js';
 
 describe('Smart Proxy Client', () => {
   const mockFetch = vi.fn();
-  global.fetch = mockFetch;
+  global.fetch = mockFetch as any;
 
   beforeEach(() => {
     mockFetch.mockReset();

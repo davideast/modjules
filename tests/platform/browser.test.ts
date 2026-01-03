@@ -25,7 +25,7 @@ describe('BrowserPlatform', () => {
         }
         return new Response(null, { status: 500 });
       },
-    );
+    ) as any;
   });
 
   afterEach(() => {
