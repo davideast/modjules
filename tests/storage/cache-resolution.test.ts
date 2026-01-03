@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { getRootDir } from '../../src/index.js';
+import { getRootDir } from '../../src/storage/root.js';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 

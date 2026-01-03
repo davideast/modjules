@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, afterEach } from 'vitest';
 import * as os from 'node:os';
 import * as fs from 'node:fs';
-import { getRootDir, isWritable } from '../../src/index.js';
+import { getRootDir, isWritable } from '../../src/storage/root.js';
 
 vi.mock('node:os');
 vi.mock('node:fs');

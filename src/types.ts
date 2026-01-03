@@ -1222,6 +1222,15 @@ export interface SyncStats {
 }
 
 /**
+ * Checkpoint data persisted between sync runs.
+ */
+export interface SyncCheckpoint {
+  lastProcessedSessionId: string;
+  sessionsProcessed: number;
+  startedAt: string; // ISO timestamp
+}
+
+/**
  * Configuration for the Reconciliation Engine.
  */
 export interface SyncOptions {
@@ -1249,6 +1258,11 @@ export interface SyncOptions {
    * Optional callback for UI/CLI progress bars.
    */
   onProgress?: (progress: SyncProgress) => void;
+  /**
+   * If true, saves progress to disk and resumes from checkpoint on restart.
+   * Checkpoint stored at .jules/cache/sync-checkpoint.json
+   */
+  checkpoint?: boolean;
 }
 
 /**

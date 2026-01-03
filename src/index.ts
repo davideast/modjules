@@ -1,51 +1,9 @@
 // src/index.ts
-import { homedir } from 'node:os';
-import { accessSync, constants, existsSync } from 'node:fs';
-import * as path from 'node:path';
 import { JulesClientImpl } from './client.js';
 import { NodeFileStorage, NodeSessionStorage } from './storage/node-fs.js';
 import { NodePlatform } from './platform/node.js';
 import { JulesClient, JulesOptions, StorageFactory } from './types.js';
-
-export function isWritable(dir: string): boolean {
-  try {
-    accessSync(dir, constants.W_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function getRootDir(): string {
-  // 1. Explicit environment variable (highest priority)
-  const julesHome = process.env.JULES_HOME;
-  if (julesHome && isWritable(julesHome)) {
-    return julesHome;
-  }
-
-  // 2. Project-first: If package.json exists in cwd, use project-local cache
-  const cwd = process.cwd();
-  const isInProject = existsSync(path.join(cwd, 'package.json'));
-  if (isInProject && cwd !== '/' && isWritable(cwd)) {
-    return cwd;
-  }
-
-  // 3. HOME environment variable
-  const home = process.env.HOME;
-  if (home && home !== '/' && isWritable(home)) {
-    return home;
-  }
-
-  // 4. os.homedir() (may use /etc/passwd on Unix)
-  const osHome = homedir();
-  if (osHome && osHome !== '/' && isWritable(osHome)) {
-    return osHome;
-  }
-
-  // 5. Temporary directory as last resort
-  const tmpDir = process.env.TMPDIR || process.env.TMP || '/tmp';
-  return tmpDir;
-}
+import { getRootDir } from './storage/root.js';
 
 // Define defaults for the Node.js environment
 const defaultPlatform = new NodePlatform();

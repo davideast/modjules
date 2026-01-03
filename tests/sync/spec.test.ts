@@ -21,7 +21,7 @@ import { join } from 'path';
 import { parse } from 'yaml';
 import { JulesClientImpl } from '../../src/client.js';
 import { ApiClient } from '../../src/api.js';
-import { getRootDir, isWritable } from '../../src/index.js';
+import { getRootDir } from '../../src/storage/root.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -367,6 +367,15 @@ function executeTest(tc: TestCase) {
 
     vi.spyOn(client, 'session').mockReturnValue(mockSessionClient as any);
 
+    // Mock checkpoint loading
+    if (tc.given.checkpoint) {
+      vi.spyOn(client as any, 'loadCheckpoint').mockResolvedValue(
+        tc.given.checkpoint,
+      );
+    }
+    vi.spyOn(client as any, 'saveCheckpoint').mockResolvedValue(undefined);
+    vi.spyOn(client as any, 'clearCheckpoint').mockResolvedValue(undefined);
+
     // Execute sync
     const options = tc.given.options || {};
 
@@ -406,6 +415,14 @@ function executeTest(tc: TestCase) {
               break;
           }
         }
+      }
+
+      // Verify startedFromSession
+      if (tc.then.startedFromSession) {
+        // Check the first session that was actually processed
+        expect(mockStorage.upsert).toHaveBeenCalledWith(
+          expect.objectContaining({ id: tc.then.startedFromSession }),
+        );
       }
     }
   };
