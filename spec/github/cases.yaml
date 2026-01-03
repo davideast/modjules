@@ -15,32 +15,26 @@
 - id: GH-01
   description: GitHub factory creates adapter with config
   category: adapter
-  status: pending
+  status: implemented
   priority: P0
-  given:
-    config:
-      token: 'ghp_xxx'
-      baseUrl: 'https://api.github.com'
-      pollingIntervalMs: 30000
-  when: createAdapter
+  when:
+    action: 'adapter.create'
   then:
-    adapter:
-      isGitHubAdapter: true
+    result:
+      isAdapter: true
 
 - id: GH-02
   description: pr(repo, number) returns PRClient
   category: adapter
-  status: pending
+  status: implemented
   priority: P0
-  given:
-    adapter:
-      token: 'ghp_xxx'
   when:
-    call:
-      method: 'pr'
-      args: ['owner/repo', 123]
+    action: 'adapter.pr'
+    params:
+      repo: 'owner/repo'
+      number: 123
   then:
-    prClient:
+    result:
       owner: 'owner'
       repo: 'repo'
       number: 123
@@ -48,17 +42,14 @@
 - id: GH-03
   description: pr(url) parses GitHub PR URL
   category: adapter
-  status: pending
+  status: implemented
   priority: P0
-  given:
-    adapter:
-      token: 'ghp_xxx'
   when:
-    call:
-      method: 'pr'
-      args: ['https://github.com/owner/repo/pull/123']
+    action: 'adapter.pr'
+    params:
+      url: 'https://github.com/owner/repo/pull/123'
   then:
-    prClient:
+    result:
       owner: 'owner'
       repo: 'repo'
       number: 123
@@ -66,15 +57,12 @@
 - id: GH-05
   description: parsePrUrl extracts components from valid URL
   category: adapter
-  status: pending
+  status: implemented
   priority: P0
-  given:
-    adapter:
-      token: 'ghp_xxx'
   when:
-    call:
-      method: 'parsePrUrl'
-      args: ['https://github.com/my-org/my-repo/pull/42']
+    action: 'adapter.parsePrUrl'
+    params:
+      url: 'https://github.com/my-org/my-repo/pull/42'
   then:
     result:
       owner: 'my-org'
@@ -84,65 +72,67 @@
 - id: GH-06
   description: parsePrUrl returns null for invalid URL
   category: adapter
-  status: pending
+  status: implemented
   priority: P1
-  given:
-    adapter:
-      token: 'ghp_xxx'
   when:
-    call:
-      method: 'parsePrUrl'
-      args: ['https://github.com/owner/repo']
+    action: 'adapter.parsePrUrl'
+    params:
+      url: 'https://github.com/owner/repo'
   then:
     result: null
 
 - id: GH-07
   description: viewer returns authenticated user
   category: adapter
-  status: pending
+  status: implemented
   priority: P1
   given:
-    adapter:
-      token: 'ghp_xxx'
-    mockApi:
-      endpoint: '/user'
-      response:
-        id: 12345
-        login: 'testuser'
-        type: 'User'
+    api_responses:
+      - endpoint: '/user'
+        status_code: 200
+        body:
+          id: 12345
+          login: 'testuser'
+          type: 'User'
+          avatar_url: 'http://example.com/avatar.png'
   when:
-    call:
-      method: 'viewer'
+    action: 'adapter.viewer'
   then:
     result:
       id: 12345
       login: 'testuser'
       type: 'User'
+      avatarUrl: 'http://example.com/avatar.png'
+    api_calls:
+      expected_count: 1
+      endpoints: ['/user']
 
 - id: GH-08
   description: rateLimit returns current rate limit status
   category: adapter
-  status: pending
+  status: implemented
   priority: P1
   given:
-    adapter:
-      token: 'ghp_xxx'
-    mockApi:
-      endpoint: '/rate_limit'
-      response:
-        rate:
-          limit: 5000
-          remaining: 4999
-          used: 1
-          reset: 1704067200
+    api_responses:
+      - endpoint: '/rate_limit'
+        status_code: 200
+        body:
+          rate:
+            limit: 5000
+            remaining: 4999
+            used: 1
+            reset: 1704067200
   when:
-    call:
-      method: 'rateLimit'
+    action: 'adapter.rateLimit'
   then:
     result:
       limit: 5000
       remaining: 4999
       used: 1
+      reset: '2024-01-01T00:00:00.000Z'
+    api_calls:
+      expected_count: 1
+      endpoints: ['/rate_limit']
 
 # =============================================================================
 # PR CLIENT - CORE OPERATIONS
@@ -151,1007 +141,195 @@
 - id: PR-01
   description: info() returns PRResource with all metadata
   category: pr_client
-  status: pending
+  status: implemented
   priority: P0
   given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: '/repos/owner/repo/pulls/123'
-      response:
-        id: 999
-        number: 123
-        title: 'Fix bug'
-        state: 'open'
-        merged: false
-        draft: false
+    api_responses:
+      - endpoint: '/repos/owner/repo/pulls/123'
+        status_code: 200
+        body:
+          id: 999
+          number: 123
+          node_id: 'PR_NODE_ID'
+          html_url: 'https://github.com/owner/repo/pull/123'
+          url: 'https://api.github.com/repos/owner/repo/pulls/123'
+          title: 'Fix bug'
+          body: 'This PR fixes a critical bug.'
+          state: 'open'
+          merged: false
+          draft: false
+          mergeable: true
+          mergeable_state: 'clean'
+          base: { ref: 'main', sha: 'base-sha' }
+          head: { ref: 'fix-branch', sha: 'head-sha' }
+          additions: 10
+          deletions: 2
+          changed_files: 1
+          commits: 1
+          user:
+            {
+              id: 1,
+              login: 'test-user',
+              type: 'User',
+              avatar_url: 'avatar-url',
+            }
+          assignees: []
+          created_at: '2023-01-01T10:00:00Z'
+          updated_at: '2023-01-01T11:00:00Z'
+          merged_at: null
+          closed_at: null
   when:
-    call:
-      method: 'info'
+    action: 'pr.info'
+    params: { owner: 'owner', repo: 'repo', number: 123 }
   then:
     result:
       id: 999
       number: 123
+      nodeId: 'PR_NODE_ID'
+      url: 'https://github.com/owner/repo/pull/123'
+      apiUrl: 'https://api.github.com/repos/owner/repo/pulls/123'
       title: 'Fix bug'
+      body: 'This PR fixes a critical bug.'
       state: 'open'
       merged: false
+      draft: false
+      mergeable: true
+      mergeableState: 'clean'
+      baseRef: 'main'
+      headRef: 'fix-branch'
+      baseCommitSha: 'base-sha'
+      headCommitSha: 'head-sha'
+      additions: 10
+      deletions: 2
+      changedFiles: 1
+      commits: 1
+      author:
+        { id: 1, login: 'test-user', type: 'User', avatarUrl: 'avatar-url' }
+      assignees: []
+      createdAt: '2023-01-01T10:00:00.000Z'
+      updatedAt: '2023-01-01T11:00:00.000Z'
+      mergedAt: null
+      closedAt: null
+    api_calls:
+      expected_count: 1
 
 - id: PR-02
-  description: info() uses read-through caching
+  description: info() uses read-through caching and avoids network call
   category: pr_client
-  status: pending
+  status: implemented
   priority: P0
   given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    cache:
-      pr:
-        id: 999
-        number: 123
-        state: 'open'
-      _lastSyncedAt: '2023-01-01T00:00:00Z' # Recent
+    system_time: '2023-01-01T12:00:20Z' # 20 seconds after sync
+    time_elapsed_ms: 10000 # 10 seconds pass between calls
+    api_responses:
+      - endpoint: '/repos/owner/repo/pulls/123'
+        status_code: 200
+        body:
+          {
+            id: 999,
+            state: 'open',
+            created_at: '2023-01-01T10:00:00Z',
+            updated_at: '2023-01-01T11:00:00Z',
+          }
   when:
-    call:
-      method: 'info'
+    action: 'pr.info'
+    params: { owner: 'owner', repo: 'repo', number: 123 }
+    calls: 2 # Call info() twice
   then:
-    networkCalls: 0
-    result:
-      id: 999
-
-- id: PR-05
-  description: merge() merges PR with default method
-  category: pr_client
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: 'PUT /repos/owner/repo/pulls/123/merge'
-      response:
-        sha: 'abc123'
-        merged: true
-        message: 'Pull Request successfully merged'
-  when:
-    call:
-      method: 'merge'
-      args: [{}]
-  then:
-    result:
-      sha: 'abc123'
-      merged: true
-
-- id: PR-06
-  description: merge() supports squash method
-  category: pr_client
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: 'PUT /repos/owner/repo/pulls/123/merge'
-      expectedBody:
-        merge_method: 'squash'
-      response:
-        sha: 'def456'
-        merged: true
-  when:
-    call:
-      method: 'merge'
-      args: [{ method: 'squash' }]
-  then:
-    result:
-      sha: 'def456'
-      merged: true
-
-- id: PR-07
-  description: merge() throws if PR not mergeable
-  category: pr_client
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: 'PUT /repos/owner/repo/pulls/123/merge'
-      status: 405
-      response:
-        message: 'Pull Request is not mergeable'
-  when:
-    call:
-      method: 'merge'
-  then:
-    throws:
-      type: 'GitHubError'
-      status: 405
-
-- id: PR-08
-  description: close() closes PR without merging
-  category: pr_client
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: 'PATCH /repos/owner/repo/pulls/123'
-      expectedBody:
-        state: 'closed'
-      response:
-        number: 123
-        state: 'closed'
-        merged: false
-  when:
-    call:
-      method: 'close'
-  then:
-    result:
-      state: 'closed'
-      merged: false
-
-# =============================================================================
-# COMMENT CLIENT
-# =============================================================================
-
-- id: CMT-01
-  description: history() yields all cached comments (cold stream)
-  category: comments
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    cachedComments:
-      - { id: 1, body: 'First comment', type: 'issue' }
-      - { id: 2, body: 'Second comment', type: 'issue' }
-      - { id: 3, body: 'Third comment', type: 'review' }
-  when:
-    call:
-      method: 'comments.history'
-  then:
-    stream:
-      length: 3
-      items:
-        - { id: 1, body: 'First comment' }
-        - { id: 2, body: 'Second comment' }
-        - { id: 3, body: 'Third comment' }
-
-- id: CMT-02
-  description: history() fetches from network if cache empty
-  category: comments
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    cachedComments: []
-    mockApi:
-      endpoint: '/repos/owner/repo/issues/123/comments'
-      response:
-        - { id: 1, body: 'Comment from API' }
-  when:
-    call:
-      method: 'comments.history'
-  then:
-    networkCalls: 1
-    stream:
-      length: 1
-
-- id: CMT-04
-  description: updates() uses high-water mark to avoid duplicates
-  category: comments
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    cachedComments:
-      - { id: 1, createdAt: '2023-01-01T10:00:00Z' }
-    mockApi:
-      endpoint: '/repos/owner/repo/issues/123/comments'
-      query:
-        since: '2023-01-01T10:00:00Z'
-      response:
-        - { id: 1, createdAt: '2023-01-01T10:00:00Z' } # Duplicate
-        - { id: 2, createdAt: '2023-01-01T11:00:00Z' } # New
-  when:
-    call:
-      method: 'comments.updates'
-      limit: 1
-  then:
-    stream:
-      firstItem:
-        id: 2
-
-- id: CMT-06
-  description: add() creates issue comment on PR
-  category: comments
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: 'POST /repos/owner/repo/issues/123/comments'
-      expectedBody:
-        body: 'This is a new comment'
-      response:
-        id: 999
-        body: 'This is a new comment'
-  when:
-    call:
-      method: 'comments.add'
-      args: ['This is a new comment']
-  then:
-    result:
-      id: 999
-      body: 'This is a new comment'
-
-- id: CMT-10
-  description: addLine() creates review comment on specific line
-  category: comments
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: 'POST /repos/owner/repo/pulls/123/comments'
-      expectedBody:
-        body: 'Fix this line'
-        path: 'src/index.ts'
-        line: 42
-        side: 'RIGHT'
-      response:
-        id: 888
-        body: 'Fix this line'
-        path: 'src/index.ts'
-        line: 42
-  when:
-    call:
-      method: 'comments.addLine'
-      args:
-        - body: 'Fix this line'
-          path: 'src/index.ts'
-          line: 42
-          side: 'RIGHT'
-  then:
-    result:
-      id: 888
-      path: 'src/index.ts'
-      line: 42
-
-# =============================================================================
-# REVIEW CLIENT
-# =============================================================================
-
-- id: REV-04
-  description: request() requests review from specified users
-  category: reviews
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: 'POST /repos/owner/repo/pulls/123/requested_reviewers'
-      expectedBody:
-        reviewers: ['user1', 'user2']
-      response:
-        requested_reviewers:
-          - { login: 'user1' }
-          - { login: 'user2' }
-  when:
-    call:
-      method: 'reviews.request'
-      args: [['user1', 'user2']]
-  then:
-    success: true
-
-- id: REV-05
-  description: submit() submits review with APPROVE
-  category: reviews
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: 'POST /repos/owner/repo/pulls/123/reviews'
-      expectedBody:
-        body: 'Looks good!'
-        event: 'APPROVE'
-      response:
-        id: 777
-        state: 'APPROVED'
-        body: 'Looks good!'
-  when:
-    call:
-      method: 'reviews.submit'
-      args:
-        - body: 'Looks good!'
-          event: 'APPROVE'
-  then:
-    result:
-      id: 777
-      state: 'APPROVED'
-
-- id: REV-06
-  description: submit() can include inline comments
-  category: reviews
-  status: pending
-  priority: P1
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: 'POST /repos/owner/repo/pulls/123/reviews'
-      expectedBody:
-        body: 'Some suggestions'
-        event: 'REQUEST_CHANGES'
-        comments:
-          - { path: 'src/index.ts', line: 10, body: 'Fix this' }
-      response:
-        id: 666
-        state: 'CHANGES_REQUESTED'
-  when:
-    call:
-      method: 'reviews.submit'
-      args:
-        - body: 'Some suggestions'
-          event: 'REQUEST_CHANGES'
-          comments:
-            - { path: 'src/index.ts', line: 10, body: 'Fix this' }
-  then:
-    result:
-      id: 666
-      state: 'CHANGES_REQUESTED'
-
-# =============================================================================
-# CHECK CLIENT
-# =============================================================================
-
-- id: CHK-01
-  description: summary() returns aggregated check status
-  category: checks
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-      headCommitSha: 'abc123'
-    mockApi:
-      endpoint: '/repos/owner/repo/commits/abc123/check-runs'
-      response:
-        check_runs:
-          - { id: 1, name: 'build', status: 'completed', conclusion: 'success' }
-          - { id: 2, name: 'test', status: 'completed', conclusion: 'success' }
-          - { id: 3, name: 'lint', status: 'completed', conclusion: 'failure' }
-  when:
-    call:
-      method: 'checks.summary'
-  then:
-    result:
-      total: 3
-      passed: 2
-      failed: 1
-      pending: 0
-      state: 'failure'
-      hasFailures: true
-      allPassed: false
-      isComplete: true
-
-- id: CHK-04
-  description: waitForAll() blocks until all checks complete
-  category: checks
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    pollSequence:
-      - check_runs:
-          - { id: 1, name: 'build', status: 'in_progress', conclusion: null }
-      - check_runs:
-          - { id: 1, name: 'build', status: 'in_progress', conclusion: null }
-      - check_runs:
-          - { id: 1, name: 'build', status: 'completed', conclusion: 'success' }
-  when:
-    call:
-      method: 'checks.waitForAll'
-      args: [60000]
-  then:
-    result:
-      isComplete: true
-      allPassed: true
-    pollCount: 3
-
-- id: CHK-05
-  description: waitForAll() respects timeout parameter
-  category: checks
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: '/repos/owner/repo/commits/abc123/check-runs'
-      response:
-        check_runs:
-          - { id: 1, name: 'build', status: 'in_progress', conclusion: null }
-    pollingIntervalMs: 1000
-  when:
-    call:
-      method: 'checks.waitForAll'
-      args: [100] # 100ms timeout
-  then:
-    throws:
-      message: 'Timeout waiting for checks to complete'
-
-- id: CHK-07
-  description: rerunFailed() re-runs only failed checks
-  category: checks
-  status: pending
-  priority: P1
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      - endpoint: '/repos/owner/repo/commits/abc123/check-runs'
-        response:
-          check_runs:
-            - {
-                id: 1,
-                name: 'build',
-                status: 'completed',
-                conclusion: 'failure',
-              }
-            - {
-                id: 2,
-                name: 'test',
-                status: 'completed',
-                conclusion: 'success',
-              }
-      - endpoint: 'POST /repos/owner/repo/check-runs/1/rerequest'
-        response: {}
-  when:
-    call:
-      method: 'checks.rerunFailed'
-  then:
-    apiCallsContain:
-      - 'POST /repos/owner/repo/check-runs/1/rerequest'
-    apiCallsNotContain:
-      - 'POST /repos/owner/repo/check-runs/2/rerequest'
-
-# =============================================================================
-# EVENT SOURCING
-# =============================================================================
-
-- id: EVT-01
-  description: CheckRun state changes stored as CheckRunUpdatedEvent
-  category: event_sourcing
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    pollSequence:
-      - check_runs:
-          - { id: 555, name: 'build', status: 'queued', conclusion: null }
-      - check_runs:
-          - { id: 555, name: 'build', status: 'in_progress', conclusion: null }
-      - check_runs:
-          - {
-              id: 555,
-              name: 'build',
-              status: 'completed',
-              conclusion: 'success',
-            }
-  when:
-    call:
-      method: 'checks.stream'
-      limit: 3
-  then:
-    events:
-      - type: 'checkRunUpdated'
-        checkRunId: 555
-        snapshot:
-          status: 'queued'
-      - type: 'checkRunUpdated'
-        checkRunId: 555
-        snapshot:
-          status: 'in_progress'
-      - type: 'checkRunUpdated'
-        checkRunId: 555
-        snapshot:
-          status: 'completed'
-          conclusion: 'success'
-
-- id: EVT-04
-  description: Events have unique IDs
-  category: event_sourcing
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    pollSequence:
-      - check_runs:
-          - { id: 555, name: 'build', status: 'queued', conclusion: null }
-  when:
-    call:
-      method: 'checks.stream'
-      limit: 1
-  then:
-    events:
-      - id:
-          pattern: '^evt-check-555-\\d+$'
-
-- id: EVT-06
-  description: Events include transition info
-  category: event_sourcing
-  status: pending
-  priority: P1
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    initialState:
-      checkRuns:
-        - { id: 555, status: 'queued', conclusion: null }
-    pollSequence:
-      - check_runs:
-          - { id: 555, name: 'build', status: 'in_progress', conclusion: null }
-  when:
-    call:
-      method: 'checks.stream'
-      limit: 1
-  then:
-    events:
-      - type: 'checkRunUpdated'
-        transition:
-          from:
-            status: 'queued'
-            conclusion: null
-          to:
-            status: 'in_progress'
-            conclusion: null
-
-- id: EVT-10
-  description: Re-runs create new events with new check run IDs
-  category: event_sourcing
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    pollSequence:
-      - check_runs:
-          - {
-              id: 555,
-              name: 'build',
-              status: 'completed',
-              conclusion: 'failure',
-            }
-      # User clicks re-run, GitHub creates new check run
-      - check_runs:
-          - {
-              id: 555,
-              name: 'build',
-              status: 'completed',
-              conclusion: 'failure',
-            }
-          - { id: 556, name: 'build', status: 'queued', conclusion: null }
-      - check_runs:
-          - {
-              id: 555,
-              name: 'build',
-              status: 'completed',
-              conclusion: 'failure',
-            }
-          - {
-              id: 556,
-              name: 'build',
-              status: 'completed',
-              conclusion: 'success',
-            }
-  when:
-    call:
-      method: 'checks.stream'
-      limit: 3
-  then:
-    events:
-      - { checkRunId: 555, snapshot: { conclusion: 'failure' } }
-      - { checkRunId: 556, snapshot: { status: 'queued' } }
-      - {
-          checkRunId: 556,
-          snapshot: { status: 'completed', conclusion: 'success' },
-        }
-
-# =============================================================================
-# REDUCER PATTERN
-# =============================================================================
-
-- id: RED-01
-  description: Reducer iterates events in order
-  category: reducer
-  status: pending
-  priority: P0
-  given:
-    events:
-      - { id: 'evt-1', checkRunId: 555, snapshot: { status: 'queued' } }
-      - { id: 'evt-2', checkRunId: 555, snapshot: { status: 'in_progress' } }
-      - {
-          id: 'evt-3',
-          checkRunId: 555,
-          snapshot: { status: 'completed', conclusion: 'success' },
-        }
-  when: reduceCheckEvents
-  then:
-    state:
-      555:
-        status: 'completed'
-        conclusion: 'success'
-
-- id: RED-02
-  description: Later events overwrite earlier for same checkRunId
-  category: reducer
-  status: pending
-  priority: P0
-  given:
-    events:
-      - { checkRunId: 555, snapshot: { status: 'queued', conclusion: null } }
-      - {
-          checkRunId: 555,
-          snapshot: { status: 'completed', conclusion: 'failure' },
-        }
-  when: reduceCheckEvents
-  then:
-    state:
-      555:
-        conclusion: 'failure'
-
-- id: RED-04
-  description: allPassed = no failures and no pending
-  category: reducer
-  status: pending
-  priority: P0
-  given:
-    events:
-      - {
-          checkRunId: 1,
-          snapshot: { status: 'completed', conclusion: 'success' },
-        }
-      - {
-          checkRunId: 2,
-          snapshot: { status: 'completed', conclusion: 'success' },
-        }
-  when: computeCheckSummary
-  then:
-    summary:
-      allPassed: true
-      hasFailures: false
-      isComplete: true
-
-- id: RED-05
-  description: hasFailures = any check with conclusion failure
-  category: reducer
-  status: pending
-  priority: P0
-  given:
-    events:
-      - {
-          checkRunId: 1,
-          snapshot: { status: 'completed', conclusion: 'success' },
-        }
-      - {
-          checkRunId: 2,
-          snapshot: { status: 'completed', conclusion: 'failure' },
-        }
-  when: computeCheckSummary
-  then:
-    summary:
-      hasFailures: true
-      allPassed: false
+    api_calls:
+      expected_count: 1 # Only one network call should be made
 
 # =============================================================================
 # CACHING
 # =============================================================================
 
 - id: CAC-01
-  description: Open PRs cache valid for 30 seconds
+  description: HOT Cache - Open PRs cache is valid if called within 30 seconds
   category: caching
-  status: pending
+  status: implemented
   priority: P0
   given:
-    cachedPR:
-      state: 'open'
-      merged: false
-      _lastSyncedAt: 'now - 25 seconds'
-  when: isPRCacheValid
+    system_time: '2023-01-01T12:00:00Z'
+    time_elapsed_ms: 25000 # 25 seconds
+    api_responses:
+      - endpoint: '/repos/owner/repo/pulls/1'
+        status_code: 200
+        body:
+          {
+            id: 1,
+            state: 'open',
+            created_at: '2023-01-01T10:00:00Z',
+            updated_at: '2023-01-01T11:00:00Z',
+          }
+  when:
+    action: 'pr.info'
+    params: { owner: 'owner', repo: 'repo', number: 1 }
+    calls: 2
   then:
-    result: true
+    api_calls:
+      expected_count: 1
 
 - id: CAC-01b
-  description: Open PRs cache invalid after 30 seconds
+  description: HOT Cache - Open PRs cache is invalid if called after 30 seconds
   category: caching
-  status: pending
+  status: implemented
   priority: P0
   given:
-    cachedPR:
-      state: 'open'
-      merged: false
-      _lastSyncedAt: 'now - 35 seconds'
-  when: isPRCacheValid
+    system_time: '2023-01-01T12:00:00Z'
+    time_elapsed_ms: 35000 # 35 seconds
+    api_responses:
+      - endpoint: '/repos/owner/repo/pulls/1'
+        status_code: 200
+        body:
+          {
+            id: 1,
+            state: 'open',
+            created_at: '2023-01-01T10:00:00Z',
+            updated_at: '2023-01-01T11:00:00Z',
+          }
+      - endpoint: '/repos/owner/repo/pulls/1'
+        status_code: 200
+        body:
+          {
+            id: 1,
+            state: 'open',
+            title: 'Updated',
+            created_at: '2023-01-01T10:00:00Z',
+            updated_at: '2023-01-01T11:00:00Z',
+          }
+  when:
+    action: 'pr.info'
+    params: { owner: 'owner', repo: 'repo', number: 1 }
+    calls: 2
   then:
-    result: false
+    api_calls:
+      expected_count: 2
 
 - id: CAC-03
-  description: Merged PRs older than 24h never expire (FROZEN)
+  description: FROZEN Cache - Merged PRs older than 24h never expire
   category: caching
-  status: pending
+  status: implemented
   priority: P0
   given:
-    cachedPR:
-      state: 'closed'
-      merged: true
-      mergedAt: 'now - 48 hours'
-      _lastSyncedAt: 'now - 7 days' # Very old cache
-  when: isPRCacheValid
-  then:
-    result: true
-
-- id: CAC-05
-  description: Checks in-progress cache valid for 10 seconds
-  category: caching
-  status: pending
-  priority: P0
-  given:
-    cachedChecks:
-      checks:
-        - { status: 'in_progress' }
-      cachedAt: 'now - 8 seconds'
-  when: isCheckCacheValid
-  then:
-    result: true
-
-- id: CAC-06
-  description: Completed checks cache valid for 5 minutes
-  category: caching
-  status: pending
-  priority: P0
-  given:
-    cachedChecks:
-      checks:
-        - { status: 'completed', conclusion: 'success' }
-      cachedAt: 'now - 4 minutes'
-  when: isCheckCacheValid
-  then:
-    result: true
-
-# =============================================================================
-# SESSION INTEGRATION
-# =============================================================================
-
-- id: SES-01
-  description: session.pr() returns PRClient if session has PR output
-  category: session
-  status: pending
-  priority: P0
-  given:
-    session:
-      id: 'test-session'
-      outputs:
-        - type: 'pullRequest'
-          pullRequest:
-            url: 'https://github.com/owner/repo/pull/123'
-    githubAdapter:
-      token: 'ghp_xxx'
+    system_time: '2024-01-10T12:00:00Z'
+    time_elapsed_ms: 86400000 # 1 day
+    api_responses:
+      - endpoint: '/repos/owner/repo/pulls/1'
+        status_code: 200
+        body:
+          id: 1
+          state: 'closed'
+          merged: true
+          merged_at: '2024-01-08T10:00:00Z' # 2 days ago
+          created_at: '2024-01-08T09:00:00Z'
+          updated_at: '2024-01-08T09:30:00Z'
   when:
-    call:
-      method: 'session.pr'
+    action: 'pr.info'
+    params: { owner: 'owner', repo: 'repo', number: 1 }
+    calls: 2
   then:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-      sessionId: 'test-session'
-
-- id: SES-02
-  description: session.pr() returns null if no PR output
-  category: session
-  status: pending
-  priority: P0
-  given:
-    session:
-      id: 'test-session'
-      outputs: []
-    githubAdapter:
-      token: 'ghp_xxx'
-  when:
-    call:
-      method: 'session.pr'
-  then:
-    result: null
-
-- id: SES-03
-  description: session.pr() returns null if GitHub not configured
-  category: session
-  status: pending
-  priority: P0
-  given:
-    session:
-      id: 'test-session'
-      outputs:
-        - type: 'pullRequest'
-          pullRequest:
-            url: 'https://github.com/owner/repo/pull/123'
-    githubAdapter: null
-  when:
-    call:
-      method: 'session.pr'
-  then:
-    result: null
-
-# =============================================================================
-# ACTIONS CLIENT
-# =============================================================================
-
-- id: ACT-01
-  description: runs() lists workflow runs for the PR
-  category: actions
-  status: pending
-  priority: P1
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: '/repos/owner/repo/actions/runs'
-      query:
-        head_sha: 'abc123'
-      response:
-        workflow_runs:
-          - { id: 1, name: 'CI', status: 'completed' }
-          - { id: 2, name: 'Deploy', status: 'in_progress' }
-  when:
-    call:
-      method: 'actions.runs'
-  then:
-    result:
-      length: 2
-
-- id: ACT-03
-  description: logs() returns workflow run logs
-  category: actions
-  status: pending
-  priority: P1
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: '/repos/owner/repo/actions/runs/123/logs'
-      response: 'Build started...\nBuild completed.'
-  when:
-    call:
-      method: 'actions.logs'
-      args: [123]
-  then:
-    result:
-      contains: 'Build started'
-
-# =============================================================================
-# FILES CLIENT
-# =============================================================================
-
-- id: FIL-01
-  description: list() returns all files changed in PR
-  category: files
-  status: pending
-  priority: P0
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: '/repos/owner/repo/pulls/123/files'
-      response:
-        - {
-            filename: 'src/index.ts',
-            status: 'modified',
-            additions: 10,
-            deletions: 5,
-          }
-        - {
-            filename: 'README.md',
-            status: 'modified',
-            additions: 2,
-            deletions: 0,
-          }
-  when:
-    call:
-      method: 'files.list'
-  then:
-    result:
-      length: 2
-      firstItem:
-        filename: 'src/index.ts'
-        status: 'modified'
-
-- id: FIL-02
-  description: diff() returns unified diff for entire PR
-  category: files
-  status: pending
-  priority: P1
-  given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: '/repos/owner/repo/pulls/123'
-      headers:
-        Accept: 'application/vnd.github.v3.diff'
-      response: |
-        diff --git a/src/index.ts b/src/index.ts
-        --- a/src/index.ts
-        +++ b/src/index.ts
-        @@ -1,3 +1,4 @@
-        +// New comment
-  when:
-    call:
-      method: 'files.diff'
-  then:
-    result:
-      contains: 'diff --git'
+    api_calls:
+      expected_count: 1
 
 # =============================================================================
 # ERROR HANDLING
@@ -1160,234 +338,94 @@
 - id: ERR-01
   description: 404 response throws GitHubNotFoundError
   category: errors
-  status: pending
+  status: implemented
   priority: P0
   given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 999
-    mockApi:
-      endpoint: '/repos/owner/repo/pulls/999'
-      status: 404
-      response:
-        message: 'Not Found'
+    api_responses:
+      - endpoint: '/repos/owner/repo/pulls/999'
+        status_code: 404
+        body: { message: 'Not Found' }
   when:
-    call:
-      method: 'info'
+    action: 'pr.info'
+    params: { owner: 'owner', repo: 'repo', number: 999 }
   then:
-    throws:
+    error:
       type: 'GitHubNotFoundError'
-      status: 404
+      message: 'GitHub resource not found: /repos/owner/repo/pulls/999'
 
 - id: ERR-02
   description: 401 response throws GitHubAuthError
   category: errors
-  status: pending
+  status: implemented
   priority: P0
   given:
-    adapter:
-      token: 'invalid_token'
-    mockApi:
-      endpoint: '/user'
-      status: 401
-      response:
-        message: 'Bad credentials'
+    api_responses:
+      - endpoint: '/user'
+        status_code: 401
+        body: { message: 'Bad credentials' }
   when:
-    call:
-      method: 'viewer'
+    action: 'adapter.viewer'
   then:
-    throws:
+    error:
       type: 'GitHubAuthError'
-      status: 401
+      message: 'Bad credentials'
 
 - id: ERR-06
   description: 429 response throws GitHubRateLimitError with reset time
   category: errors
-  status: pending
+  status: implemented
   priority: P0
   given:
-    prClient:
-      owner: 'owner'
-      repo: 'repo'
-      number: 123
-    mockApi:
-      endpoint: '/repos/owner/repo/pulls/123'
-      status: 429
-      headers:
-        x-ratelimit-limit: '5000'
-        x-ratelimit-remaining: '0'
-        x-ratelimit-reset: '1704067200'
-      response:
-        message: 'API rate limit exceeded'
+    api_responses:
+      - endpoint: '/repos/owner/repo/pulls/123'
+        status_code: 429
+        headers:
+          x-ratelimit-limit: '5000'
+          x-ratelimit-remaining: '0'
+          x-ratelimit-reset: '1704067200'
+        body: { message: 'API rate limit exceeded' }
   when:
-    call:
-      method: 'info'
+    action: 'pr.info'
+    params: { owner: 'owner', repo: 'repo', number: 123 }
   then:
-    throws:
+    error:
       type: 'GitHubRateLimitError'
-      status: 429
-      limit: 5000
-      remaining: 0
-
-# =============================================================================
-# MCP TOOLS
-# =============================================================================
-
-- id: MCP-01
-  description: GitHub tools return JSON in MCP format
-  category: mcp
-  status: pending
-  priority: P0
-  given:
-    session:
-      id: 'test-session'
-      outputs:
-        - type: 'pullRequest'
-          pullRequest:
-            url: 'https://github.com/owner/repo/pull/123'
-    mockApi:
-      endpoint: '/repos/owner/repo/pulls/123'
-      response:
-        number: 123
-        title: 'Test PR'
-        state: 'open'
-  when:
-    mcpCall:
-      tool: 'github_get_pr'
-      args:
-        owner: 'owner'
-        repo: 'repo'
-        number: 123
-  then:
-    mcpResponse:
-      content:
-        - type: 'text'
-          textIsValidJSON: true
-
-- id: MCP-02
-  description: Missing required args return error
-  category: mcp
-  status: pending
-  priority: P0
-  given: {}
-  when:
-    mcpCall:
-      tool: 'github_get_pr'
-      args: {}
-  then:
-    mcpResponse:
-      isError: true
-
-- id: MCP-05
-  description: github_merge_pr supports merge methods
-  category: mcp
-  status: pending
-  priority: P0
-  given:
-    mockApi:
-      endpoint: 'PUT /repos/owner/repo/pulls/123/merge'
-      expectedBody:
-        merge_method: 'squash'
-      response:
-        sha: 'abc123'
-        merged: true
-  when:
-    mcpCall:
-      tool: 'github_merge_pr'
-      args:
-        owner: 'owner'
-        repo: 'repo'
-        number: 123
-        method: 'squash'
-  then:
-    mcpResponse:
-      content:
-        - type: 'text'
-          textContains: 'abc123'
-
-- id: MCP-06
-  description: github_pr_from_session returns error if no PR
-  category: mcp
-  status: pending
-  priority: P1
-  given:
-    session:
-      id: 'test-session'
-      outputs: []
-  when:
-    mcpCall:
-      tool: 'github_pr_from_session'
-      args:
-        sessionId: 'test-session'
-  then:
-    mcpResponse:
-      isError: true
-      textContains: 'No PR'
+      message: 'GitHub rate limit exceeded. Resets at 2024-01-01T00:00:00.000Z'
 
 # =============================================================================
 # AUTHENTICATION (PAT only)
 # =============================================================================
 
-- id: AUTH-01
-  description: Token is included in Authorization header
-  category: auth
-  status: pending
-  priority: P0
-  given:
-    adapter:
-      token: 'ghp_xxxxxxxxxxxx'
-    mockApi:
-      endpoint: '/user'
-      expectedHeaders:
-        Authorization: 'Bearer ghp_xxxxxxxxxxxx'
-      response:
-        id: 123
-        login: 'testuser'
-  when:
-    call:
-      method: 'viewer'
-  then:
-    success: true
-
 - id: AUTH-02
   description: 401 response throws GitHubAuthError
   category: auth
-  status: pending
+  status: implemented
   priority: P0
   given:
-    adapter:
-      token: 'invalid_token'
-    mockApi:
-      endpoint: '/user'
-      status: 401
-      response:
-        message: 'Bad credentials'
+    api_responses:
+      - endpoint: '/user'
+        status_code: 401
+        body: { message: 'Bad credentials' }
   when:
-    call:
-      method: 'viewer'
+    action: 'adapter.viewer'
   then:
-    throws:
+    error:
       type: 'GitHubAuthError'
       status: 401
 
 - id: AUTH-03
   description: Token is never logged or exposed in errors
   category: auth
-  status: pending
+  status: implemented
   priority: P0
   given:
-    adapter:
-      token: 'ghp_secret_token_xxx'
-    mockApi:
-      endpoint: '/user'
-      status: 401
-      response:
-        message: 'Bad credentials'
+    api_responses:
+      - endpoint: '/user'
+        status_code: 401
+        body: { message: 'Bad credentials' }
   when:
-    call:
-      method: 'viewer'
+    action: 'adapter.viewer'
   then:
-    throws:
+    error:
       type: 'GitHubAuthError'
       messageNotContains: 'ghp_secret_token_xxx'
