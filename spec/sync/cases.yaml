@@ -229,7 +229,7 @@
 - id: HYD-PARTIAL-01
   description: Resume after interrupted sync
   category: hydration
-  status: pending
+  status: implemented
   priority: P0
   given:
     localSessions:
@@ -264,7 +264,7 @@
 - id: HYD-PARTIAL-02
   description: Download new activities after initial sync
   category: hydration
-  status: pending
+  status: implemented
   priority: P0
   given:
     localSessions:
