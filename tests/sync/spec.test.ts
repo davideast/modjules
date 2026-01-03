@@ -360,8 +360,8 @@ function executeTest(tc: TestCase) {
           // Sort by createTime descending (newest first, as API returns)
           const sorted = [...activities].sort(
             (a, b) =>
-              new Date(b.createTime || 0).getTime() -
-              new Date(a.createTime || 0).getTime(),
+              new Date((b as any).createTime || 0).getTime() -
+              new Date((a as any).createTime || 0).getTime(),
           );
           for (const act of sorted) {
             yield act;
