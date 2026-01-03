@@ -209,7 +209,7 @@
 - id: RL-EXP-01
   description: Expected - unlimited retries never throw 429
   category: rate_limiting
-  status: pending
+  status: implemented
   priority: P0
   given:
     apiResponses:
