@@ -30,7 +30,13 @@ export interface PRResource {
   merged: boolean;
   draft: boolean;
   mergeable: boolean | null;
-  mergeableState: 'clean' | 'dirty' | 'blocked' | 'behind' | 'unstable' | 'unknown';
+  mergeableState:
+    | 'clean'
+    | 'dirty'
+    | 'blocked'
+    | 'behind'
+    | 'unstable'
+    | 'unknown';
   baseRef: string;
   headRef: string;
   baseCommitSha: string;
@@ -56,7 +62,9 @@ export interface GitHubAdapter {
   pr(repo: string, number: number): PRClient;
   pr(options: { owner: string; repo: string; number: number }): PRClient;
   pr(url: string): PRClient;
-  parsePrUrl(url: string): { owner: string; repo: string; number: number } | null;
+  parsePrUrl(
+    url: string,
+  ): { owner: string; repo: string; number: number } | null;
   viewer(): Promise<GitHubUser>;
   rateLimit(): Promise<RateLimitInfo>;
 }

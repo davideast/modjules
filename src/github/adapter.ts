@@ -30,7 +30,9 @@ class GitHubAdapterImpl implements GitHubAdapter {
   }
 
   pr(
-    repoOrOptionsOrUrl: string | { owner: string; repo: string; number: number },
+    repoOrOptionsOrUrl:
+      | string
+      | { owner: string; repo: string; number: number },
     number?: number,
   ): PRClient {
     if (typeof repoOrOptionsOrUrl === 'string') {
@@ -46,7 +48,12 @@ class GitHubAdapterImpl implements GitHubAdapter {
       // Overload 3: pr('https://github.com/owner/repo/pull/123')
       const parsed = this.parsePrUrl(repoOrOptionsOrUrl);
       if (parsed) {
-        return new PRClientImpl(this.api, parsed.owner, parsed.repo, parsed.number);
+        return new PRClientImpl(
+          this.api,
+          parsed.owner,
+          parsed.repo,
+          parsed.number,
+        );
       }
       throw new Error('Invalid PR URL or repo string.');
     }
@@ -60,7 +67,9 @@ class GitHubAdapterImpl implements GitHubAdapter {
     throw new Error('Invalid arguments for pr() method.');
   }
 
-  parsePrUrl(url: string): { owner: string; repo: string; number: number } | null {
+  parsePrUrl(
+    url: string,
+  ): { owner: string; repo: string; number: number } | null {
     const match = url.match(
       /^https?:\/\/(?:www\.)?github\.com\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)\/pull\/(\d+)/,
     );

@@ -69,7 +69,9 @@ export class PRClientImpl implements PRClient {
       return this.cache.resource;
     }
 
-    const data = await this.api.request<any>(`/repos/${this.owner}/${this.repo}/pulls/${this.number}`);
+    const data = await this.api.request<any>(
+      `/repos/${this.owner}/${this.repo}/pulls/${this.number}`,
+    );
 
     const resource = mapToPRResource(data);
 

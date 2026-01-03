@@ -166,7 +166,13 @@
           deletions: 2
           changed_files: 1
           commits: 1
-          user: { id: 1, login: 'test-user', type: 'User', avatar_url: 'avatar-url' }
+          user:
+            {
+              id: 1,
+              login: 'test-user',
+              type: 'User',
+              avatar_url: 'avatar-url',
+            }
           assignees: []
           created_at: '2023-01-01T10:00:00Z'
           updated_at: '2023-01-01T11:00:00Z'
@@ -197,7 +203,8 @@
       deletions: 2
       changedFiles: 1
       commits: 1
-      author: { id: 1, login: 'test-user', type: 'User', avatarUrl: 'avatar-url' }
+      author:
+        { id: 1, login: 'test-user', type: 'User', avatarUrl: 'avatar-url' }
       assignees: []
       createdAt: '2023-01-01T10:00:00.000Z'
       updatedAt: '2023-01-01T11:00:00.000Z'
@@ -217,7 +224,13 @@
     api_responses:
       - endpoint: '/repos/owner/repo/pulls/123'
         status_code: 200
-        body: { id: 999, state: 'open', created_at: '2023-01-01T10:00:00Z', updated_at: '2023-01-01T11:00:00Z' }
+        body:
+          {
+            id: 999,
+            state: 'open',
+            created_at: '2023-01-01T10:00:00Z',
+            updated_at: '2023-01-01T11:00:00Z',
+          }
   when:
     action: 'pr.info'
     params: { owner: 'owner', repo: 'repo', number: 123 }
@@ -241,7 +254,13 @@
     api_responses:
       - endpoint: '/repos/owner/repo/pulls/1'
         status_code: 200
-        body: { id: 1, state: 'open', created_at: '2023-01-01T10:00:00Z', updated_at: '2023-01-01T11:00:00Z' }
+        body:
+          {
+            id: 1,
+            state: 'open',
+            created_at: '2023-01-01T10:00:00Z',
+            updated_at: '2023-01-01T11:00:00Z',
+          }
   when:
     action: 'pr.info'
     params: { owner: 'owner', repo: 'repo', number: 1 }
@@ -261,10 +280,23 @@
     api_responses:
       - endpoint: '/repos/owner/repo/pulls/1'
         status_code: 200
-        body: { id: 1, state: 'open', created_at: '2023-01-01T10:00:00Z', updated_at: '2023-01-01T11:00:00Z' }
+        body:
+          {
+            id: 1,
+            state: 'open',
+            created_at: '2023-01-01T10:00:00Z',
+            updated_at: '2023-01-01T11:00:00Z',
+          }
       - endpoint: '/repos/owner/repo/pulls/1'
         status_code: 200
-        body: { id: 1, state: 'open', title: 'Updated', created_at: '2023-01-01T10:00:00Z', updated_at: '2023-01-01T11:00:00Z' }
+        body:
+          {
+            id: 1,
+            state: 'open',
+            title: 'Updated',
+            created_at: '2023-01-01T10:00:00Z',
+            updated_at: '2023-01-01T11:00:00Z',
+          }
   when:
     action: 'pr.info'
     params: { owner: 'owner', repo: 'repo', number: 1 }

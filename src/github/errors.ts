@@ -1,5 +1,9 @@
 export class GitHubError extends Error {
-  constructor(message: string, public readonly status: number, public readonly response?: any) {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly response?: any,
+  ) {
     super(message);
     this.name = 'GitHubError';
   }
@@ -25,7 +29,10 @@ export class GitHubRateLimitError extends GitHubError {
     public readonly limit: number,
     public readonly remaining: number,
   ) {
-    super(`GitHub rate limit exceeded. Resets at ${resetAt.toISOString()}`, 429);
+    super(
+      `GitHub rate limit exceeded. Resets at ${resetAt.toISOString()}`,
+      429,
+    );
     this.name = 'GitHubRateLimitError';
   }
 }

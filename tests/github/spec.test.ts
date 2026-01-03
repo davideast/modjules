@@ -22,7 +22,12 @@ const createMockPRResponse = (overrides = {}) => ({
   deletions: 5,
   changed_files: 2,
   commits: 1,
-  user: { id: 1, login: 'testuser', type: 'User', avatar_url: 'https://avatar.url' },
+  user: {
+    id: 1,
+    login: 'testuser',
+    type: 'User',
+    avatar_url: 'https://avatar.url',
+  },
   assignees: [],
   created_at: '2023-01-01T00:00:00Z',
   updated_at: '2023-01-01T00:00:00Z',
@@ -51,7 +56,10 @@ describe('GitHub Caching - Spec Tests', () => {
       const response = responses.shift();
       if (!response) {
         // Return a default 404 if no responses are queued, to avoid test errors
-        return new Response(JSON.stringify({ message: 'No more queued responses' }), { status: 404 });
+        return new Response(
+          JSON.stringify({ message: 'No more queued responses' }),
+          { status: 404 },
+        );
       }
       return response;
     });
@@ -73,7 +81,7 @@ describe('GitHub Caching - Spec Tests', () => {
     const responseBody = JSON.stringify(data);
     const headers = new Headers({
       'Content-Type': 'application/json',
-      'Content-Length': String(new TextEncoder().encode(responseBody).length)
+      'Content-Length': String(new TextEncoder().encode(responseBody).length),
     });
 
     const response = new Response(responseBody, {
@@ -84,10 +92,10 @@ describe('GitHub Caching - Spec Tests', () => {
 
     // Cloning the response to make it reusable in the mock queue if needed
     Object.defineProperty(response, 'clone', {
-        value: () => {
-            const newResponse = new Response(responseBody, { status, headers });
-            return newResponse;
-        }
+      value: () => {
+        const newResponse = new Response(responseBody, { status, headers });
+        return newResponse;
+      },
     });
 
     responses.push(response);

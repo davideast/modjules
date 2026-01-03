@@ -1,6 +1,9 @@
 import type { CachedPR } from './types.js';
 
-export function isPRCacheValid(cached: CachedPR | undefined, now: number = Date.now()): boolean {
+export function isPRCacheValid(
+  cached: CachedPR | undefined,
+  now: number = Date.now(),
+): boolean {
   if (!cached) return false;
 
   const age = now - cached._lastSyncedAt;
