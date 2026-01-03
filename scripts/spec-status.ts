@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
+
 /**
  * Quick status report for spec-driven test cases.
  *
  * Usage:
- *   npx tsx scripts/spec-status.ts          # All specs
- *   npx tsx scripts/spec-status.ts github   # Just github spec
- *   npx tsx scripts/spec-status.ts sync     # Just sync spec
+ *   bun scripts/spec-status.ts          # All specs
+ *   bun scripts/spec-status.ts github   # Just github spec
+ *   bun scripts/spec-status.ts sync     # Just sync spec
  */
 
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
