@@ -355,10 +355,15 @@ function executeTest(tc: TestCase) {
 
     if (serverActivities) {
       mockSessionClient.history = vi.fn(async function* () {
+        // Get the session ID from context - in real tests we'd track this
         for (const [sessId, activities] of Object.entries(serverActivities)) {
-          // In a real scenario, we'd filter by current session, but for tests
-          // we often only have one session context.
-          for (const act of activities) {
+          // Sort by createTime descending (newest first, as API returns)
+          const sorted = [...activities].sort(
+            (a, b) =>
+              new Date((b as any).createTime || 0).getTime() -
+              new Date((a as any).createTime || 0).getTime(),
+          );
+          for (const act of sorted) {
             yield act;
           }
         }

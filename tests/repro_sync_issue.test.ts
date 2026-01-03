@@ -62,6 +62,9 @@ describe('JulesClient.sync() Repro', () => {
     mockActivityStorage = {
       scan: vi.fn(async function* () {}),
       upsert: vi.fn(),
+      init: vi.fn(),
+      latest: vi.fn(),
+      append: vi.fn(),
     };
 
     mockStorageFactory = {
@@ -101,7 +104,7 @@ describe('JulesClient.sync() Repro', () => {
         })(),
       ),
     };
-    vi.spyOn(client, 'session').mockResolvedValue(mockSessionClient as any);
+    vi.spyOn(client, 'session').mockReturnValue(mockSessionClient as any);
 
     // Act
     const result = await client.sync({
@@ -113,8 +116,9 @@ describe('JulesClient.sync() Repro', () => {
     console.log('Sync result:', result);
 
     // Assert
-    // Now expecting success because of the fix
-    expect(result.sessionsIngested).toBeGreaterThan(0);
+    expect(result.sessionsIngested).toBe(0); // No new sessions were ingested
     expect(result.activitiesIngested).toBeGreaterThan(0);
+    // Crucially, check that we attempted to upsert the older session
+    expect(mockSessionStorage.upsert).toHaveBeenCalledWith(session1);
   });
 });

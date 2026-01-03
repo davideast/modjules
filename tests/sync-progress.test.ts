@@ -21,6 +21,9 @@ describe('JulesClient.sync Progress', () => {
     const mockActivityStorage = {
       scan: async function* () {},
       upsert: vi.fn(),
+      init: vi.fn(),
+      latest: vi.fn(),
+      append: vi.fn(),
     };
 
     mockStorage = {
@@ -56,7 +59,7 @@ describe('JulesClient.sync Progress', () => {
         })(),
       ),
     };
-    jules.session = vi.fn().mockResolvedValue(mockSessionClient as any);
+    jules.session = vi.fn().mockReturnValue(mockSessionClient as any);
 
     const onProgress = vi.fn();
 
