@@ -60,7 +60,10 @@ export class JulesMCPClient {
     const originalFetch = globalThis.fetch;
     if ((originalFetch as any).__julesMcpPatched) return;
 
-    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    (globalThis as any).fetch = async (
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ) => {
       let url = input.toString();
       if (input instanceof Request) url = input.url;
 
