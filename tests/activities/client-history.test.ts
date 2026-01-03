@@ -46,13 +46,14 @@ const createMockNetwork = (pages: Activity[][]): NetworkClient => {
 };
 
 describe('DefaultActivityClient.history()', () => {
-  it('returns activities from cache when available', async () => {
+  it('returns activities from cache when available (after hydrate)', async () => {
     const cachedActivities = [
       { id: '1', createTime: '2024-01-01T00:00:00Z' } as Activity,
       { id: '2', createTime: '2024-01-02T00:00:00Z' } as Activity,
     ];
 
     const storage = createMockStorage(cachedActivities);
+    // Network returns empty since all activities are already cached
     const network = createMockNetwork([]);
     const client = new DefaultActivityClient(storage, network);
 
@@ -64,7 +65,10 @@ describe('DefaultActivityClient.history()', () => {
     expect(result).toHaveLength(2);
     expect(result[0].id).toBe('1');
     expect(result[1].id).toBe('2');
-    expect(network.listActivities).not.toHaveBeenCalled();
+    // history() now always calls hydrate() first, which calls listActivities
+    expect(network.listActivities).toHaveBeenCalledTimes(1);
+    // No new activities were appended since they were all in cache
+    expect(storage.append).not.toHaveBeenCalled();
   });
 
   it('fetches from network when cache is empty', async () => {
@@ -105,7 +109,7 @@ describe('DefaultActivityClient.history()', () => {
     expect(network.listActivities).toHaveBeenCalledTimes(3);
   });
 
-  it('yields activities as they are fetched (streaming)', async () => {
+  it('hydrates all activities before yielding from storage', async () => {
     const activities = [
       { id: '1', createTime: '2024-01-01T00:00:00Z' } as Activity,
       { id: '2', createTime: '2024-01-02T00:00:00Z' } as Activity,
@@ -118,10 +122,9 @@ describe('DefaultActivityClient.history()', () => {
     const yielded: string[] = [];
     for await (const act of client.history()) {
       yielded.push(act.id);
-      if (yielded.length === 1) {
-        // After first yield, storage should have been called once
-        expect(storage.append).toHaveBeenCalledTimes(1);
-      }
+      // Since hydrate() runs first, all activities are appended before yielding starts
+      // After any yield, all activities should have been appended during hydrate
+      expect(storage.append).toHaveBeenCalledTimes(2);
     }
 
     expect(yielded).toEqual(['1', '2']);

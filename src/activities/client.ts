@@ -27,23 +27,22 @@ export class DefaultActivityClient implements ActivityClient {
   ) {}
 
   /**
-   * Returns an async iterable of all activities stored locally.
+   * Returns an async iterable of all activities.
+   *
+   * **Behavior:**
+   * - Always syncs new activities from the network first (via hydrate).
+   * - Then yields all activities from local storage.
+   *
+   * This ensures callers always get the complete, up-to-date history
+   * rather than potentially stale cached data.
    */
   async *history(): AsyncIterable<Activity> {
-    // Ensure storage is ready before we start yielding
-    await this.storage.init();
+    // Always sync new activities from network before yielding.
+    // This fixes the stale cache bug where history() would return
+    // outdated data if the cache was populated earlier.
+    await this.hydrate();
 
-    // Check if cache has any activities
-    const hasCache = (await this.storage.latest()) !== undefined;
-
-    // If cache is empty, populate from network
-    if (!hasCache) {
-      yield* this.fetchAndCacheAll();
-      return;
-    }
-
-    // Idiomatic delegation to the storage's generator.
-    // This yields every item from storage.scan() one by one.
+    // Now yield all activities from storage (including newly synced ones)
     yield* this.storage.scan();
   }
 
@@ -68,32 +67,48 @@ export class DefaultActivityClient implements ActivityClient {
   }
 
   /**
-   * Forces a full sync of activities from the network to local cache.
-   * Useful when you suspect the cache is stale.
+   * Syncs new activities from the network to local cache.
+   * Uses a high-water mark strategy to avoid re-downloading activities
+   * we already have (since activities are immutable).
    *
-   * @returns The number of activities synced.
+   * @returns The number of new activities synced.
    */
   async hydrate(): Promise<number> {
     await this.storage.init();
 
+    // 1. Establish high-water mark from the latest cached activity.
+    // This is O(1) instead of scanning the entire cache.
+    const latest = await this.storage.latest();
+    const highWaterMark = latest?.createTime
+      ? new Date(latest.createTime).getTime()
+      : 0;
+
     let count = 0;
     let pageToken: string | undefined;
-
-    const existingIds = new Set<string>();
-
-    for await (const act of this.storage.scan()) {
-      existingIds.add(act.id);
-    }
 
     do {
       const response = await this.network.listActivities({ pageToken });
 
       for (const activity of response.activities) {
-        if (!existingIds.has(activity.id)) {
-          await this.storage.append(activity);
-          existingIds.add(activity.id);
-          count++;
+        const actTime = new Date(activity.createTime).getTime();
+
+        // 2. Skip activities older than our high-water mark (we have them)
+        if (actTime < highWaterMark) {
+          continue;
         }
+
+        // 3. For activities at the exact boundary timestamp, check storage
+        // to handle multiple activities with identical timestamps.
+        if (actTime === highWaterMark) {
+          const existing = await this.storage.get(activity.id);
+          if (existing) {
+            continue;
+          }
+        }
+
+        // 4. It's new - append to storage
+        await this.storage.append(activity);
+        count++;
       }
 
       pageToken = response.nextPageToken;
