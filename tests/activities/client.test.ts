@@ -49,7 +49,7 @@ describe('DefaultActivityClient', () => {
   });
 
   describe('history()', () => {
-    it('should initialize storage and yield activities from storage.scan()', async () => {
+    it('should hydrate from network then yield all activities from storage', async () => {
       const mockActivities = [
         createActivity('a1', '2023-10-26T10:00:00Z'),
         createActivity('a2', '2023-10-26T10:01:00Z'),
@@ -58,17 +58,57 @@ describe('DefaultActivityClient', () => {
       storageMock.scan = vi.fn().mockImplementation(async function* () {
         yield* mockActivities;
       });
-      // Mock latest() to return something, simulating existing cache
+      // Mock latest() to return the most recent activity (high-water mark)
       storageMock.latest = vi.fn().mockResolvedValue(mockActivities[1]);
+      // Network returns empty (no new activities newer than high-water mark)
+      networkMock.listActivities = vi
+        .fn()
+        .mockResolvedValue({ activities: [] });
 
       const result = [];
       for await (const activity of client.history()) {
         result.push(activity);
       }
 
+      // hydrate() calls init() and latest() (not scan) for high-water mark
+      // Then history() calls scan() to yield activities
       expect(storageMock.init).toHaveBeenCalledTimes(1);
-      expect(storageMock.scan).toHaveBeenCalledTimes(1);
+      expect(storageMock.latest).toHaveBeenCalled();
+      expect(storageMock.scan).toHaveBeenCalledTimes(1); // Only to yield
+      expect(networkMock.listActivities).toHaveBeenCalledTimes(1);
       expect(result).toEqual(mockActivities);
+    });
+
+    it('should sync new activities from network before yielding', async () => {
+      const existingActivity = createActivity('a1', '2023-10-26T10:00:00Z');
+      const newActivity = createActivity('a2', '2023-10-26T10:01:00Z');
+
+      // Storage has existing activity, scan will yield both after append
+      const stored = [existingActivity];
+      storageMock.scan = vi.fn().mockImplementation(async function* () {
+        yield* stored;
+      });
+      storageMock.latest = vi.fn().mockResolvedValue(existingActivity);
+      storageMock.append = vi.fn().mockImplementation(async (act) => {
+        stored.push(act);
+      });
+      // Mock get() to return existing activity (for boundary timestamp check)
+      storageMock.get = vi.fn().mockImplementation(async (id: string) => {
+        return stored.find((a) => a.id === id);
+      });
+      // Network returns both, but hydrate will skip existing (at high-water mark)
+      // and append only the new one (newer than high-water mark)
+      networkMock.listActivities = vi
+        .fn()
+        .mockResolvedValue({ activities: [existingActivity, newActivity] });
+
+      const result = [];
+      for await (const activity of client.history()) {
+        result.push(activity);
+      }
+
+      expect(storageMock.append).toHaveBeenCalledWith(newActivity);
+      expect(result).toEqual([existingActivity, newActivity]);
     });
   });
 
@@ -144,8 +184,12 @@ describe('DefaultActivityClient', () => {
       storageMock.scan = vi.fn().mockImplementation(async function* () {
         yield historyActivity;
       });
-      // updates() calls latest(), so we need to make sure it returns the last one from history
+      // latest() called by hydrate() and updates() to set high-water mark
       storageMock.latest = vi.fn().mockResolvedValue(historyActivity);
+      // Network returns empty for hydrate (no new activities)
+      networkMock.listActivities = vi
+        .fn()
+        .mockResolvedValue({ activities: [] });
 
       networkMock.rawStream = vi.fn().mockImplementation(async function* () {
         // raw stream might yield everything again, updates() should filter
@@ -159,9 +203,10 @@ describe('DefaultActivityClient', () => {
       }
 
       expect(result).toEqual([historyActivity, updateActivity]);
+      // scan() called once: in history() to yield (hydrate uses latest(), not scan())
       expect(storageMock.scan).toHaveBeenCalledTimes(1);
-      // latest() called in history() check + updates() check
-      expect(storageMock.latest).toHaveBeenCalledTimes(2);
+      // latest() called by hydrate() and updates() to set high-water mark
+      expect(storageMock.latest).toHaveBeenCalled();
     });
   });
 
