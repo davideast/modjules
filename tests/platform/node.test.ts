@@ -21,7 +21,7 @@ describe('NodePlatform', () => {
         }
         return new Response(null, { status: 500 });
       },
-    );
+    ) as unknown as typeof fetch;
   });
 
   afterEach(() => {

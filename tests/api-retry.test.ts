@@ -8,7 +8,7 @@ describe('ApiClient 429 Retry Logic', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     // Mock global fetch
-    global.fetch = vi.fn();
+    global.fetch = vi.fn() as unknown as typeof fetch;
   });
 
   afterEach(() => {

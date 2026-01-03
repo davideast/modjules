@@ -15,6 +15,7 @@ export default defineConfig({
         // Auth strategies under server namespace
         'server/auth/firebase': 'src/auth/strategies/firebase.ts',
         'server/auth/memory': 'src/auth/strategies/memory.ts',
+        'server/auth/rbac': 'src/auth/strategies/rbac.ts',
         // MCP
         mcp: 'src/mcp/index.ts',
         'mcp/cli': 'src/mcp/cli.ts',

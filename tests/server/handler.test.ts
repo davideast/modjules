@@ -87,7 +87,9 @@ describe('Server Core (The Vendor)', () => {
     (platform.fetch as any).mockImplementation(mockFetchImpl);
 
     // Mock global.fetch (used by ApiClient in Handshake flow)
-    global.fetch = vi.fn().mockImplementation(mockFetchImpl as any);
+    global.fetch = vi
+      .fn()
+      .mockImplementation(mockFetchImpl as any) as unknown as typeof fetch;
   });
 
   afterEach(() => {

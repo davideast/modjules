@@ -3,7 +3,7 @@ import { ApiClient } from '../src/api.js';
 
 describe('ApiClient (Unit)', () => {
   const mockFetch = vi.fn();
-  global.fetch = mockFetch;
+  global.fetch = mockFetch as any;
 
   const proxyConfig = {
     url: 'https://proxy.com/api',
