@@ -374,7 +374,7 @@
 - id: PROD-IDEM-01
   description: Concurrent sync calls are prevented
   category: production_idempotency
-  status: pending
+  status: implemented
   priority: P0
   given:
     syncInProgress: true
