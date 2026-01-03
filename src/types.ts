@@ -904,7 +904,7 @@ export interface SessionClient {
   result(): Promise<Outcome>;
 
   /**
-   * Pauses execution and waits until the session reaches a specific state.
+   * Pauses execution and waits until the session to reach a specific state.
    *
    * @param state The target state to wait for.
    * @example
@@ -1204,7 +1204,11 @@ export type SyncDepth = 'metadata' | 'activities';
  * Progress updates for observability.
  */
 export interface SyncProgress {
-  phase: 'fetching_list' | 'hydrating_records' | 'hydrating_activities';
+  phase:
+    | 'fetching_list'
+    | 'hydrating_records'
+    | 'hydrating_activities'
+    | 'checkpoint';
   current: number;
   total?: number;
   lastIngestedId?: string;
