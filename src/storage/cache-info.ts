@@ -166,3 +166,11 @@ export async function getCacheInfo(
     return getCacheInfoLegacy(rootDirOverride);
   }
 }
+
+export async function getActivityCount(
+  sessionId: string,
+  rootDirOverride?: string,
+): Promise<number> {
+  const info = await getSessionCacheInfo(sessionId, rootDirOverride);
+  return info?.activityCount ?? 0;
+}
