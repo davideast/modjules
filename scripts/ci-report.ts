@@ -16,6 +16,24 @@ function findHumanUser(body: string): string | null {
   return null;
 }
 
+/**
+ * Fetches a GitHub user's ID from their username.
+ */
+async function getGitHubUserId(username: string): Promise<string | null> {
+  try {
+    const res = await fetch(`https://api.github.com/users/${username}`, {
+      headers: {
+        Accept: 'application/vnd.github.v3+json',
+      },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { id: number };
+    return String(data.id);
+  } catch {
+    return null;
+  }
+}
+
 async function report() {
   try {
     const branchName = process.env.BRANCH_NAME;
@@ -46,8 +64,19 @@ async function report() {
       : 'No details provided.';
 
     // 1. Generate the Attribution Trailer
-    const targetLogin = findHumanUser(prBody) || prUserLogin;
-    const targetId = prUserId;
+    // Must fetch the actual GitHub ID for mentioned users, not use PR creator's ID
+    const mentionedUser = findHumanUser(prBody);
+    let targetLogin = prUserLogin;
+    let targetId = prUserId;
+
+    if (mentionedUser) {
+      const fetchedId = await getGitHubUserId(mentionedUser);
+      if (fetchedId) {
+        targetLogin = mentionedUser;
+        targetId = fetchedId;
+      }
+    }
+
     const trailer = `Co-authored-by: ${targetLogin} <${targetId}+${targetLogin}@users.noreply.github.com>`;
 
     // 2. Format Files list
@@ -63,9 +92,9 @@ async function report() {
     if (errorType === 'Attribution Check') {
       instruction = `🚨 **Missing Attribution Detected**
 
-I have a specialized script to fix this for you. Please run:
+Run this command to fix attribution:
 \`\`\`bash
-bun scripts/fix-attribution.ts "${trailer}"
+git commit --amend --no-edit --message="$(git log -1 --pretty=%B)" --message="${trailer}"
 \`\`\``;
     }
 
