@@ -4,6 +4,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import {
   getActivityCount,
+  getLatestActivities,
   getSessionCount,
 } from '../../src/storage/cache-info.js';
 import {
@@ -19,6 +20,7 @@ vi.mock('fs/promises', async () => {
   return {
     ...actual,
     readdir: vi.fn(actual.readdir),
+    readFile: vi.fn(actual.readFile),
   };
 });
 
@@ -59,8 +61,10 @@ describe('Efficient Queries Specs', () => {
   });
 
   for (const tc of efficientQueriesSpecCases) {
-    it(tc.id, async () => {
-      const rootDir = `tests/temp/efficient-queries/${tc.id}`;
+    it(
+      tc.id,
+      async () => {
+        const rootDir = `tests/temp/efficient-queries/${tc.id}`;
       await fs.mkdir(rootDir, { recursive: true });
 
       if (tc.when === 'getActivityCount') {
@@ -126,7 +130,56 @@ describe('Efficient Queries Specs', () => {
         ) {
           expect(vi.mocked(fs.readdir)).not.toHaveBeenCalled();
         }
+      } else if (tc.when.startsWith('getLatestActivities')) {
+        const n = parseInt(tc.when.match(/\d+/)?.[0] || '10');
+        const { sessionId, activities, cachedActivities } = tc.given;
+
+        const activityStorage = new NodeFileStorage(sessionId, rootDir);
+
+        if (activities) {
+          // EFF-03: specific activities with createTime
+          for (const act of activities) {
+            await activityStorage.append({
+              id: act.id,
+              type: 'progressUpdated',
+              createTime: act.createTime,
+            } as Activity);
+          }
+        } else if (cachedActivities) {
+          // EFF-04: large dataset
+          for (let i = 0; i < cachedActivities; i++) {
+            await activityStorage.append({
+              id: `act-${i}`,
+              type: 'progressUpdated',
+              createTime: new Date(Date.now() + i * 1000).toISOString(),
+            } as Activity);
+          }
+        }
+
+        const readFileSpy = vi.mocked(fs.readFile);
+        const result = await getLatestActivities(sessionId, n, rootDir);
+
+        if (
+          tc.then.performance &&
+          tc.then.performance.fullScanRequired === false
+        ) {
+          expect(readFileSpy).not.toHaveBeenCalledWith(
+            expect.stringContaining('activities.jsonl'),
+            'utf8',
+          );
+        }
+
+        if (tc.then.result) {
+          expect(result.map((a) => a.id)).toEqual(
+            tc.then.result.map((r: any) => r.id),
+          );
+        }
+        if (tc.then.resultCount) {
+          expect(result.length).toBe(tc.then.resultCount);
+        }
       }
-    });
+    },
+    20000,
+    );
   }
 });

@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { Activity } from '../types.js';
 import { getRootDir } from './root.js';
 import { GlobalCacheMetadata, SessionMetadata } from './types.js';
 
@@ -180,4 +181,58 @@ export async function getActivityCount(
 ): Promise<number> {
   const info = await getSessionCacheInfo(sessionId, rootDirOverride);
   return info?.activityCount ?? 0;
+}
+
+export async function getLatestActivities(
+  sessionId: string,
+  n: number,
+  rootDirOverride?: string,
+): Promise<Activity[]> {
+  const rootDir = rootDirOverride ?? getRootDir();
+  const activitiesPath = path.join(
+    rootDir,
+    '.jules/cache',
+    sessionId,
+    'activities.jsonl',
+  );
+
+  const CHUNK_SIZE = 1024 * 8; // 8KB
+  let fileHandle;
+  try {
+    fileHandle = await fs.open(activitiesPath, 'r');
+    const stats = await fileHandle.stat();
+    let position = stats.size;
+    let buffer = Buffer.alloc(CHUNK_SIZE);
+    let tail = '';
+    const lines: string[] = [];
+
+    while (position > 0 && lines.length < n) {
+      const readSize = Math.min(position, CHUNK_SIZE);
+      position -= readSize;
+
+      await fileHandle.read(buffer, 0, readSize, position);
+      const chunk = buffer.toString('utf8', 0, readSize);
+      const combined = chunk + tail;
+      const chunkLines = combined.split('\n');
+      tail = chunkLines.shift() || '';
+
+      for (let i = chunkLines.length - 1; i >= 0; i--) {
+        if (chunkLines[i] && lines.length < n) {
+          lines.unshift(chunkLines[i]);
+        }
+      }
+    }
+
+    if (lines.length < n && tail) {
+      lines.unshift(tail);
+    }
+
+    const finalLines = lines.slice(-n).reverse();
+    return finalLines.map((line) => JSON.parse(line));
+  } catch (e: any) {
+    if (e.code === 'ENOENT') return [];
+    throw e;
+  } finally {
+    await fileHandle?.close();
+  }
 }

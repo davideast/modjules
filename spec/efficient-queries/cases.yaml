@@ -45,7 +45,8 @@
 - id: EFF-03
   description: Get latest N activities returns newest first
   category: latest
-  status: pending
+  status: implemented
+  testedIn: tests/efficient-queries/spec.test.ts
   priority: P0
   given:
     sessionId: 'sess-ordered'
@@ -65,7 +66,8 @@
 - id: EFF-04
   description: Get latest N is efficient for large datasets
   category: latest
-  status: pending
+  status: implemented
+  testedIn: tests/efficient-queries/spec.test.ts
   priority: P0
   given:
     sessionId: 'sess-huge'
