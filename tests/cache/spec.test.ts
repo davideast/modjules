@@ -46,14 +46,14 @@ describe('Cache Freshness Specs', () => {
   );
 
   beforeEach(async () => {
-    await fs.rm('tests/temp', { recursive: true, force: true });
+    await fs.rm('tests/temp/cache-freshness', { recursive: true, force: true });
     vi.clearAllMocks();
   });
 
   for (const tc of cacheSpecCases) {
     it(tc.id, async () => {
       // Mock storage
-      const rootDir = `tests/temp/${tc.id}`;
+      const rootDir = `tests/temp/cache-freshness/${tc.id}`;
       await fs.mkdir(rootDir, { recursive: true });
 
       if (tc.when === 'getCacheInfo') {
