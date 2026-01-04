@@ -1,0 +1,166 @@
+## Response Shaping Spec
+##
+## Behavior: "I need lightweight responses to avoid token overflow"
+##
+## These specs define how responses are shaped by default and how
+## users can customize projection to get only the fields they need.
+
+# =============================================================================
+# DEFAULT PROJECTION
+# =============================================================================
+
+- id: SHAPE-01
+  description: Default projection includes lightweight fields only
+  category: defaults
+  status: pending
+  priority: P0
+  given:
+    sessionId: 'sess-shape'
+    activity:
+      id: 'act-heavy'
+      type: 'progressUpdated'
+      createTime: '2024-01-01T00:00:00Z'
+      originator: 'agent'
+      artifacts:
+        - name: 'large-file.txt'
+          content: 'very large content...'
+      progressUpdated:
+        details: 'verbose details...'
+  when: select
+  then:
+    resultHasFields: [id, type, createTime, originator]
+    resultMissingFields: [artifacts, progressUpdated]
+
+- id: SHAPE-02
+  description: Default session projection excludes heavy fields
+  category: defaults
+  status: pending
+  priority: P0
+  given:
+    session:
+      id: 'sess-heavy'
+      state: 'COMPLETED'
+      title: 'Test Session'
+      createTime: '2024-01-01T00:00:00Z'
+      outcome:
+        pullRequest:
+          diff: 'very large diff content...'
+  when: selectSessions
+  then:
+    resultHasFields: [id, state, title, createTime]
+    resultMissingFields: [outcome]
+
+# =============================================================================
+# CUSTOM PROJECTION
+# =============================================================================
+
+- id: SHAPE-03
+  description: Custom projection includes only requested fields
+  category: projection
+  status: implemented
+  testedIn: tests/query/select.test.ts
+  priority: P0
+  given:
+    sessionId: 'sess-custom'
+    activity:
+      id: 'act-1'
+      type: 'progressUpdated'
+      createTime: '2024-01-01T00:00:00Z'
+      artifacts: []
+    options:
+      select: [id, type]
+  when: select
+  then:
+    resultHasFields: [id, type]
+    resultMissingFields: [createTime, artifacts]
+
+- id: SHAPE-04
+  description: Projection can explicitly include heavy fields
+  category: projection
+  status: implemented
+  testedIn: tests/query/select.test.ts
+  priority: P0
+  given:
+    sessionId: 'sess-explicit'
+    activity:
+      id: 'act-1'
+      artifacts:
+        - name: 'file.txt'
+    options:
+      select: [id, artifacts]
+  when: select
+  then:
+    resultHasFields: [id, artifacts]
+
+- id: SHAPE-05
+  description: Empty select array returns all fields
+  category: projection
+  status: pending
+  priority: P1
+  given:
+    sessionId: 'sess-all'
+    activity:
+      id: 'act-1'
+      type: 'progressUpdated'
+      artifacts: []
+    options:
+      select: []
+  when: select
+  then:
+    resultHasFields: [id, type, artifacts]
+
+# =============================================================================
+# FIELD CATEGORIES
+# =============================================================================
+
+- id: SHAPE-06
+  description: Lightweight fields are always fast to retrieve
+  category: performance
+  status: pending
+  priority: P1
+  given:
+    sessionId: 'sess-perf'
+    cachedActivities: 1000
+    options:
+      select: [id, type, createTime]
+  when: select
+  then:
+    performance:
+      projectionOverhead: minimal
+
+- id: SHAPE-07
+  description: Heavy fields can be loaded lazily
+  category: lazy_loading
+  status: pending
+  priority: P1
+  given:
+    sessionId: 'sess-lazy'
+    activityId: 'act-with-artifacts'
+    activity:
+      id: 'act-with-artifacts'
+      artifacts:
+        - name: 'large-file.txt'
+  when: getActivityField('artifacts')
+  then:
+    result:
+      artifacts:
+        - name: 'large-file.txt'
+
+# =============================================================================
+# MCP RESPONSE LIMITS
+# =============================================================================
+
+- id: SHAPE-08
+  description: MCP responses respect token budget
+  category: mcp
+  status: pending
+  priority: P0
+  given:
+    sessionId: 'sess-mcp'
+    cachedActivities: 1000
+    tokenBudget: 25000
+  when: mcpSelect
+  then:
+    responseTokens:
+      max: 25000
+    truncated: false
