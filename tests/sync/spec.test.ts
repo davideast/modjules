@@ -396,6 +396,30 @@ function executeTest(tc: TestCase) {
     // Execute sync
     const options = tc.given.options || {};
 
+    let abortController: AbortController | undefined;
+    if (tc.given.abortAfterSessions) {
+      abortController = new AbortController();
+      const originalSessions = client.sessions;
+      let sessionCount = 0;
+
+      vi.spyOn(client, 'sessions').mockImplementation((opts) => {
+        const cursor = originalSessions.call(client, opts);
+        return {
+          [Symbol.asyncIterator]: async function* () {
+            for await (const session of cursor) {
+              sessionCount++;
+              if (sessionCount > tc.given.abortAfterSessions!) {
+                abortController!.abort();
+              }
+              yield session;
+            }
+          },
+        } as any;
+      });
+
+      options.signal = abortController.signal;
+    }
+
     if (tc.then.throws) {
       if (tc.then.throws.error === 'SyncInProgressError') {
         await expect(client.sync(options as any)).rejects.toThrow(

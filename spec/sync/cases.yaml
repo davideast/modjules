@@ -329,7 +329,7 @@
 - id: PROD-ABORT-01
   description: Graceful cancellation via AbortSignal
   category: production_abort
-  status: pending
+  status: implemented
   priority: P0
   given:
     apiSessions:

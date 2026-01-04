@@ -162,6 +162,8 @@ export class JulesClientImpl implements JulesClient {
         signal,
       } = options;
 
+      let wasAborted = false; // Track if we aborted
+
       // Load checkpoint if enabled
       let resumeFromId: string | null = null;
       let startingCount = 0;
@@ -193,6 +195,12 @@ export class JulesClientImpl implements JulesClient {
       onProgress?.({ phase: 'fetching_list', current: 0 });
 
       for await (const session of cursor) {
+        // Check for abort BEFORE processing each session
+        if (signal?.aborted) {
+          wasAborted = true;
+          break;
+        }
+
         // Skip sessions until we're past the checkpoint
         if (skipUntilPast) {
           if (session.id === resumeFromId) {
@@ -243,7 +251,7 @@ export class JulesClientImpl implements JulesClient {
 
       // 3. Deep Ingestion (Activity Hydration)
       // Uses pMap for backpressure to prevent quota saturation.
-      if (depth === 'activities' && candidates.length > 0) {
+      if (depth === 'activities' && candidates.length > 0 && !wasAborted) {
         let hydratedCount = 0;
         onProgress?.({
           phase: 'hydrating_records',
@@ -254,6 +262,8 @@ export class JulesClientImpl implements JulesClient {
         await pMap(
           candidates,
           async (session) => {
+            if (signal?.aborted) return; // Skip if aborted
+
             const activityStorage = this.storageFactory.activity(session.id);
             await activityStorage.init();
 
@@ -300,15 +310,15 @@ export class JulesClientImpl implements JulesClient {
         );
       }
 
-      // Clear checkpoint on successful completion
-      if (useCheckpoint) {
+      // Clear checkpoint on successful completion (only if not aborted)
+      if (useCheckpoint && !wasAborted) {
         await this.clearCheckpoint();
       }
 
       return {
         sessionsIngested: sessionsIngestedThisRun,
         activitiesIngested,
-        isComplete: true,
+        isComplete: !wasAborted, // false if aborted
         durationMs: Date.now() - startTime,
       };
     } finally {
