@@ -12,7 +12,7 @@ export function estimateTokens(text: string): number {
 export function truncateToTokenBudget<T>(
   items: T[],
   tokenBudget: number,
-  overhead: number = 100  // For wrapper JSON
+  overhead: number = 100, // For wrapper JSON
 ): { items: T[]; truncated: boolean; tokenCount: number } {
   const availableBudget = tokenBudget - overhead;
   let result: T[] = [];
