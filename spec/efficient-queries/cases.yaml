@@ -85,7 +85,8 @@
 - id: EFF-05
   description: Default query order is newest first
   category: ordering
-  status: pending
+  status: implemented
+  testedIn: tests/efficient-queries/spec.test.ts
   priority: P0
   given:
     sessionId: 'sess-default-order'
@@ -102,7 +103,8 @@
 - id: EFF-06
   description: Ascending order can be explicitly requested
   category: ordering
-  status: pending
+  status: implemented
+  testedIn: tests/efficient-queries/spec.test.ts
   priority: P1
   given:
     sessionId: 'sess-asc'

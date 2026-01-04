@@ -787,6 +787,7 @@ export interface JulesQuery<T extends JulesDomain> {
   include?: IncludeClause<T>;
   limit?: number;
   offset?: number;
+  order?: 'asc' | 'desc';
 }
 
 /**

@@ -236,5 +236,13 @@ export async function select<T extends JulesDomain>(
     }
   }
 
+  // After the results are collected, before returning:
+  const order = query.order ?? 'desc'; // Default to newest first
+  results.sort((a, b) => {
+    const timeA = new Date(a.createTime).getTime();
+    const timeB = new Date(b.createTime).getTime();
+    return order === 'desc' ? timeB - timeA : timeA - timeB;
+  });
+
   return results;
 }

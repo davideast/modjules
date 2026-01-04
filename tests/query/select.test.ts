@@ -147,9 +147,19 @@ describe('Unified Query Engine (select)', () => {
       });
 
       expect(results).toHaveLength(2);
-      expect(Object.keys(results[0])).toEqual(['id', 'title']);
-      expect(results[0].id).toBe('sess_1');
-      expect((results[0] as any).state).toBeUndefined();
+
+      // Test projection for both, regardless of order
+      const sess1 = results.find((s) => s.id === 'sess_1');
+      const sess2 = results.find((s) => s.id === 'sess_2');
+
+      expect(sess1).toBeDefined();
+      expect(sess2).toBeDefined();
+
+      expect(Object.keys(sess1!)).toEqual(['id', 'title']);
+      expect((sess1! as any).state).toBeUndefined();
+
+      expect(Object.keys(sess2!)).toEqual(['id', 'title']);
+      expect((sess2! as any).state).toBeUndefined();
     });
 
     it('should filter by state (index optimization)', async () => {
@@ -210,7 +220,10 @@ describe('Unified Query Engine (select)', () => {
         include: { activities: true },
       });
 
-      const session = results[0];
+      // The test is about augmentation, not order. Find the specific session.
+      const session = results.find((s) => s.id === 'sess_1');
+      expect(session).toBeDefined();
+
       // Verify the property exists and contains the expected data
       expect(session).toHaveProperty('activities');
       expect(Array.isArray((session as any).activities)).toBe(true);
