@@ -1,80 +1,125 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as fsPromises from 'fs/promises';
+import * as yaml from 'yaml';
+import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as yaml from 'js-yaml';
-import { getSessionCount } from '../../src/storage/cache-info.js';
+import {
+  getActivityCount,
+  getSessionCount,
+} from '../../src/storage/cache-info.js';
+import {
+  NodeSessionStorage,
+  NodeFileStorage,
+} from '../../src/storage/node-fs.js';
+import { Activity, SessionResource } from '../../src/types.js';
 
-// Mock the fs/promises module
+// Mock fs/promises for EFF-02 O(1) verification
 vi.mock('fs/promises', async () => {
-  const actual = await vi.importActual('fs/promises');
+  const actual =
+    await vi.importActual<typeof import('fs/promises')>('fs/promises');
   return {
     ...actual,
-    readdir: vi.fn(),
+    readdir: vi.fn(actual.readdir),
   };
 });
 
-// Define the type for a test case
 type TestCase = {
   id: string;
   description: string;
   category: string;
   status: 'pending' | 'implemented';
   testedIn?: string;
-  given: {
-    cachedSessions?: number;
-  };
+  given: any;
   when: string;
-  then: {
-    result?: number;
-    performance: {
-      fullScanRequired: boolean;
-    };
-  };
+  then: any;
 };
 
-// Read and parse the spec file
-const specFile = await fsPromises.readFile(
-  'spec/efficient-queries/cases.yaml',
-  'utf8',
-);
-const testCases = (yaml.load(specFile) as TestCase[]).filter(
-  (tc) => tc.status === 'implemented',
-);
+const specFile = await fs.readFile('spec/efficient-queries/cases.yaml', 'utf8');
+const testCases = yaml.parse(specFile) as TestCase[];
 
-const rootDir = path.resolve('./tests/temp/efficient-queries-spec');
-const cacheDir = path.join(rootDir, '.jules/cache');
+describe('Efficient Queries Specs', () => {
+  const efficientQueriesSpecCases = testCases.filter(
+    (tc) =>
+      tc.status === 'implemented' &&
+      tc.testedIn?.includes('tests/efficient-queries/spec.test.ts'),
+  );
 
-describe('Efficient Queries Spec', () => {
   beforeEach(async () => {
-    await fsPromises.mkdir(cacheDir, { recursive: true });
+    await fs.rm('tests/temp', { recursive: true, force: true });
     vi.clearAllMocks();
   });
 
   afterEach(async () => {
-    await fsPromises.rm(rootDir, { recursive: true, force: true });
+    await fs.rm('tests/temp', { recursive: true, force: true });
   });
 
-  for (const tc of testCases) {
-    if (tc.id !== 'EFF-02') continue;
+  for (const tc of efficientQueriesSpecCases) {
+    it(tc.id, async () => {
+      const rootDir = `tests/temp/${tc.id}`;
+      await fs.mkdir(rootDir, { recursive: true });
 
-    it(`EFF-02: ${tc.description}`, async () => {
-      // Write global metadata file (no actual session dirs needed)
-      const metadata = {
-        lastSyncedAt: Date.now(),
-        sessionCount: tc.given.cachedSessions,
-      };
-      await fsPromises.writeFile(
-        path.join(cacheDir, 'global-metadata.json'),
-        JSON.stringify(metadata),
-        'utf8',
-      );
+      if (tc.when === 'getActivityCount') {
+        // EFF-01: Activity count without full scan
+        const { sessionId, cachedActivities } = tc.given;
+        const sessionStorage = new NodeSessionStorage(rootDir);
+        const activityStorage = new NodeFileStorage(sessionId, rootDir);
 
-      const count = await getSessionCount(rootDir);
-      expect(count).toBe(tc.then.result);
+        const mockSession: Partial<SessionResource> = {
+          id: sessionId,
+          title: 'Test Session',
+          state: 'completed',
+          createTime: new Date().toISOString(),
+          sourceContext: { source: 'test' },
+        };
+        await sessionStorage.upsert(mockSession as SessionResource);
 
-      // Verify O(1) - readdir NOT called
-      if (!tc.then.performance.fullScanRequired) {
-        expect(vi.mocked(fsPromises.readdir)).not.toHaveBeenCalled();
+        for (let i = 0; i < cachedActivities; i++) {
+          await activityStorage.append({
+            id: `act-${i}`,
+            type: 'userMessaged',
+            message: 'hello',
+          } as Activity);
+        }
+
+        const scanSpy = vi.spyOn(NodeFileStorage.prototype, 'scan');
+        const count = await getActivityCount(sessionId, rootDir);
+
+        expect(count).toBe(tc.then.result);
+
+        if (
+          tc.then.performance &&
+          tc.then.performance.fullScanRequired === false
+        ) {
+          expect(scanSpy).not.toHaveBeenCalled();
+        }
+      } else if (tc.when === 'getSessionCount') {
+        // EFF-02: Session count without full scan
+        const cacheDir = path.join(rootDir, '.jules/cache');
+        await fs.mkdir(cacheDir, { recursive: true });
+
+        // Write global metadata file (O(1) read)
+        const metadata = {
+          lastSyncedAt: Date.now(),
+          sessionCount: tc.given.cachedSessions,
+        };
+        await fs.writeFile(
+          path.join(cacheDir, 'global-metadata.json'),
+          JSON.stringify(metadata),
+          'utf8',
+        );
+
+        // Clear mocks before the actual test call
+        vi.mocked(fs.readdir).mockClear();
+
+        const count = await getSessionCount(rootDir);
+        expect(count).toBe(tc.then.result);
+
+        // Verify O(1) - readdir NOT called when metadata exists
+        if (
+          tc.then.performance &&
+          tc.then.performance.fullScanRequired === false
+        ) {
+          expect(vi.mocked(fs.readdir)).not.toHaveBeenCalled();
+        }
       }
     });
   }
