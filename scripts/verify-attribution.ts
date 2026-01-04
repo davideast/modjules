@@ -93,8 +93,11 @@ async function main() {
     process.exit(1);
   }
 
-  const trailer = `Co-authored-by: ${targetUserLogin} <${targetUserId}+${targetUserLogin}@users.noreply.github.com>`;
-  console.log(`🎯 Expected Trailer: "${trailer}"`);
+  // The email is the definitive identifier - name can vary (display name vs login)
+  const expectedEmail = `${targetUserId}+${targetUserLogin}@users.noreply.github.com`;
+  const trailer = `Co-authored-by: ${targetUserLogin} <${expectedEmail}>`;
+  console.log(`🎯 Expected Email: "${expectedEmail}"`);
+  console.log(`🎯 Suggested Trailer: "${trailer}"`);
 
   console.log(`🔍 Checking commits in range origin/${baseRef}...${headSha}`);
 
@@ -109,7 +112,9 @@ async function main() {
     logs = execSync('git show -s --format=%B HEAD').toString();
   }
 
-  if (logs.includes(trailer)) {
+  // Check for the email pattern - the name before it can vary
+  // Valid: "Co-authored-by: David East <id+login@...>" or "Co-authored-by: davideast <id+login@...>"
+  if (logs.includes(expectedEmail) && logs.includes('Co-authored-by:')) {
     console.log('✅ Attribution present in at least one commit.');
     process.exit(0);
   } else {
