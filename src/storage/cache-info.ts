@@ -152,11 +152,7 @@ export async function getCacheInfo(
   rootDirOverride?: string,
 ): Promise<GlobalCacheInfo> {
   const rootDir = rootDirOverride ?? getRootDir();
-  const metadataPath = path.join(
-    rootDir,
-    '.jules/cache',
-    GLOBAL_METADATA_FILE,
-  );
+  const metadataPath = path.join(rootDir, '.jules/cache', GLOBAL_METADATA_FILE);
 
   try {
     const content = await fs.readFile(metadataPath, 'utf8');
