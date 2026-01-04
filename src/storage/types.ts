@@ -109,3 +109,8 @@ export interface ActivityStorage {
    */
   scan(): AsyncIterable<Activity>;
 }
+
+export interface GlobalCacheMetadata {
+  lastSyncedAt: number;
+  sessionCount: number;
+}

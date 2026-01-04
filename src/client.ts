@@ -24,6 +24,7 @@ import { SessionCursor, ListSessionsOptions } from './sessions.js';
 import { Platform } from './platform/types.js';
 import { SessionStorage } from './storage/types.js';
 import { isCacheValid } from './caching.js';
+import { updateGlobalCacheMetadata } from './storage/cache-info.js';
 import { select as modularSelect } from './query/select.js';
 import {
   JulesQuery,
@@ -316,12 +317,16 @@ export class JulesClientImpl implements JulesClient {
         await this.clearCheckpoint();
       }
 
-      return {
+      const stats = {
         sessionsIngested: sessionsIngestedThisRun,
         activitiesIngested,
         isComplete: !wasAborted, // false if aborted
         durationMs: Date.now() - startTime,
       };
+
+      await updateGlobalCacheMetadata();
+
+      return stats;
     } finally {
       // ALWAYS release lock, even on error
       this.syncInProgress = false;

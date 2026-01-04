@@ -44,23 +44,48 @@ describe('Cache Freshness Specs', () => {
       await fs.mkdir(rootDir, { recursive: true });
 
       if (tc.when === 'getCacheInfo') {
-        const sessionStorage = new NodeSessionStorage(rootDir);
-        if (tc.given.syncPerformed) {
-          const mockSession: Partial<SessionResource> = {
-            id: tc.given.sessionId,
-            title: 'Test Session',
-            state: 'completed',
-            createTime: new Date().toISOString(),
-            sourceContext: { source: 'test' },
+        if (tc.id === 'FRESH-06') {
+          const cacheDir = path.join(rootDir, '.jules/cache');
+          await fs.mkdir(cacheDir, { recursive: true });
+
+          // DO NOT create session directories. This proves the test
+          // is reading from the metadata file and not scanning the
+          // directory (which would return 0).
+
+          // Write global metadata file
+          const metadata = {
+            lastSyncedAt: Date.now(),
+            sessionCount: tc.given.cachedSessions,
           };
-          await sessionStorage.upsert(mockSession as SessionResource);
-        }
-        const info = await getCacheInfo(rootDir);
-        expect(info.lastSyncedAt).toBeInstanceOf(Date);
-        if (tc.given.syncPerformed) {
+          await fs.writeFile(
+            path.join(cacheDir, 'global-metadata.json'),
+            JSON.stringify(metadata),
+            'utf8',
+          );
+
+          const info = await getCacheInfo(rootDir);
+
           expect(info.lastSyncedAt.getTime()).toBeGreaterThan(0);
+          expect(info.sessionCount).toBe(tc.given.cachedSessions);
         } else {
-          expect(info.lastSyncedAt.getTime()).toBe(0);
+          const sessionStorage = new NodeSessionStorage(rootDir);
+          if (tc.given.syncPerformed) {
+            const mockSession: Partial<SessionResource> = {
+              id: tc.given.sessionId,
+              title: 'Test Session',
+              state: 'completed',
+              createTime: new Date().toISOString(),
+              sourceContext: { source: 'test' },
+            };
+            await sessionStorage.upsert(mockSession as SessionResource);
+          }
+          const info = await getCacheInfo(rootDir);
+          expect(info.lastSyncedAt).toBeInstanceOf(Date);
+          if (tc.given.syncPerformed) {
+            expect(info.lastSyncedAt.getTime()).toBeGreaterThan(0);
+          } else {
+            expect(info.lastSyncedAt.getTime()).toBe(0);
+          }
         }
       } else if (tc.when === 'getSessionCacheInfo') {
         const sessionStorage = new NodeSessionStorage(rootDir);
