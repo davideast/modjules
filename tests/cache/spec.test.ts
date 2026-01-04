@@ -10,7 +10,7 @@ import {
   NodeSessionStorage,
   NodeFileStorage,
 } from '../../src/storage/node-fs.js';
-import { SessionResource } from '../../src/types.js';
+import { Activity, SessionResource } from '../../src/types.js';
 
 type TestCase = {
   id: string;
@@ -46,14 +46,14 @@ describe('Cache Freshness Specs', () => {
       if (tc.when === 'getCacheInfo') {
         const sessionStorage = new NodeSessionStorage(rootDir);
         if (tc.given.syncPerformed) {
-          const mockSession: SessionResource = {
+          const mockSession: Partial<SessionResource> = {
             id: tc.given.sessionId,
             title: 'Test Session',
-            state: 'COMPLETED',
+            state: 'completed',
             createTime: new Date().toISOString(),
             sourceContext: { source: 'test' },
           };
-          await sessionStorage.upsert(mockSession);
+          await sessionStorage.upsert(mockSession as SessionResource);
         }
         const info = await getCacheInfo(rootDir);
         expect(info.lastSyncedAt).toBeInstanceOf(Date);
@@ -69,14 +69,14 @@ describe('Cache Freshness Specs', () => {
           rootDir,
         );
 
-        const mockSession: SessionResource = {
+        const mockSession: Partial<SessionResource> = {
           id: tc.given.sessionId,
           title: 'Test Session',
-          state: 'COMPLETED',
+          state: 'completed',
           createTime: new Date().toISOString(),
           sourceContext: { source: 'test' },
         };
-        await sessionStorage.upsert(mockSession);
+        await sessionStorage.upsert(mockSession as SessionResource);
 
         const activitiesToSync =
           tc.given.activitiesSynced ?? tc.given.cachedActivities ?? 0;
@@ -84,8 +84,8 @@ describe('Cache Freshness Specs', () => {
           await activityStorage.append({
             id: `act-${i}`,
             type: 'userMessaged',
-            message: { content: 'hello' },
-          });
+            message: 'hello',
+          } as Activity);
         }
 
         const scanSpy = vi.spyOn(activityStorage, 'scan');
