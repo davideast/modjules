@@ -2,6 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as yaml from 'yaml';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+
+import * as fsPromises from 'fs/promises';
+
+vi.mock('fs/promises', async () => {
+  const actual =
+    await vi.importActual<typeof import('fs/promises')>('fs/promises');
+  return {
+    ...actual,
+    readdir: vi.fn(actual.readdir),
+  };
+});
+
 import {
   getCacheInfo,
   getSessionCacheInfo,
@@ -35,6 +47,7 @@ describe('Cache Freshness Specs', () => {
 
   beforeEach(async () => {
     await fs.rm('tests/temp', { recursive: true, force: true });
+    vi.clearAllMocks();
   });
 
   for (const tc of cacheSpecCases) {
@@ -67,6 +80,9 @@ describe('Cache Freshness Specs', () => {
 
           expect(info.lastSyncedAt.getTime()).toBeGreaterThan(0);
           expect(info.sessionCount).toBe(tc.given.cachedSessions);
+
+          // Verify O(1) behavior - readdir should NOT be called when metadata exists
+          expect(vi.mocked(fsPromises.readdir)).not.toHaveBeenCalled();
         } else {
           const sessionStorage = new NodeSessionStorage(rootDir);
           if (tc.given.syncPerformed) {
