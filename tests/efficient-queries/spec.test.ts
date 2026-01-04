@@ -44,17 +44,23 @@ describe('Efficient Queries Specs', () => {
   );
 
   beforeEach(async () => {
-    await fs.rm('tests/temp', { recursive: true, force: true });
+    await fs.rm('tests/temp/efficient-queries', {
+      recursive: true,
+      force: true,
+    });
     vi.clearAllMocks();
   });
 
   afterEach(async () => {
-    await fs.rm('tests/temp', { recursive: true, force: true });
+    await fs.rm('tests/temp/efficient-queries', {
+      recursive: true,
+      force: true,
+    });
   });
 
   for (const tc of efficientQueriesSpecCases) {
     it(tc.id, async () => {
-      const rootDir = `tests/temp/${tc.id}`;
+      const rootDir = `tests/temp/efficient-queries/${tc.id}`;
       await fs.mkdir(rootDir, { recursive: true });
 
       if (tc.when === 'getActivityCount') {
