@@ -6,3 +6,4 @@ dist/
 husky
 *.log
 .jules/cache
+tests/temp

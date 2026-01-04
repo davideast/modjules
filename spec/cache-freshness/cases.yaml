@@ -12,7 +12,8 @@
 - id: FRESH-01
   description: Cache metadata includes last sync timestamp
   category: cache_metadata
-  status: pending
+  status: implemented
+  testedIn: tests/cache/spec.test.ts
   priority: P0
   given:
     syncPerformed: true
@@ -27,7 +28,8 @@
 - id: FRESH-02
   description: Cache info available per session
   category: cache_metadata
-  status: pending
+  status: implemented
+  testedIn: tests/cache/spec.test.ts
   priority: P0
   given:
     sessionId: 'sess-123'
@@ -43,7 +45,8 @@
 - id: FRESH-03
   description: Cache info includes activity count without full scan
   category: cache_metadata
-  status: pending
+  status: implemented
+  testedIn: tests/cache/spec.test.ts
   priority: P1
   given:
     sessionId: 'sess-456'

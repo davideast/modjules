@@ -8,6 +8,7 @@ import {
   SessionStorage,
   CachedSession,
   SessionIndexEntry,
+  SessionMetadata,
 } from './types.js';
 
 /**
@@ -16,15 +17,17 @@ import {
  */
 export class NodeFileStorage implements ActivityStorage {
   private filePath: string;
+  private metadataPath: string;
   private initialized = false;
 
   constructor(sessionId: string, rootDir: string) {
-    this.filePath = path.resolve(
+    const sessionCacheDir = path.resolve(
       rootDir,
       '.jules/cache',
       sessionId,
-      'activities.jsonl',
     );
+    this.filePath = path.join(sessionCacheDir, 'activities.jsonl');
+    this.metadataPath = path.join(sessionCacheDir, 'metadata.json');
   }
 
   /**
@@ -49,6 +52,26 @@ export class NodeFileStorage implements ActivityStorage {
     this.initialized = false;
   }
 
+  private async _readMetadata(): Promise<SessionMetadata> {
+    try {
+      const content = await fs.readFile(this.metadataPath, 'utf8');
+      return JSON.parse(content) as SessionMetadata;
+    } catch (e: any) {
+      if (e.code === 'ENOENT') {
+        return { activityCount: 0 }; // Default if file doesn't exist
+      }
+      throw e;
+    }
+  }
+
+  private async _writeMetadata(metadata: SessionMetadata): Promise<void> {
+    await fs.writeFile(
+      this.metadataPath,
+      JSON.stringify(metadata, null, 2),
+      'utf8',
+    );
+  }
+
   /**
    * Appends an activity to the file.
    *
@@ -60,6 +83,12 @@ export class NodeFileStorage implements ActivityStorage {
     // Safety check: ensure init() was called if the user forgot
     if (!this.initialized) await this.init();
 
+    // 1. Atomically update metadata
+    const metadata = await this._readMetadata();
+    metadata.activityCount += 1;
+    await this._writeMetadata(metadata);
+
+    // 2. Append the activity
     const line = JSON.stringify(activity) + '\n';
     // 'utf8' is standard. appendFile handles opening/closing the file handle automatically.
     await fs.appendFile(this.filePath, line, 'utf8');
