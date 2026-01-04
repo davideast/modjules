@@ -73,7 +73,7 @@ describe('jules.sessions()', () => {
     const result = await client.sessions({ pageSize: 10 });
 
     expect(apiClient.request).toHaveBeenCalledWith('sessions', {
-      params: { pageSize: '10' },
+      query: { pageSize: '10' },
     });
     expect(result).toEqual(mockResponse);
     expect(mockSessionStorage.upsertMany).toHaveBeenCalledWith(
@@ -185,7 +185,7 @@ describe('jules.sessions()', () => {
 
     expect(apiClient.request).toHaveBeenCalledTimes(2);
     expect(apiClient.request).toHaveBeenNthCalledWith(2, 'sessions', {
-      params: { pageSize: '1', pageToken: 'token-1' },
+      query: { pageSize: '1', pageToken: 'token-1' },
     });
   });
 

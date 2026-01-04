@@ -45,7 +45,7 @@ export class NetworkAdapter implements NetworkClient {
     const response = await this.apiClient.request<{
       activities?: any[];
       nextPageToken?: string;
-    }>(`sessions/${this.sessionId}/activities`, { params });
+    }>(`sessions/${this.sessionId}/activities`, { query: params });
 
     return {
       activities: (response.activities || []).map((activity) =>

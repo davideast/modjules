@@ -56,7 +56,7 @@ export async function* streamActivities(
       response = await apiClient.request<ListActivitiesResponse>(
         `sessions/${sessionId}/activities`,
         {
-          params: {
+          query: {
             pageSize: '50', // A reasonable page size
             ...(pageToken ? { pageToken } : {}),
           },
@@ -80,7 +80,7 @@ export async function* streamActivities(
               await apiClient.request<ListActivitiesResponse>(
                 `sessions/${sessionId}/activities`,
                 {
-                  params: {
+                  query: {
                     pageSize: '50',
                     ...(pageToken ? { pageToken } : {}),
                   },
