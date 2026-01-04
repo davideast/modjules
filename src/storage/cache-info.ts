@@ -1,7 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { getRootDir } from './root.js';
-import { SessionMetadata } from './types.js';
+import { GlobalCacheMetadata, SessionMetadata } from './types.js';
 
 /**
  * Represents the cache information for a single session.
@@ -19,6 +19,8 @@ export type GlobalCacheInfo = {
   lastSyncedAt: Date;
   sessionCount: number;
 };
+
+const GLOBAL_METADATA_FILE = 'global-metadata.json';
 
 /**
  * Retrieves cache information for a specific session.
@@ -66,11 +68,10 @@ export async function getSessionCacheInfo(
 }
 
 /**
- * Retrieves global cache information.
- *
- * @returns A promise that resolves with global cache information.
+ * The legacy implementation of getCacheInfo that scans all session directories.
+ * Used as a fallback during migration.
  */
-export async function getCacheInfo(
+async function getCacheInfoLegacy(
   rootDirOverride?: string,
 ): Promise<GlobalCacheInfo> {
   const rootDir = rootDirOverride ?? getRootDir();
@@ -114,4 +115,54 @@ export async function getCacheInfo(
     lastSyncedAt,
     sessionCount,
   };
+}
+
+export async function updateGlobalCacheMetadata(
+  rootDirOverride?: string,
+): Promise<void> {
+  const rootDir = rootDirOverride ?? getRootDir();
+  const cacheDir = path.join(rootDir, '.jules/cache');
+  const metadataPath = path.join(cacheDir, GLOBAL_METADATA_FILE);
+
+  // Read current or create new
+  let metadata: GlobalCacheMetadata = { lastSyncedAt: 0, sessionCount: 0 };
+  try {
+    const content = await fs.readFile(metadataPath, 'utf8');
+    metadata = JSON.parse(content);
+  } catch {}
+
+  // Update timestamp
+  metadata.lastSyncedAt = Date.now();
+
+  // Count sessions (only during update, not read)
+  try {
+    const entries = await fs.readdir(cacheDir, { withFileTypes: true });
+    metadata.sessionCount = entries.filter((e) => e.isDirectory()).length;
+  } catch {
+    // If the directory doesn't exist, the count is 0.
+    metadata.sessionCount = 0;
+  }
+
+  await fs.mkdir(cacheDir, { recursive: true });
+  await fs.writeFile(metadataPath, JSON.stringify(metadata), 'utf8');
+}
+
+// Update getCacheInfo to read from global metadata first (O(1))
+export async function getCacheInfo(
+  rootDirOverride?: string,
+): Promise<GlobalCacheInfo> {
+  const rootDir = rootDirOverride ?? getRootDir();
+  const metadataPath = path.join(rootDir, '.jules/cache', GLOBAL_METADATA_FILE);
+
+  try {
+    const content = await fs.readFile(metadataPath, 'utf8');
+    const metadata: GlobalCacheMetadata = JSON.parse(content);
+    return {
+      lastSyncedAt: new Date(metadata.lastSyncedAt),
+      sessionCount: metadata.sessionCount,
+    };
+  } catch {
+    // Fallback to scan (migration path)
+    return getCacheInfoLegacy(rootDirOverride);
+  }
 }

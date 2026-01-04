@@ -58,6 +58,22 @@
     performance:
       fullScanRequired: false
 
+- id: FRESH-06
+  description: Global cache info available in O(1) without scanning sessions
+  category: cache_metadata
+  status: implemented
+  testedIn: tests/cache/spec.test.ts
+  priority: P0
+  given:
+    cachedSessions: 100
+  when: getCacheInfo
+  then:
+    result:
+      lastSyncedAt: { notNull: true }
+      sessionCount: 100
+    performance:
+      sessionScanRequired: false
+
 # =============================================================================
 # STALENESS DETECTION
 # =============================================================================
