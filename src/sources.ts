@@ -63,7 +63,7 @@ class SourceManagerImpl {
 
       const response = await this.apiClient.request<ListSourcesResponse>(
         'sources',
-        { params },
+        { query: params },
       );
 
       if (response && response.sources) {

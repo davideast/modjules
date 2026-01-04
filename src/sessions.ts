@@ -119,7 +119,7 @@ export class SessionCursor
     const response = await this.apiClient.request<{
       sessions?: SessionResource[];
       nextPageToken?: string;
-    }>('sessions', { params });
+    }>('sessions', { query: params });
 
     const sessions = response.sessions || [];
 

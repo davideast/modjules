@@ -153,6 +153,7 @@ export class JulesClientImpl implements JulesClient {
     try {
       const startTime = Date.now();
       const {
+        sessionId,
         limit = 100,
         depth = 'metadata',
         incremental = true,
@@ -163,90 +164,90 @@ export class JulesClientImpl implements JulesClient {
       } = options;
 
       let wasAborted = false; // Track if we aborted
-
-      // Load checkpoint if enabled
-      let resumeFromId: string | null = null;
-      let startingCount = 0;
-
-      if (useCheckpoint) {
-        const ckpt = await this.loadCheckpoint();
-        if (ckpt) {
-          resumeFromId = ckpt.lastProcessedSessionId;
-          startingCount = ckpt.sessionsProcessed;
-        }
-      }
-
-      let sessionsIngestedThisRun = 0;
-      let activitiesIngested = 0;
-      let skipUntilPast = !!resumeFromId;
-
-      // 1. High-Water Mark check
-      const highWaterMark = incremental ? await this._getHighWaterMark() : null;
-
-      // 2. Authoritative Fetching (Metadata Ingestion)
-      // We disable cursor persistence because we handle it manually in the loop
-      // to support incremental sync and precise control.
-      const cursor = this.sessions({
-        pageSize: Math.min(limit, 100),
-        persist: false,
-      });
       const candidates: SessionResource[] = [];
+      let activitiesIngested = 0;
+      let sessionsIngestedThisRun = 0;
 
-      onProgress?.({ phase: 'fetching_list', current: 0 });
-
-      for await (const session of cursor) {
-        // Check for abort BEFORE processing each session
-        if (signal?.aborted) {
-          wasAborted = true;
-          break;
-        }
-
-        // Skip sessions until we're past the checkpoint
-        if (skipUntilPast) {
-          if (session.id === resumeFromId) {
-            skipUntilPast = false; // Found it, skip this one but process next
-            continue;
-          }
-          continue;
-        }
-
-        // Precise Reconciliation: Stop if we hit the water mark
-        if (highWaterMark && new Date(session.createTime) <= highWaterMark) {
-          if (depth === 'activities') {
-            // This session is older than our newest record, but we're doing a deep sync.
-            // We should still consider it for activity hydration, as it might be missing locally.
-            // We continue, but do not increment sessionsIngested as it's not "new".
-            await this.storage.upsert(session);
-            candidates.push(session);
-            continue; // Continue to check even older sessions for gaps
-          } else {
-            // If we're not hydrating activities, we can stop completely.
-            break;
-          }
-        }
-
-        // 2.1 Persistence: Save metadata to local cache
+      // CTRL-07: Targeted Sync Logic
+      if (sessionId) {
+        // For a targeted sync, we always fetch from the network, bypassing normal cache checks.
+        const session = await this.apiClient.request<SessionResource>(
+          `sessions/${sessionId}`,
+        );
+        // We still upsert to update the cache with the fresh data.
         await this.storage.upsert(session);
-
         candidates.push(session);
-        sessionsIngestedThisRun++;
+        sessionsIngestedThisRun = 1; // We synced one session.
+      } else {
+        // CTRL-08: Full Sync Logic (existing behavior)
+        let resumeFromId: string | null = null;
+        let startingCount = 0;
 
-        // Save checkpoint after each session if enabled
         if (useCheckpoint) {
-          await this.saveCheckpoint({
-            lastProcessedSessionId: session.id,
-            sessionsProcessed: startingCount + sessionsIngestedThisRun,
-            startedAt: new Date(startTime).toISOString(),
-          });
+          const ckpt = await this.loadCheckpoint();
+          if (ckpt) {
+            resumeFromId = ckpt.lastProcessedSessionId;
+            startingCount = ckpt.sessionsProcessed;
+          }
         }
 
-        onProgress?.({
-          phase: 'fetching_list',
-          current: sessionsIngestedThisRun,
-          lastIngestedId: session.id,
+        let skipUntilPast = !!resumeFromId;
+        const highWaterMark = incremental
+          ? await this._getHighWaterMark()
+          : null;
+
+        const cursor = this.sessions({
+          pageSize: Math.min(limit, 100),
+          persist: false,
         });
 
-        if (candidates.length >= limit) break;
+        onProgress?.({ phase: 'fetching_list', current: 0 });
+
+        for await (const session of cursor) {
+          // Check for abort BEFORE processing each session
+          if (signal?.aborted) {
+            wasAborted = true;
+            break;
+          }
+
+          if (skipUntilPast) {
+            if (session.id === resumeFromId) {
+              skipUntilPast = false;
+              continue;
+            }
+            continue;
+          }
+
+          if (highWaterMark && new Date(session.createTime) <= highWaterMark) {
+            if (depth === 'activities') {
+              await this.storage.upsert(session);
+              candidates.push(session);
+              continue;
+            } else {
+              break;
+            }
+          }
+
+          await this.storage.upsert(session);
+          candidates.push(session);
+          sessionsIngestedThisRun++;
+
+          if (useCheckpoint) {
+            await this.saveCheckpoint({
+              lastProcessedSessionId: session.id,
+              sessionsProcessed: startingCount + sessionsIngestedThisRun,
+              startedAt: new Date(startTime).toISOString(),
+            });
+          }
+
+          onProgress?.({
+            phase: 'fetching_list',
+            current: sessionsIngestedThisRun,
+            lastIngestedId: session.id,
+          });
+
+          if (candidates.length >= limit) break;
+        }
       }
 
       // 3. Deep Ingestion (Activity Hydration)
@@ -310,8 +311,8 @@ export class JulesClientImpl implements JulesClient {
         );
       }
 
-      // Clear checkpoint on successful completion (only if not aborted)
-      if (useCheckpoint && !wasAborted) {
+      // Clear checkpoint on successful completion (only if not aborted and not targeted)
+      if (useCheckpoint && !wasAborted && !sessionId) {
         await this.clearCheckpoint();
       }
 

@@ -30,7 +30,7 @@ export type HandshakeContext =
 export type ApiRequestOptions = {
   method?: 'GET' | 'POST';
   body?: Record<string, unknown>;
-  params?: Record<string, string>;
+  query?: Record<string, any>;
   headers?: Record<string, string>;
   handshake?: HandshakeContext;
   _isRetry?: boolean; // Internal flag to prevent infinite loops
@@ -69,16 +69,16 @@ export class ApiClient {
     const {
       method = 'GET',
       body,
-      params,
+      query,
       headers: customHeaders,
       handshake,
       _isRetry,
     } = options;
     const url = this.resolveUrl(endpoint);
 
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        url.searchParams.append(key, value);
+    if (query) {
+      Object.entries(query).forEach(([key, value]) => {
+        url.searchParams.append(key, String(value));
       });
     }
 

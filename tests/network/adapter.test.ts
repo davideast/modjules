@@ -88,7 +88,7 @@ describe('NetworkAdapter', () => {
     expect(mockRequest).toHaveBeenCalledWith(
       'sessions/session-123/activities',
       {
-        params: {
+        query: {
           pageSize: '10',
           pageToken: 'token-prev',
         },

@@ -120,7 +120,8 @@
 - id: CTRL-07
   description: Sync can target a single session
   category: targeting
-  status: pending
+  status: implemented
+  testedIn: tests/sync/targeting.test.ts
   priority: P1
   given:
     sessions: ['sess-a', 'sess-b', 'sess-c']
@@ -133,7 +134,8 @@
 - id: CTRL-08
   description: Sync without target syncs all sessions
   category: targeting
-  status: pending
+  status: implemented
+  testedIn: tests/sync/targeting.test.ts
   priority: P1
   given:
     sessions: ['sess-a', 'sess-b', 'sess-c']

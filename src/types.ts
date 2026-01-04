@@ -1239,6 +1239,11 @@ export interface SyncCheckpoint {
  */
 export interface SyncOptions {
   /**
+   * If set, syncs only this specific session.
+   * Overrides `limit` and full-scan behavior.
+   */
+  sessionId?: string;
+  /**
    * Maximum number of sessions to ingest in one pass.
    * @default 100
    */
