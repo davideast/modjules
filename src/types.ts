@@ -1263,6 +1263,11 @@ export interface SyncOptions {
    * Checkpoint stored at .jules/cache/sync-checkpoint.json
    */
   checkpoint?: boolean;
+
+  /**
+   * Optional AbortSignal to cancel the sync operation.
+   */
+  signal?: AbortSignal;
 }
 
 /**

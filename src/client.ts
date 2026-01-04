@@ -14,7 +14,7 @@ import {
   SessionResource,
   StorageFactory,
 } from './types.js';
-import { SourceNotFoundError } from './errors.js';
+import { SourceNotFoundError, SyncInProgressError } from './errors.js';
 import { streamActivities } from './streaming.js';
 import { pollUntilCompletion } from './polling.js';
 import { mapSessionResourceToOutcome } from './mappers.js';
@@ -61,6 +61,12 @@ export class JulesClientImpl implements JulesClient {
   private options: JulesOptions;
   private storageFactory: StorageFactory;
   private platform: Platform;
+
+  /**
+   * Lock to prevent concurrent sync operations.
+   * Using a simple boolean for in-process locking.
+   */
+  private syncInProgress: boolean = false;
 
   /**
    * Creates a new instance of the JulesClient.
@@ -137,162 +143,178 @@ export class JulesClientImpl implements JulesClient {
    * 4. Throttled hydration of activities if depth is 'activities'.
    */
   async sync(options: SyncOptions = {}): Promise<SyncStats> {
-    const startTime = Date.now();
-    const {
-      limit = 100,
-      depth = 'metadata',
-      incremental = true,
-      concurrency = 3,
-      onProgress,
-      checkpoint: useCheckpoint = false, // Add this
-    } = options;
-
-    // Load checkpoint if enabled
-    let resumeFromId: string | null = null;
-    let startingCount = 0;
-
-    if (useCheckpoint) {
-      const ckpt = await this.loadCheckpoint();
-      if (ckpt) {
-        resumeFromId = ckpt.lastProcessedSessionId;
-        startingCount = ckpt.sessionsProcessed;
-      }
+    // Acquire lock
+    if (this.syncInProgress) {
+      throw new SyncInProgressError();
     }
 
-    let sessionsIngestedThisRun = 0;
-    let activitiesIngested = 0;
-    let skipUntilPast = !!resumeFromId;
+    this.syncInProgress = true;
 
-    // 1. High-Water Mark check
-    const highWaterMark = incremental ? await this._getHighWaterMark() : null;
+    try {
+      const startTime = Date.now();
+      const {
+        limit = 100,
+        depth = 'metadata',
+        incremental = true,
+        concurrency = 3,
+        onProgress,
+        checkpoint: useCheckpoint = false,
+        signal,
+      } = options;
 
-    // 2. Authoritative Fetching (Metadata Ingestion)
-    // We disable cursor persistence because we handle it manually in the loop
-    // to support incremental sync and precise control.
-    const cursor = this.sessions({
-      pageSize: Math.min(limit, 100),
-      persist: false,
-    });
-    const candidates: SessionResource[] = [];
+      // Load checkpoint if enabled
+      let resumeFromId: string | null = null;
+      let startingCount = 0;
 
-    onProgress?.({ phase: 'fetching_list', current: 0 });
+      if (useCheckpoint) {
+        const ckpt = await this.loadCheckpoint();
+        if (ckpt) {
+          resumeFromId = ckpt.lastProcessedSessionId;
+          startingCount = ckpt.sessionsProcessed;
+        }
+      }
 
-    for await (const session of cursor) {
-      // Skip sessions until we're past the checkpoint
-      if (skipUntilPast) {
-        if (session.id === resumeFromId) {
-          skipUntilPast = false; // Found it, skip this one but process next
+      let sessionsIngestedThisRun = 0;
+      let activitiesIngested = 0;
+      let skipUntilPast = !!resumeFromId;
+
+      // 1. High-Water Mark check
+      const highWaterMark = incremental ? await this._getHighWaterMark() : null;
+
+      // 2. Authoritative Fetching (Metadata Ingestion)
+      // We disable cursor persistence because we handle it manually in the loop
+      // to support incremental sync and precise control.
+      const cursor = this.sessions({
+        pageSize: Math.min(limit, 100),
+        persist: false,
+      });
+      const candidates: SessionResource[] = [];
+
+      onProgress?.({ phase: 'fetching_list', current: 0 });
+
+      for await (const session of cursor) {
+        // Skip sessions until we're past the checkpoint
+        if (skipUntilPast) {
+          if (session.id === resumeFromId) {
+            skipUntilPast = false; // Found it, skip this one but process next
+            continue;
+          }
           continue;
         }
-        continue;
-      }
 
-      // Precise Reconciliation: Stop if we hit the water mark
-      if (highWaterMark && new Date(session.createTime) <= highWaterMark) {
-        if (depth === 'activities') {
-          // This session is older than our newest record, but we're doing a deep sync.
-          // We should still consider it for activity hydration, as it might be missing locally.
-          // We continue, but do not increment sessionsIngested as it's not "new".
-          await this.storage.upsert(session);
-          candidates.push(session);
-          continue; // Continue to check even older sessions for gaps
-        } else {
-          // If we're not hydrating activities, we can stop completely.
-          break;
+        // Precise Reconciliation: Stop if we hit the water mark
+        if (highWaterMark && new Date(session.createTime) <= highWaterMark) {
+          if (depth === 'activities') {
+            // This session is older than our newest record, but we're doing a deep sync.
+            // We should still consider it for activity hydration, as it might be missing locally.
+            // We continue, but do not increment sessionsIngested as it's not "new".
+            await this.storage.upsert(session);
+            candidates.push(session);
+            continue; // Continue to check even older sessions for gaps
+          } else {
+            // If we're not hydrating activities, we can stop completely.
+            break;
+          }
         }
-      }
 
-      // 2.1 Persistence: Save metadata to local cache
-      await this.storage.upsert(session);
+        // 2.1 Persistence: Save metadata to local cache
+        await this.storage.upsert(session);
 
-      candidates.push(session);
-      sessionsIngestedThisRun++;
+        candidates.push(session);
+        sessionsIngestedThisRun++;
 
-      // Save checkpoint after each session if enabled
-      if (useCheckpoint) {
-        await this.saveCheckpoint({
-          lastProcessedSessionId: session.id,
-          sessionsProcessed: startingCount + sessionsIngestedThisRun,
-          startedAt: new Date(startTime).toISOString(),
+        // Save checkpoint after each session if enabled
+        if (useCheckpoint) {
+          await this.saveCheckpoint({
+            lastProcessedSessionId: session.id,
+            sessionsProcessed: startingCount + sessionsIngestedThisRun,
+            startedAt: new Date(startTime).toISOString(),
+          });
+        }
+
+        onProgress?.({
+          phase: 'fetching_list',
+          current: sessionsIngestedThisRun,
+          lastIngestedId: session.id,
         });
+
+        if (candidates.length >= limit) break;
       }
 
-      onProgress?.({
-        phase: 'fetching_list',
-        current: sessionsIngestedThisRun,
-        lastIngestedId: session.id,
-      });
+      // 3. Deep Ingestion (Activity Hydration)
+      // Uses pMap for backpressure to prevent quota saturation.
+      if (depth === 'activities' && candidates.length > 0) {
+        let hydratedCount = 0;
+        onProgress?.({
+          phase: 'hydrating_records',
+          current: 0,
+          total: candidates.length,
+        });
 
-      if (candidates.length >= limit) break;
-    }
+        await pMap(
+          candidates,
+          async (session) => {
+            const activityStorage = this.storageFactory.activity(session.id);
+            await activityStorage.init();
 
-    // 3. Deep Ingestion (Activity Hydration)
-    // Uses pMap for backpressure to prevent quota saturation.
-    if (depth === 'activities' && candidates.length > 0) {
-      let hydratedCount = 0;
-      onProgress?.({
-        phase: 'hydrating_records',
-        current: 0,
-        total: candidates.length,
-      });
+            // Get the high-water mark for activities
+            const latestLocal = await activityStorage.latest();
+            const activityHighWaterMark = latestLocal?.createTime;
 
-      await pMap(
-        candidates,
-        async (session) => {
-          const activityStorage = this.storageFactory.activity(session.id);
-          await activityStorage.init();
+            // Fetch activities from server
+            const sessionClient = this.session(session.id);
+            let count = 0;
 
-          // Get the high-water mark for activities
-          const latestLocal = await activityStorage.latest();
-          const highWaterMark = latestLocal?.createTime;
+            for await (const activity of sessionClient.history()) {
+              // If we have a high-water mark, only append newer activities
+              if (
+                activityHighWaterMark &&
+                activity.createTime <= activityHighWaterMark
+              ) {
+                // We've reached activities we already have - stop
+                break;
+              }
 
-          // Fetch activities from server
-          const sessionClient = this.session(session.id);
-          let count = 0;
+              await activityStorage.append(activity);
+              count++;
+              activitiesIngested++;
 
-          for await (const activity of sessionClient.history()) {
-            // If we have a high-water mark, only append newer activities
-            if (highWaterMark && activity.createTime <= highWaterMark) {
-              // We've reached activities we already have - stop
-              break;
+              onProgress?.({
+                phase: 'hydrating_activities',
+                current: hydratedCount,
+                total: candidates.length,
+                lastIngestedId: session.id,
+                activityCount: count,
+              });
             }
 
-            await activityStorage.append(activity);
-            count++;
-            activitiesIngested++;
-
+            hydratedCount++;
             onProgress?.({
-              phase: 'hydrating_activities',
+              phase: 'hydrating_records',
               current: hydratedCount,
               total: candidates.length,
               lastIngestedId: session.id,
-              activityCount: count,
             });
-          }
+          },
+          { concurrency },
+        );
+      }
 
-          hydratedCount++;
-          onProgress?.({
-            phase: 'hydrating_records',
-            current: hydratedCount,
-            total: candidates.length,
-            lastIngestedId: session.id,
-          });
-        },
-        { concurrency },
-      );
+      // Clear checkpoint on successful completion
+      if (useCheckpoint) {
+        await this.clearCheckpoint();
+      }
+
+      return {
+        sessionsIngested: sessionsIngestedThisRun,
+        activitiesIngested,
+        isComplete: true,
+        durationMs: Date.now() - startTime,
+      };
+    } finally {
+      // ALWAYS release lock, even on error
+      this.syncInProgress = false;
     }
-
-    // Clear checkpoint on successful completion
-    if (useCheckpoint) {
-      await this.clearCheckpoint();
-    }
-
-    return {
-      sessionsIngested: sessionsIngestedThisRun,
-      activitiesIngested,
-      isComplete: true,
-      durationMs: Date.now() - startTime,
-    };
   }
 
   private getCheckpointPath(): string {

@@ -20,6 +20,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { parse } from 'yaml';
 import { JulesClientImpl } from '../../src/client.js';
+import { SyncInProgressError } from '../../src/errors.js';
 import { ApiClient } from '../../src/api.js';
 import { getRootDir } from '../../src/storage/root.js';
 import * as fs from 'node:fs';
@@ -386,13 +387,25 @@ function executeTest(tc: TestCase) {
     vi.spyOn(client as any, 'saveCheckpoint').mockResolvedValue(undefined);
     vi.spyOn(client as any, 'clearCheckpoint').mockResolvedValue(undefined);
 
+    // Handle syncInProgress test case
+    if (tc.given.syncInProgress) {
+      // Manually set the lock to simulate an in-progress sync
+      (client as any).syncInProgress = true;
+    }
+
     // Execute sync
     const options = tc.given.options || {};
 
     if (tc.then.throws) {
-      await expect(client.sync(options as any)).rejects.toThrow(
-        tc.then.throws.error,
-      );
+      if (tc.then.throws.error === 'SyncInProgressError') {
+        await expect(client.sync(options as any)).rejects.toThrow(
+          SyncInProgressError,
+        );
+      } else {
+        await expect(client.sync(options as any)).rejects.toThrow(
+          tc.then.throws.error,
+        );
+      }
     } else {
       const stats = await client.sync(options as any);
 

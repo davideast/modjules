@@ -112,6 +112,18 @@ export class AutomatedSessionFailedError extends JulesError {
 }
 
 /**
+ * Thrown when attempting to start a sync while another sync is already in progress.
+ * This prevents data corruption and thundering herd issues.
+ */
+export class SyncInProgressError extends JulesError {
+  constructor() {
+    super(
+      'A sync operation is already in progress. Wait for it to complete before starting another.',
+    );
+  }
+}
+
+/**
  * Thrown when an operation is attempted on a session that is not in a
  * valid state for that operation.
  */
