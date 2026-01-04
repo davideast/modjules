@@ -12,7 +12,8 @@
 - id: EFF-01
   description: Get activity count without full scan
   category: count
-  status: pending
+  status: implemented
+  testedIn: tests/efficient-queries/spec.test.ts
   priority: P0
   given:
     sessionId: 'sess-large'
