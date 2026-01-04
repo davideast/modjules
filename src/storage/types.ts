@@ -21,6 +21,15 @@ export type SessionIndexEntry = {
   _updatedAt: number; // Local write time
 };
 
+/**
+ * Ephemeral (but persisted) metadata about a session's cache state.
+ * Stored separately from the main session.json to allow for frequent updates
+ * without rewriting the larger session object.
+ */
+export type SessionMetadata = {
+  activityCount: number;
+};
+
 export interface SessionStorage {
   /**
    * Initializes the storage (ensure directories exist).
