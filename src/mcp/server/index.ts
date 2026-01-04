@@ -16,6 +16,7 @@ import {
   SessionConfig,
   Activity,
 } from '../../index.js';
+import { truncateToTokenBudget } from '../tokenizer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -173,6 +174,11 @@ export class JulesMCPServer {
                     include: {
                       type: 'object',
                       description: 'Related data to include.',
+                    },
+                    tokenBudget: {
+                      type: 'number',
+                      description:
+                        'Maximum tokens for response. Results truncated to fit.',
                     },
                   },
                   required: ['from'],
@@ -413,14 +419,29 @@ export class JulesMCPServer {
     if (!query) {
       throw new Error('Query argument is required');
     }
+    const tokenBudget = args?.query?.tokenBudget as number | undefined;
 
-    const results = await this.julesClient.select(query);
+    let results = await this.julesClient.select(query);
+    let truncated = false;
+    let tokenCount = 0;
+
+    if (tokenBudget && Array.isArray(results)) {
+      const shaped = truncateToTokenBudget(results, tokenBudget);
+      results = shaped.items;
+      truncated = shaped.truncated;
+      tokenCount = shaped.tokenCount;
+    }
+
+    const response = {
+      results,
+      _meta: tokenBudget ? { truncated, tokenCount, tokenBudget } : undefined,
+    };
 
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(results, null, 2),
+          text: JSON.stringify(response, null, 2),
         },
       ],
     };

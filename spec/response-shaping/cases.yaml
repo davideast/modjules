@@ -153,7 +153,8 @@
 - id: SHAPE-08
   description: MCP responses respect token budget
   category: mcp
-  status: pending
+  status: implemented
+  testedIn: tests/mcp/token-budget.test.ts
   priority: P0
   given:
     sessionId: 'sess-mcp'
