@@ -111,6 +111,7 @@
     "@octokit/rest": "^22.0.1",
     "@opentelemetry/api": "^1.9.0",
     "@types/google-apps-script": "^2.0.7",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.9.1",
     "ai": "^6.0.5",
     "fake-indexeddb": "^6.2.5",
