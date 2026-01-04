@@ -1,10 +1,15 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as yaml from 'yaml';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { getCacheInfo, getSessionCacheInfo } from '../../src/storage/cache-info.js';
-import { NodeSessionStorage, NodeFileStorage } from '../../src/storage/node-fs.js';
+import {
+  getCacheInfo,
+  getSessionCacheInfo,
+} from '../../src/storage/cache-info.js';
+import {
+  NodeSessionStorage,
+  NodeFileStorage,
+} from '../../src/storage/node-fs.js';
 import { SessionResource } from '../../src/types.js';
 
 type TestCase = {
@@ -18,10 +23,7 @@ type TestCase = {
   then: any;
 };
 
-const specFile = await fs.readFile(
-  'spec/cache-freshness/cases.yaml',
-  'utf8',
-);
+const specFile = await fs.readFile('spec/cache-freshness/cases.yaml', 'utf8');
 const testCases = yaml.parse(specFile) as TestCase[];
 
 describe('Cache Freshness Specs', () => {
@@ -62,7 +64,10 @@ describe('Cache Freshness Specs', () => {
         }
       } else if (tc.when === 'getSessionCacheInfo') {
         const sessionStorage = new NodeSessionStorage(rootDir);
-        const activityStorage = new NodeFileStorage(tc.given.sessionId, rootDir);
+        const activityStorage = new NodeFileStorage(
+          tc.given.sessionId,
+          rootDir,
+        );
 
         const mockSession: SessionResource = {
           id: tc.given.sessionId,
@@ -95,7 +100,10 @@ describe('Cache Freshness Specs', () => {
           expect(info?.activityCount).toBe(tc.then.result.activityCount);
         }
 
-        if (tc.then.performance && tc.then.performance.fullScanRequired === false) {
+        if (
+          tc.then.performance &&
+          tc.then.performance.fullScanRequired === false
+        ) {
           expect(scanSpy).not.toHaveBeenCalled();
         }
       }

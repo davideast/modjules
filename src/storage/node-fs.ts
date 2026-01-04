@@ -21,11 +21,7 @@ export class NodeFileStorage implements ActivityStorage {
   private initialized = false;
 
   constructor(sessionId: string, rootDir: string) {
-    const sessionCacheDir = path.resolve(
-      rootDir,
-      '.jules/cache',
-      sessionId,
-    );
+    const sessionCacheDir = path.resolve(rootDir, '.jules/cache', sessionId);
     this.filePath = path.join(sessionCacheDir, 'activities.jsonl');
     this.metadataPath = path.join(sessionCacheDir, 'metadata.json');
   }
