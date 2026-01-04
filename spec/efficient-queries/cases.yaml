@@ -27,7 +27,8 @@
 - id: EFF-02
   description: Get session count without full scan
   category: count
-  status: pending
+  status: implemented
+  testedIn: tests/efficient-queries/spec.test.ts
   priority: P1
   given:
     cachedSessions: 500
