@@ -57,7 +57,10 @@ jobs:
           npm test > test_log.txt 2>&1 || (echo "log=$(tail -n 20 test_log.txt | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
 
       - name: Production Build
-        run: npm run build
+        id: build
+        continue-on-error: true
+        run: |
+          npm run build > build_log.txt 2>&1 || (echo "log=$(tail -n 20 build_log.txt | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
 
       - name: Smoke Test
         id: smoke
@@ -96,30 +99,52 @@ jobs:
           FORMAT_LOG: ${{ steps.format.outputs.log }}
           TYPE_LOG: ${{ steps.types.outputs.log }}
           TEST_LOG: ${{ steps.tests.outputs.log }}
+          BUILD_LOG: ${{ steps.build.outputs.log }}
           SMOKE_LOG: ${{ steps.smoke.outputs.log }}
         run: |
-          # Determine Error Type and Log Source (Normalize to Base64)
-          # Order of checks matters: Check most specific errors first
-          if [ -n "$ATTR_LOG" ]; then
-            export ERROR_TYPE="Attribution Check"
-            export ERROR_LOG_B64="$ATTR_LOG"
-          elif [ -n "$FORMAT_LOG" ]; then
-            export ERROR_TYPE="Formatting Failure"
-            export ERROR_LOG_B64="$FORMAT_LOG"
-          elif [ -n "$TYPE_LOG" ]; then
-            export ERROR_TYPE="TypeScript Error"
-            export ERROR_LOG_B64="$TYPE_LOG"
-          elif [ -n "$TEST_LOG" ]; then
-            export ERROR_TYPE="Test Failure"
-            export ERROR_LOG_B64="$TEST_LOG"
-          elif [ -n "$SMOKE_LOG" ]; then
-            export ERROR_TYPE="Smoke Test Failure"
-            export ERROR_LOG_B64="$SMOKE_LOG"
-          else
-             # No errors detected
-             echo "No failures detected. Skipping report."
-             exit 0
+          # Collect ALL failures into a combined report
+          ERROR_TYPES=""
+          ERROR_LOGS=""
+
+          if [ -n "$FORMAT_LOG" ]; then
+            ERROR_TYPES="${ERROR_TYPES}Formatting Failure\n"
+            ERROR_LOGS="${ERROR_LOGS}--- Formatting ---\n$(echo "$FORMAT_LOG" | base64 -d)\n\n"
           fi
+
+          if [ -n "$TYPE_LOG" ]; then
+            ERROR_TYPES="${ERROR_TYPES}TypeScript Error\n"
+            ERROR_LOGS="${ERROR_LOGS}--- TypeScript ---\n$(echo "$TYPE_LOG" | base64 -d)\n\n"
+          fi
+
+          if [ -n "$TEST_LOG" ]; then
+            ERROR_TYPES="${ERROR_TYPES}Test Failure\n"
+            ERROR_LOGS="${ERROR_LOGS}--- Tests ---\n$(echo "$TEST_LOG" | base64 -d)\n\n"
+          fi
+
+          if [ -n "$BUILD_LOG" ]; then
+            ERROR_TYPES="${ERROR_TYPES}Build Failure\n"
+            ERROR_LOGS="${ERROR_LOGS}--- Build ---\n$(echo "$BUILD_LOG" | base64 -d)\n\n"
+          fi
+
+          if [ -n "$SMOKE_LOG" ]; then
+            ERROR_TYPES="${ERROR_TYPES}Smoke Test Failure\n"
+            ERROR_LOGS="${ERROR_LOGS}--- Smoke Test ---\n$(echo "$SMOKE_LOG" | base64 -d)\n\n"
+          fi
+
+          if [ -n "$ATTR_LOG" ]; then
+            ERROR_TYPES="${ERROR_TYPES}Attribution Check\n"
+            ERROR_LOGS="${ERROR_LOGS}--- Attribution ---\n$(echo "$ATTR_LOG" | base64 -d)\n\n"
+          fi
+
+          # No errors detected
+          if [ -z "$ERROR_TYPES" ]; then
+            echo "No failures detected. Skipping report."
+            exit 0
+          fi
+
+          # Export combined errors for the reporting script
+          export ERROR_TYPE=$(echo -e "$ERROR_TYPES" | tr '\n' ', ' | sed 's/, $//')
+          export ERROR_LOG_B64=$(echo -e "$ERROR_LOGS" | base64 -w 0)
 
           # Run the reporting script
           npx tsx scripts/ci-report.ts
@@ -127,7 +152,7 @@ jobs:
       - name: Fail Job if Errors
         if: always()
         run: |
-          if [ -n "${{ steps.format.outputs.log }}" ] || [ -n "${{ steps.types.outputs.log }}" ] || [ -n "${{ steps.tests.outputs.log }}" ] || [ -n "${{ steps.smoke.outputs.log }}" ] || [ -n "${{ steps.attribution.outputs.log }}" ]; then
+          if [ -n "${{ steps.format.outputs.log }}" ] || [ -n "${{ steps.types.outputs.log }}" ] || [ -n "${{ steps.tests.outputs.log }}" ] || [ -n "${{ steps.build.outputs.log }}" ] || [ -n "${{ steps.smoke.outputs.log }}" ] || [ -n "${{ steps.attribution.outputs.log }}" ]; then
             echo "One or more checks failed."
             exit 1
           fi
