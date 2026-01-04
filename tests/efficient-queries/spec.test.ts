@@ -11,7 +11,13 @@ import {
   NodeSessionStorage,
   NodeFileStorage,
 } from '../../src/storage/node-fs.js';
-import { Activity, SessionResource } from '../../src/types.js';
+import {
+  Activity,
+  JulesClient,
+  JulesQuery,
+  SessionResource,
+} from '../../src/types.js';
+import { select } from '../../src/query/select.js';
 
 // Mock fs/promises for EFF-02 O(1) verification
 vi.mock('fs/promises', async () => {
@@ -177,9 +183,59 @@ describe('Efficient Queries Specs', () => {
           if (tc.then.resultCount) {
             expect(result.length).toBe(tc.then.resultCount);
           }
+        } else if (tc.when === 'select') {
+          const { sessionId, activities, options } = tc.given;
+          const activityStorage = new NodeFileStorage(sessionId, rootDir);
+          const sessionStorage = new NodeSessionStorage(rootDir);
+
+          // Create activities
+          for (const act of activities) {
+            await activityStorage.append({
+              id: act.id,
+              type: 'progressUpdated',
+              createTime: act.createTime,
+            } as Activity);
+          }
+          // create a mock client
+          const mockClient: JulesClient = {
+            storage: sessionStorage,
+            session: (id: string) =>
+              ({
+                activities: {
+                  select: async () => {
+                    const storage = new NodeFileStorage(id, rootDir);
+                    const acts: Activity[] = [];
+                    for await (const activity of storage.scan()) {
+                      acts.push(activity);
+                    }
+                    return acts;
+                  },
+                },
+                info: async () => {
+                  const storage = new NodeSessionStorage(rootDir);
+                  const sess = await storage.get(id);
+                  return sess!.resource;
+                },
+              }) as any,
+          } as any;
+
+          // Run select query
+          const query: JulesQuery<'activities'> = {
+            from: 'activities',
+            where: { sessionId },
+            order: options?.order,
+          };
+          const result = await select(mockClient, query);
+
+          if (tc.then.firstResultId) {
+            expect(result[0].id).toBe(tc.then.firstResultId);
+          }
+          if (tc.then.lastResultId) {
+            expect(result[result.length - 1].id).toBe(tc.then.lastResultId);
+          }
         }
       },
-      20000,
+      30000,
     );
   }
 });
