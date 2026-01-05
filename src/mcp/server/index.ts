@@ -54,198 +54,7 @@ export class JulesMCPServer {
     });
 
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      return {
-        tools: [
-          {
-            name: 'jules_create_session',
-            description:
-              'Creates a new Jules session or automated run to perform code tasks.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                prompt: {
-                  type: 'string',
-                  description: 'The task for the agent.',
-                },
-                repo: {
-                  type: 'string',
-                  description: 'GitHub repository (owner/repo).',
-                },
-                branch: {
-                  type: 'string',
-                  description: 'Target branch.',
-                },
-                interactive: {
-                  type: 'boolean',
-                  description:
-                    'If true, waits for plan approval. Defaults to false (automated run).',
-                },
-                autoPr: {
-                  type: 'boolean',
-                  description:
-                    'Automatically create a PR on completion. Defaults to true.',
-                },
-              },
-              required: ['prompt', 'repo', 'branch'],
-            },
-          },
-          {
-            name: 'jules_session_state',
-            description:
-              'Returns lightweight session metadata (state, URL, PR info). Use jules_session_timeline for activities.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string', description: 'The session ID' },
-              },
-              required: ['sessionId'],
-            },
-          },
-          {
-            name: 'jules_session_timeline',
-            description:
-              'Returns paginated lightweight activities for a session.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' },
-                limit: {
-                  type: 'number',
-                  description: 'Max activities to return. Default: 10',
-                },
-                startAfter: {
-                  type: 'string',
-                  description: 'Activity ID cursor for pagination',
-                },
-                order: {
-                  type: 'string',
-                  enum: ['asc', 'desc'],
-                  description: 'Sort order. Default: desc (newest first)',
-                },
-                type: {
-                  type: 'string',
-                  description: 'Filter by activity type',
-                },
-              },
-              required: ['sessionId'],
-            },
-          },
-          {
-            name: 'jules_get_session_status',
-            description:
-              '(DEPRECATED: Use jules_session_state and jules_session_timeline instead) Retrieves the current state, URL, and latest activities of a session.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' },
-                activityLimit: {
-                  type: 'number',
-                  description:
-                    'Number of recent activities to fetch. Defaults to 5.',
-                },
-              },
-              required: ['sessionId'],
-            },
-          },
-          {
-            name: 'jules_list_sessions',
-            description: 'Lists recent Jules sessions.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                pageSize: { type: 'number' },
-              },
-            },
-          },
-          {
-            name: 'jules_interact',
-            description:
-              'Interacts with an active session (approving plans or sending messages).',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' },
-                action: {
-                  type: 'string',
-                  enum: ['approve', 'send', 'ask'],
-                  description:
-                    "'ask' waits for a reply, 'send' is fire-and-forget.",
-                },
-                message: {
-                  type: 'string',
-                  description: "Required for 'send' and 'ask'.",
-                },
-              },
-              required: ['sessionId', 'action'],
-            },
-          },
-          {
-            name: 'jules_select',
-            description:
-              'Execute a jules.select() query to filter sessions or activities.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                query: {
-                  type: 'object',
-                  description:
-                    'The JulesQuery object defining the selection criteria.',
-                  properties: {
-                    from: {
-                      type: 'string',
-                      enum: ['sessions', 'activities'],
-                      description: 'The domain to query from.',
-                    },
-                    select: {
-                      type: 'array',
-                      items: { type: 'string' },
-                      description: 'Fields to project.',
-                    },
-                    where: {
-                      type: 'object',
-                      description: 'Filter criteria.',
-                    },
-                    limit: {
-                      type: 'number',
-                      description: 'Maximum number of results to return.',
-                    },
-                    offset: {
-                      type: 'number',
-                      description: 'Number of results to skip.',
-                    },
-                    include: {
-                      type: 'object',
-                      description: 'Related data to include.',
-                    },
-                    tokenBudget: {
-                      type: 'number',
-                      description:
-                        'Maximum tokens for response. Results truncated to fit.',
-                    },
-                  },
-                  required: ['from'],
-                },
-              },
-              required: ['query'],
-            },
-          },
-          {
-            name: 'jules_get_session_analysis_context',
-            description:
-              'Returns full analysis context of a session including guidelines, timeline, and activity counts.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: {
-                  type: 'string',
-                  description: 'The session ID to analyze',
-                },
-              },
-              required: ['sessionId'],
-            },
-          },
-        ],
-      };
+      return this._listTools();
     });
 
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -504,6 +313,212 @@ export class JulesMCPServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error('Jules MCP Server running on stdio');
+  }
+
+  private _listTools() {
+    return {
+      tools: [
+        {
+          name: 'jules_create_session',
+          description:
+            'Creates a new Jules session or automated run to perform code tasks.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              prompt: {
+                type: 'string',
+                description: 'The task for the agent.',
+              },
+              repo: {
+                type: 'string',
+                description: 'GitHub repository (owner/repo).',
+              },
+              branch: {
+                type: 'string',
+                description: 'Target branch.',
+              },
+              interactive: {
+                type: 'boolean',
+                description:
+                  'If true, waits for plan approval. Defaults to false (automated run).',
+              },
+              autoPr: {
+                type: 'boolean',
+                description:
+                  'Automatically create a PR on completion. Defaults to true.',
+              },
+            },
+            required: ['prompt', 'repo', 'branch'],
+          },
+        },
+        {
+          name: 'jules_session_state',
+          description:
+            'Returns lightweight session metadata (state, URL, PR info). Use jules_session_timeline for activities.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'The session ID (numeric string)',
+              },
+            },
+            required: ['sessionId'],
+          },
+        },
+        {
+          name: 'jules_session_timeline',
+          description:
+            'Returns paginated lightweight activities for a session.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'The session ID (numeric string)',
+              },
+              limit: {
+                type: 'number',
+                description: 'Max activities to return. Default: 10',
+              },
+              startAfter: {
+                type: 'string',
+                description: 'Activity ID cursor for pagination',
+              },
+              order: {
+                type: 'string',
+                enum: ['asc', 'desc'],
+                description:
+                  'Sort order: desc (newest first, default) or asc (oldest first)',
+              },
+              type: {
+                type: 'string',
+                description:
+                  'Filter by activity type: agentMessaged, userMessaged, planGenerated, planApproved, progressUpdated, sessionCompleted, sessionFailed',
+              },
+            },
+            required: ['sessionId'],
+          },
+        },
+        {
+          name: 'jules_get_session_status',
+          description:
+            '(DEPRECATED: Use jules_session_state and jules_session_timeline instead) Retrieves the current state, URL, and latest activities of a session.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'The session ID (numeric string)',
+              },
+              activityLimit: {
+                type: 'number',
+                description:
+                  'Number of recent activities to fetch. Defaults to 5.',
+              },
+            },
+            required: ['sessionId'],
+          },
+        },
+        {
+          name: 'jules_list_sessions',
+          description: 'Lists recent Jules sessions.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              pageSize: { type: 'number' },
+            },
+          },
+        },
+        {
+          name: 'jules_interact',
+          description:
+            'Interacts with an active session (approving plans or sending messages).',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: { type: 'string' },
+              action: {
+                type: 'string',
+                enum: ['approve', 'send', 'ask'],
+                description:
+                  "'ask' waits for a reply, 'send' is fire-and-forget.",
+              },
+              message: {
+                type: 'string',
+                description: "Required for 'send' and 'ask'.",
+              },
+            },
+            required: ['sessionId', 'action'],
+          },
+        },
+        {
+          name: 'jules_select',
+          description:
+            'Query the LOCAL CACHE of sessions and activities. Results are limited to previously synced data. Use jules_session_timeline for fresh activity data from the API. Best for searching across multiple sessions or filtering by type/state.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              query: {
+                type: 'object',
+                description:
+                  'The JulesQuery object defining the selection criteria.',
+                properties: {
+                  from: {
+                    type: 'string',
+                    enum: ['sessions', 'activities'],
+                    description: 'The domain to query from.',
+                  },
+                  select: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Fields to project.',
+                  },
+                  where: {
+                    type: 'object',
+                    description: 'Filter criteria.',
+                  },
+                  limit: {
+                    type: 'number',
+                    description: 'Maximum number of results to return.',
+                  },
+                  offset: {
+                    type: 'number',
+                    description: 'Number of results to skip.',
+                  },
+                  include: {
+                    type: 'object',
+                    description: 'Related data to include.',
+                  },
+                  tokenBudget: {
+                    type: 'number',
+                    description:
+                      'Maximum tokens for response. Results truncated to fit.',
+                  },
+                },
+                required: ['from'],
+              },
+            },
+            required: ['query'],
+          },
+        },
+        {
+          name: 'jules_get_session_analysis_context',
+          description:
+            'Returns full analysis context of a session including guidelines, timeline, and activity counts.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'The session ID to analyze',
+              },
+            },
+            required: ['sessionId'],
+          },
+        },
+      ],
+    };
   }
 
   private async handleSessionState(args: any) {
