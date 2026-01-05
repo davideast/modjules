@@ -47,7 +47,7 @@ const testCases = yaml.parse(specFile) as TestCase[];
 describe('Efficient Queries Specs', () => {
   const efficientQueriesSpecCases = testCases.filter(
     (tc) =>
-      (tc.status === 'implemented' || tc.status === 'pending') &&
+      tc.status === 'implemented' &&
       tc.testedIn?.includes('tests/efficient-queries/spec.test.ts'),
   );
 
