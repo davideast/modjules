@@ -16,6 +16,7 @@ export interface SelectOptions {
   before?: string; // Activity ID
   type?: string; // Activity Type
   limit?: number;
+  order?: 'asc' | 'desc';
 }
 
 /**

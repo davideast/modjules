@@ -90,9 +90,50 @@ export class JulesMCPServer {
             },
           },
           {
+            name: 'jules_session_state',
+            description:
+              'Returns lightweight session metadata (state, URL, PR info). Use jules_session_timeline for activities.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                sessionId: { type: 'string', description: 'The session ID' },
+              },
+              required: ['sessionId'],
+            },
+          },
+          {
+            name: 'jules_session_timeline',
+            description:
+              'Returns paginated lightweight activities for a session.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                sessionId: { type: 'string' },
+                limit: {
+                  type: 'number',
+                  description: 'Max activities to return. Default: 10',
+                },
+                startAfter: {
+                  type: 'string',
+                  description: 'Activity ID cursor for pagination',
+                },
+                order: {
+                  type: 'string',
+                  enum: ['asc', 'desc'],
+                  description: 'Sort order. Default: desc (newest first)',
+                },
+                type: {
+                  type: 'string',
+                  description: 'Filter by activity type',
+                },
+              },
+              required: ['sessionId'],
+            },
+          },
+          {
             name: 'jules_get_session_status',
             description:
-              'Retrieves the current state, URL, and latest activities of a session.',
+              '(DEPRECATED: Use jules_session_state and jules_session_timeline instead) Retrieves the current state, URL, and latest activities of a session.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -213,6 +254,10 @@ export class JulesMCPServer {
         switch (name) {
           case 'jules_create_session':
             return await this.handleCreateSession(args);
+          case 'jules_session_state':
+            return await this.handleSessionState(args);
+          case 'jules_session_timeline':
+            return await this.handleSessionTimeline(args);
           case 'jules_get_session_status':
             return await this.handleGetSessionStatus(args);
           case 'jules_interact':
@@ -459,5 +504,70 @@ export class JulesMCPServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error('Jules MCP Server running on stdio');
+  }
+
+  private async handleSessionState(args: any) {
+    const sessionId = args.sessionId as string;
+    if (!sessionId) throw new Error('sessionId is required');
+    const client = this.julesClient.session(sessionId);
+    const info = await client.info();
+    const pr = info.outputs?.find((o) => o.type === 'pullRequest')?.pullRequest;
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              id: info.id,
+              state: info.state,
+              url: info.url,
+              title: info.title,
+              ...(pr && { pr: { url: pr.url, title: pr.title } }),
+            },
+            null,
+            2,
+          ),
+        },
+      ],
+    };
+  }
+
+  private async handleSessionTimeline(args: any) {
+    const sessionId = args.sessionId as string;
+    if (!sessionId) throw new Error('sessionId is required');
+    const limit = (args.limit as number) || 10;
+    const order = (args.order as 'asc' | 'desc') || 'desc';
+    const startAfter = args.startAfter as string | undefined;
+    const typeFilter = args.type as string | undefined;
+    const client = this.julesClient.session(sessionId);
+    // Use activities.select() for efficient querying
+    const activities = await client.activities.select({
+      order,
+      after: startAfter,
+      limit: limit + 1, // Fetch one extra to determine hasMore
+      type: typeFilter,
+    });
+    const hasMore = activities.length > limit;
+    const results = activities.slice(0, limit);
+    const lightweight = results.map((a) => toLightweight(a));
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              activities: lightweight,
+              hasMore,
+              ...(hasMore &&
+                results.length > 0 && {
+                  nextCursor: results[results.length - 1].id,
+                }),
+            },
+            null,
+            2,
+          ),
+        },
+      ],
+    };
   }
 }
