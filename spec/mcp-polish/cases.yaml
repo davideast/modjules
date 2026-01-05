@@ -1,0 +1,182 @@
+## MCP Polish Spec
+##
+## Behavior: "MCP tools should have clear descriptions and handle edge cases"
+##
+## These specs define improvements to MCP tool descriptions and summary handling.
+
+# =============================================================================
+# toSummary edge case handling
+# =============================================================================
+
+- id: POLISH-01
+  description: toSummary handles progressUpdated with missing title gracefully
+  category: summary_edge_cases
+  status: pending
+  priority: P0
+  given:
+    activity:
+      id: 'act-1'
+      type: 'progressUpdated'
+      createTime: '2024-01-01T00:00:00Z'
+      # title and description are missing/undefined
+  when: toSummary
+  then:
+    summaryNot: 'undefined: undefined'
+    summaryFallback: 'progressUpdated'
+
+- id: POLISH-02
+  description: toSummary handles progressUpdated with missing description
+  category: summary_edge_cases
+  status: pending
+  priority: P0
+  given:
+    activity:
+      id: 'act-1'
+      type: 'progressUpdated'
+      title: 'Running tests'
+      createTime: '2024-01-01T00:00:00Z'
+      # description is missing/undefined
+  when: toSummary
+  then:
+    summary: 'Running tests'
+
+- id: POLISH-03
+  description: toSummary handles planApproved type
+  category: summary_edge_cases
+  status: pending
+  priority: P1
+  given:
+    activity:
+      id: 'act-1'
+      type: 'planApproved'
+      planId: 'plan-123'
+      createTime: '2024-01-01T00:00:00Z'
+  when: toSummary
+  then:
+    summary: 'Plan approved'
+
+- id: POLISH-04
+  description: toSummary handles sessionCompleted type
+  category: summary_edge_cases
+  status: pending
+  priority: P1
+  given:
+    activity:
+      id: 'act-1'
+      type: 'sessionCompleted'
+      createTime: '2024-01-01T00:00:00Z'
+  when: toSummary
+  then:
+    summary: 'Session completed'
+
+- id: POLISH-05
+  description: toSummary handles sessionFailed type with reason
+  category: summary_edge_cases
+  status: pending
+  priority: P1
+  given:
+    activity:
+      id: 'act-1'
+      type: 'sessionFailed'
+      reason: 'Rate limit exceeded'
+      createTime: '2024-01-01T00:00:00Z'
+  when: toSummary
+  then:
+    summaryContains: 'Rate limit exceeded'
+
+- id: POLISH-06
+  description: toSummary handles empty message gracefully
+  category: summary_edge_cases
+  status: pending
+  priority: P1
+  given:
+    activity:
+      id: 'act-1'
+      type: 'agentMessaged'
+      message: ''
+      createTime: '2024-01-01T00:00:00Z'
+  when: toSummary
+  then:
+    summaryNot: ''
+    summaryFallback: 'agentMessaged'
+
+# =============================================================================
+# MCP tool description improvements
+# =============================================================================
+
+- id: POLISH-07
+  description: jules_select description clarifies local cache source
+  category: tool_descriptions
+  status: pending
+  priority: P0
+  given:
+    tool: 'jules_select'
+  when: list_tools
+  then:
+    descriptionContains:
+      - 'local cache'
+      - 'previously synced'
+
+- id: POLISH-08
+  description: jules_session_state description includes lightweight keyword
+  category: tool_descriptions
+  status: pending
+  priority: P1
+  given:
+    tool: 'jules_session_state'
+  when: list_tools
+  then:
+    descriptionContains:
+      - 'lightweight'
+
+- id: POLISH-09
+  description: jules_session_timeline type property lists available filters
+  category: tool_descriptions
+  status: pending
+  priority: P1
+  given:
+    tool: 'jules_session_timeline'
+  when: list_tools
+  then:
+    typePropertyDescriptionContains:
+      - 'agentMessaged'
+      - 'planGenerated'
+
+- id: POLISH-10
+  description: jules_get_session_status marked deprecated in description
+  category: tool_descriptions
+  status: pending
+  priority: P0
+  given:
+    tool: 'jules_get_session_status'
+  when: list_tools
+  then:
+    descriptionStartsWith: '(DEPRECATED'
+
+# =============================================================================
+# Schema property descriptions
+# =============================================================================
+
+- id: POLISH-11
+  description: sessionId property includes format hint
+  category: schema_descriptions
+  status: pending
+  priority: P2
+  given:
+    tool: 'jules_session_state'
+  when: list_tools
+  then:
+    sessionIdDescriptionContains: 'numeric string'
+
+- id: POLISH-12
+  description: order property lists valid values in description
+  category: schema_descriptions
+  status: pending
+  priority: P2
+  given:
+    tool: 'jules_session_timeline'
+  when: list_tools
+  then:
+    orderDescriptionContains:
+      - 'desc'
+      - 'newest first'
