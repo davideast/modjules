@@ -82,7 +82,16 @@ describe('Unified Query Engine (select)', () => {
           message: 'Hello',
           createTime: '2023-01-01T00:00:01Z',
           originator: 'agent',
-          artifacts: [{ name: 'test.txt', content: '...' }],
+          artifacts: [
+            {
+              type: 'bashOutput',
+              command: 'ls',
+              stdout: 'file1.txt',
+              stderr: '',
+              exitCode: 0,
+              toString: () => '',
+            },
+          ],
         } as ActivityAgentMessaged,
       ],
       sess_2: [

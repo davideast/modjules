@@ -9,12 +9,7 @@ import {
 } from '../types.js';
 import { pMap } from '../utils.js';
 
-const DEFAULT_ACTIVITY_PROJECTION = [
-  'id',
-  'type',
-  'createTime',
-  'originator',
-];
+const DEFAULT_ACTIVITY_PROJECTION = ['id', 'type', 'createTime', 'originator'];
 const DEFAULT_SESSION_PROJECTION = ['id', 'state', 'title', 'createTime'];
 
 /**
