@@ -455,7 +455,7 @@ export class JulesMCPServer {
         {
           name: 'jules_select',
           description:
-            "Query the LOCAL CACHE of sessions and activities. Results are limited to previously synced data. Use jules_session_timeline for fresh activity data from the API. Best for searching across multiple sessions or filtering by type/state.",
+            'Query the LOCAL CACHE of sessions and activities. Results are limited to previously synced data. Use jules_session_timeline for fresh activity data from the API. Best for searching across multiple sessions or filtering by type/state.',
           inputSchema: {
             type: 'object',
             properties: {
