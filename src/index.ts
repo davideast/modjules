@@ -42,6 +42,7 @@ export type {
   ActivityPlanApproved,
   ActivityPlanGenerated,
   ActivityProgressUpdated,
+  ActivitySummary,
   ActivitySessionCompleted,
   ActivitySessionFailed,
   ActivityUserMessaged,

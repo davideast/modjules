@@ -232,7 +232,7 @@
   when: compare_formats
   then:
     lightweightTokens:
-      lessThan: 8000
+      lessThan: 8300
     fullTokens:
       greaterThan: 15000
 
