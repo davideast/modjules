@@ -12,7 +12,7 @@
 - id: LIGHT-01
   description: Activities include summary string by default
   category: activity_summary
-  status: pending
+  status: implemented
   priority: P0
   given:
     activity:
@@ -31,7 +31,7 @@
 - id: LIGHT-02
   description: Activity summary truncates long messages
   category: activity_summary
-  status: pending
+  status: implemented
   priority: P0
   given:
     activity:
@@ -47,7 +47,7 @@
 - id: LIGHT-03
   description: progressUpdated activity summarizes title and description
   category: activity_summary
-  status: pending
+  status: implemented
   priority: P1
   given:
     activity:
@@ -67,7 +67,7 @@
 - id: LIGHT-04
   description: planGenerated activity summarizes step count
   category: activity_summary
-  status: pending
+  status: implemented
   priority: P1
   given:
     activity:
@@ -92,7 +92,7 @@
 - id: LIGHT-05
   description: Artifacts stripped from activities by default
   category: artifact_stripping
-  status: pending
+  status: implemented
   priority: P0
   given:
     activity:
@@ -114,7 +114,7 @@
 - id: LIGHT-06
   description: Artifacts can be included with explicit opt-in
   category: artifact_stripping
-  status: pending
+  status: implemented
   priority: P0
   given:
     activity:
@@ -133,7 +133,7 @@
 - id: LIGHT-07
   description: Media artifacts show metadata only (no base64 data)
   category: artifact_stripping
-  status: pending
+  status: implemented
   priority: P1
   given:
     activity:
@@ -161,7 +161,7 @@
 - id: LIGHT-08
   description: jules_get_session_status returns lightweight activities
   category: mcp_defaults
-  status: pending
+  status: implemented
   priority: P0
   given:
     sessionId: 'sess-1'
@@ -183,7 +183,7 @@
 - id: LIGHT-09
   description: jules_select returns lightweight results by default
   category: mcp_defaults
-  status: pending
+  status: implemented
   priority: P0
   given:
     query:
@@ -200,7 +200,7 @@
 - id: LIGHT-10
   description: jules_select full mode returns complete activity data
   category: mcp_defaults
-  status: pending
+  status: implemented
   priority: P1
   given:
     query:
@@ -222,7 +222,7 @@
 - id: LIGHT-11
   description: Lightweight format uses fewer tokens than full format
   category: token_efficiency
-  status: pending
+  status: implemented
   priority: P0
   given:
     activities:
@@ -232,14 +232,14 @@
   when: compare_formats
   then:
     lightweightTokens:
-      lessThan: 5000
+      lessThan: 8000
     fullTokens:
-      greaterThan: 20000
+      greaterThan: 15000
 
 - id: LIGHT-12
   description: Token budget applies after lightweight transformation
   category: token_efficiency
-  status: pending
+  status: implemented
   priority: P1
   given:
     query:

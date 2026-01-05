@@ -17,6 +17,7 @@ import {
   Activity,
 } from '../../index.js';
 import { truncateToTokenBudget } from '../tokenizer.js';
+import { toLightweight } from '../lightweight.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -342,7 +343,9 @@ export class JulesMCPServer {
     }
 
     const limit = (args.activityLimit as number) || 5;
-    const recentActivities = allActivities.slice(-limit);
+    const recentActivities = allActivities
+      .slice(-limit)
+      .map((a) => toLightweight(a));
 
     return {
       content: [
@@ -415,7 +418,7 @@ export class JulesMCPServer {
   }
 
   private async handleSelect(args: any) {
-    const query = args?.query as JulesQuery<JulesDomain>;
+    const query = args?.query as JulesQuery<JulesDomain> & { mode?: string };
     if (!query) {
       throw new Error('Query argument is required');
     }
@@ -424,6 +427,11 @@ export class JulesMCPServer {
     let results = await this.julesClient.select(query);
     let truncated = false;
     let tokenCount = 0;
+
+    // Lightweight responses by default for activities
+    if (query.from === 'activities' && query.mode !== 'full') {
+      results = (results as Activity[]).map((a) => toLightweight(a)) as any[];
+    }
 
     if (tokenBudget && Array.isArray(results)) {
       const shaped = truncateToTokenBudget(results, tokenBudget);
