@@ -134,12 +134,10 @@ describe('MCP Polish Specs', () => {
       return tool;
     };
 
-    it('POLISH-07: jules_select description is updated', () => {
+    it('POLISH-07: jules_select description documents sync-then-query pattern', () => {
       const tool = getTool('jules_select');
       expect(tool.description).toContain('LOCAL CACHE');
-      expect(tool.description).toContain(
-        'jules_session_timeline for fresh activity data',
-      );
+      expect(tool.description).toContain('call jules_sync first');
     });
 
     it('POLISH-09: jules_session_timeline type description is updated', () => {
