@@ -349,22 +349,40 @@ function executeTest(tc: TestCase) {
       });
     }
 
-    // Mock session().history() for activity hydration
-    const mockSessionClient = {
-      history: vi.fn(async function* () {
-        // Return activities if configured
-      }),
-    };
-
+    // Mock session().activities.hydrate() for activity hydration
     const serverActivities =
       tc.given.serverActivities || tc.given.sessionActivities;
+    const localActivities = tc.given.localActivities || {};
 
-    if (serverActivities) {
-      mockSessionClient.history = vi.fn(async function* () {
-        // Get the session ID from context - in real tests we'd track this
-        for (const [sessId, activities] of Object.entries(serverActivities)) {
-          // Sort by createTime descending (newest first, as API returns)
-          const sorted = [...activities].sort(
+    // Create a mock that returns per-session activity counts
+    // The hydrate() function should return NEW activities (server - local)
+    const createMockSessionClient = (sessionId: string) => {
+      // Extract just the session ID part (remove 'sessions/' prefix if present)
+      const shortId = sessionId.replace(/^sessions\//, '');
+
+      // Get server activities for this session
+      const serverActs =
+        serverActivities?.[shortId] || serverActivities?.[sessionId] || [];
+      // Get local activities for this session
+      const localActs =
+        localActivities?.[shortId] || localActivities?.[sessionId] || [];
+
+      // Calculate new activities (those not in local cache)
+      const localIds = new Set(localActs.map((a: any) => a.id));
+      const newActivities = (serverActs as any[]).filter(
+        (a: any) => !localIds.has(a.id),
+      );
+
+      return {
+        activities: {
+          hydrate: vi.fn(async () => {
+            // Return count of NEW activities (not already in local cache)
+            return newActivities.length;
+          }),
+        },
+        history: vi.fn(async function* () {
+          // Legacy - kept for any tests that still use history()
+          const sorted = [...(serverActs as any[])].sort(
             (a, b) =>
               new Date((b as any).createTime || 0).getTime() -
               new Date((a as any).createTime || 0).getTime(),
@@ -372,11 +390,23 @@ function executeTest(tc: TestCase) {
           for (const act of sorted) {
             yield act;
           }
-        }
-      });
-    }
+        }),
+      };
+    };
 
-    vi.spyOn(client, 'session').mockReturnValue(mockSessionClient as any);
+    // Track hydrate call counts for verification
+    const hydrateCallCounts = { total: 0 };
+
+    vi.spyOn(client, 'session').mockImplementation((sessionId: string) => {
+      const mockClient = createMockSessionClient(sessionId);
+      // Wrap hydrate to track total calls
+      const originalHydrate = mockClient.activities.hydrate;
+      mockClient.activities.hydrate = vi.fn(async () => {
+        hydrateCallCounts.total++;
+        return originalHydrate();
+      });
+      return mockClient as any;
+    });
 
     // Mock checkpoint loading
     if (tc.given.checkpoint) {
@@ -456,9 +486,9 @@ function executeTest(tc: TestCase) {
               expect(mockStorage.upsert).toHaveBeenCalledTimes(call.times);
               break;
             case 'sessionClient.history':
-              expect(mockSessionClient.history).toHaveBeenCalledTimes(
-                call.times,
-              );
+              // Legacy: now we use activities.hydrate() instead
+              // Each session gets its own mock, so we track total calls separately
+              expect(hydrateCallCounts.total).toBe(call.times);
               break;
           }
         }

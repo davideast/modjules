@@ -14,6 +14,9 @@ describe('Congestion Control', () => {
       upsert: vi.fn(),
     };
     mockSessionClient = {
+      activities: {
+        hydrate: vi.fn(async () => 0),
+      },
       history: vi.fn(async function* () {}),
     };
 
@@ -53,10 +56,10 @@ describe('Congestion Control', () => {
       })() as any;
     });
 
-    // Mock history to take 100ms
-    mockSessionClient.history.mockImplementation(async function* () {
+    // Mock hydrate to take 100ms
+    mockSessionClient.activities.hydrate.mockImplementation(async () => {
       await new Promise((r) => setTimeout(r, 100));
-      yield {};
+      return 1;
     });
 
     const start = Date.now();
@@ -81,10 +84,10 @@ describe('Congestion Control', () => {
     });
 
     let callCount = 0;
-    mockSessionClient.history.mockImplementation(async function* () {
+    mockSessionClient.activities.hydrate.mockImplementation(async () => {
       callCount++;
       if (callCount === 3) throw new Error('Network Error');
-      yield {};
+      return 1;
     });
 
     await expect(

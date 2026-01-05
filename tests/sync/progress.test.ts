@@ -14,6 +14,9 @@ describe('Observability', () => {
       upsert: vi.fn(),
     };
     mockSessionClient = {
+      activities: {
+        hydrate: vi.fn(async () => 0),
+      },
       history: vi.fn(async function* () {}),
     };
 
@@ -71,12 +74,13 @@ describe('Observability', () => {
       total: 1,
     });
 
-    // 4. Hydration progress
+    // 4. Hydration progress (now includes activityCount)
     expect(onProgress).toHaveBeenCalledWith({
       phase: 'hydrating_records',
       current: 1,
       total: 1,
       lastIngestedId: '1',
+      activityCount: 0,
     });
   });
 
@@ -93,13 +97,13 @@ describe('Observability', () => {
       })() as any;
     });
 
-    // Mock history with variable delays to simulate out-of-order completion
+    // Mock hydrate with variable delays to simulate out-of-order completion
     // Session 2 finishes first, then 1, then 3
-    mockSessionClient.history.mockImplementation(async function* () {
+    mockSessionClient.activities.hydrate.mockImplementation(async () => {
       // Since we don't know which session called us easily in this mock setup without checking args...
       // We can just rely on the fact that pMap runs them.
       // But to test monotonicity, we just need to ensure that regardless of order, 'current' increments 1, 2, 3.
-      yield {};
+      return 1; // Return count of activities hydrated
     });
 
     // We can't easily force order with simple mocks unless we mock based on ID.

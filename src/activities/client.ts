@@ -1,6 +1,7 @@
 import { Activity } from '../types.js';
 import { ActivityStorage } from '../storage/types.js';
 import { ActivityClient, ListOptions, SelectOptions } from './types.js';
+import { createTimeToPageToken, isSessionFrozen } from '../utils/page-token.js';
 
 /**
  * Interface for the network layer used by the activity client.
@@ -68,51 +69,70 @@ export class DefaultActivityClient implements ActivityClient {
 
   /**
    * Syncs new activities from the network to local cache.
-   * Uses a high-water mark strategy to avoid re-downloading activities
-   * we already have (since activities are immutable).
+   *
+   * **Optimization Strategy:**
+   * Activities are immutable - once downloaded, they never change.
+   * We use the Jules API's pageToken (nanosecond timestamp) to fetch
+   * only activities newer than our latest cached one.
+   *
+   * **Behavior:**
+   * - Empty cache: Fetches all activities (no pageToken)
+   * - Has cached activities: Constructs pageToken from latest createTime,
+   *   fetches only newer activities
+   * - Frozen session (> 30 days): Skips API call entirely
    *
    * @returns The number of new activities synced.
    */
   async hydrate(): Promise<number> {
     await this.storage.init();
 
-    // 1. Establish high-water mark from the latest cached activity.
-    // This is O(1) instead of scanning the entire cache.
+    // 1. Check for cached activities and establish high-water mark
     const latest = await this.storage.latest();
-    const highWaterMark = latest?.createTime
-      ? new Date(latest.createTime).getTime()
-      : 0;
+
+    // 2. Frozen session optimization: If the last activity is older than
+    // 30 days, the session is frozen and no new activities will appear.
+    if (latest?.createTime && isSessionFrozen(latest.createTime)) {
+      return 0; // No API call needed
+    }
+
+    // 3. Construct pageToken from latest cached activity's createTime.
+    // This tells the API to return only activities AFTER this timestamp.
+    // If no cached activities, pageToken is undefined (fetch from beginning).
+    const pageToken = latest?.createTime
+      ? createTimeToPageToken(latest.createTime, true) // exclusive: activities AFTER this time
+      : undefined;
 
     let count = 0;
-    let pageToken: string | undefined;
+    let nextPageToken: string | undefined = pageToken;
 
     do {
-      const response = await this.network.listActivities({ pageToken });
+      const response = await this.network.listActivities({
+        pageToken: nextPageToken,
+      });
 
       for (const activity of response.activities) {
-        const actTime = new Date(activity.createTime).getTime();
+        // With pageToken, the API should only return newer activities.
+        // But we still check for duplicates at the boundary to be safe
+        // (handles edge case of multiple activities with identical timestamps).
+        if (latest?.createTime) {
+          const actTime = new Date(activity.createTime).getTime();
+          const latestTime = new Date(latest.createTime).getTime();
 
-        // 2. Skip activities older than our high-water mark (we have them)
-        if (actTime < highWaterMark) {
-          continue;
-        }
-
-        // 3. For activities at the exact boundary timestamp, check storage
-        // to handle multiple activities with identical timestamps.
-        if (actTime === highWaterMark) {
-          const existing = await this.storage.get(activity.id);
-          if (existing) {
-            continue;
+          if (actTime === latestTime) {
+            const existing = await this.storage.get(activity.id);
+            if (existing) {
+              continue;
+            }
           }
         }
 
-        // 4. It's new - append to storage
+        // It's new - append to storage
         await this.storage.append(activity);
         count++;
       }
 
-      pageToken = response.nextPageToken;
-    } while (pageToken);
+      nextPageToken = response.nextPageToken;
+    } while (nextPageToken);
 
     return count;
   }

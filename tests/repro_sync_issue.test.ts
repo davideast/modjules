@@ -83,7 +83,11 @@ describe('JulesClient.sync() Repro', () => {
     // Or we can mock the method after instantiation.
   });
 
-  it('fails to sync activities when session is already downloaded (incremental=true)', async () => {
+  it('hydrates activities for first cached session hit (incremental=true)', async () => {
+    // This test verifies that when depth='activities' and incremental=true,
+    // we still hydrate activities for the FIRST session that matches the high-water mark,
+    // but we don't iterate through ALL older sessions (which would cause hanging).
+
     client = new JulesClientImpl(
       { apiKey: 'test-key' },
       mockStorageFactory,
@@ -98,6 +102,9 @@ describe('JulesClient.sync() Repro', () => {
 
     // Mock session() method to return a dummy session client for hydration
     const mockSessionClient = {
+      activities: {
+        hydrate: vi.fn().mockResolvedValue(1), // Simulate 1 activity hydrated
+      },
       history: vi.fn().mockReturnValue(
         (async function* () {
           yield { id: 'act-1', type: 'agentMessaged' };
@@ -117,8 +124,10 @@ describe('JulesClient.sync() Repro', () => {
 
     // Assert
     expect(result.sessionsIngested).toBe(0); // No new sessions were ingested
-    expect(result.activitiesIngested).toBeGreaterThan(0);
-    // Crucially, check that we attempted to upsert the older session
-    expect(mockSessionStorage.upsert).toHaveBeenCalledWith(session1);
+    expect(result.activitiesIngested).toBe(1); // Activities from session2 were hydrated
+    // We upsert session2 (the first cached session hit) for hydration
+    expect(mockSessionStorage.upsert).toHaveBeenCalledWith(session2);
+    // We do NOT upsert session1 - we stop iterating at the high-water mark
+    expect(mockSessionStorage.upsert).not.toHaveBeenCalledWith(session1);
   });
 });

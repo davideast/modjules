@@ -1,38 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { jules } from '../../src/index.js';
-import { ApiClient } from '../../src/api.js';
-import { SessionResource } from '../../src/types.js';
+import { select } from '../../src/query/select.js';
+import { SessionResource, Activity } from '../../src/types.js';
 
-// Mock dependencies
-// We mock the module to intercept the class constructor
-vi.mock('../../src/api.js', async () => {
-  const actual = await vi.importActual('../../src/api.js');
-  return {
-    ...actual,
-    ApiClient: vi.fn(),
-  };
-});
-
+/**
+ * This test verifies that select() with include: { activities: true }
+ * does NOT trigger network requests - it only reads from local cache.
+ *
+ * Previously this was an integration test using jules.with() which was
+ * flaky due to filesystem I/O. Now it uses mocked storage like other tests.
+ */
 describe('jules.select() Network Isolation Spec', () => {
-  let mockRequest: any;
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-
-    // Setup Mock API Client
-    mockRequest = vi.fn();
-    (ApiClient as any).mockImplementation(() => ({
-      request: mockRequest,
-    }));
-  });
-
   it('should NOT trigger network requests for activities during select', async () => {
-    // We instantiate a fresh client to ensure mocks are used
-    const client = jules.with({ apiKey: 'test' });
-
-    // 1. Setup Local State
-    // We use a unique ID to avoid collision with other tests if storage persists
-    const sessionId = `sessions/isolation-spec-${Date.now()}`;
+    // 1. Setup mock session storage
+    const sessionId = 'sessions/isolation-spec-test';
     const dummySession: SessionResource = {
       id: sessionId,
       name: sessionId,
@@ -46,12 +26,50 @@ describe('jules.select() Network Isolation Spec', () => {
       prompt: 'test',
     };
 
-    await client.storage.upsert(dummySession);
+    // 2. Setup mock activity client that tracks calls
+    const activitySelectSpy = vi.fn().mockResolvedValue([]);
+    const networkFetchSpy = vi.fn();
 
-    // 2. Execute select with include: activities
-    // This should find the session locally.
-    // It should NOT try to fetch activities from network even though they are missing locally.
-    const results = await client.select({
+    const mockClient = {
+      storage: {
+        scanIndex: async function* () {
+          yield {
+            id: sessionId,
+            title: dummySession.title,
+            state: dummySession.state,
+          };
+        },
+        get: async (id: string) => {
+          if (id === sessionId) {
+            return { resource: dummySession };
+          }
+          return null;
+        },
+      },
+      session: (id: string) => ({
+        activities: {
+          // This is the local cache select - should be called
+          select: activitySelectSpy,
+          // These would trigger network requests - should NOT be called
+          list: networkFetchSpy,
+          stream: networkFetchSpy,
+          history: networkFetchSpy,
+        },
+        info: async () => dummySession,
+        stream: async function* () {
+          // This would be infinite polling - should NOT be called
+          networkFetchSpy();
+          yield* [];
+        },
+        history: async function* () {
+          networkFetchSpy();
+          yield* [];
+        },
+      }),
+    };
+
+    // 3. Execute select with include: activities
+    const results = await select(mockClient as any, {
       from: 'sessions',
       select: ['id'],
       include: {
@@ -59,20 +77,18 @@ describe('jules.select() Network Isolation Spec', () => {
       },
     });
 
-    // 3. Assertions
-    // Filter calls to see if any activity requests were made
-    const activityCalls = mockRequest.mock.calls.filter((args: any[]) =>
-      args[0].includes('activities'),
-    );
+    // 4. Assertions
+    // Verify local select() was called (cache read)
+    expect(activitySelectSpy).toHaveBeenCalled();
 
-    // STRICTLY ZERO network calls for activities
-    expect(activityCalls.length).toBe(0);
+    // STRICTLY ZERO network fetches
+    expect(networkFetchSpy).not.toHaveBeenCalled();
 
-    // Verify we actually got the session back
+    // Verify we got the session back
     const found = results.find((s) => s.id === sessionId);
     expect(found).toBeDefined();
-    // Activities should be an empty array (since they are missing locally)
-    // rather than undefined or crashing
+
+    // Activities should be an empty array (since cache is empty)
     expect(found?.activities).toEqual([]);
   });
 });

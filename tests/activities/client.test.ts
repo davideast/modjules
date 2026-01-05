@@ -6,6 +6,13 @@ import {
 import { ActivityStorage } from '../../src/storage/types.js';
 import { ActivityAgentMessaged } from '../../src/types.js';
 
+// Generate recent ISO dates to avoid triggering frozen session detection (> 30 days)
+const recentDate = (minutesAgo: number): string => {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() - minutesAgo);
+  return date.toISOString();
+};
+
 // Helper to create dummy activities
 const createActivity = (
   id: string,
@@ -51,8 +58,8 @@ describe('DefaultActivityClient', () => {
   describe('history()', () => {
     it('should hydrate from network then yield all activities from storage', async () => {
       const mockActivities = [
-        createActivity('a1', '2023-10-26T10:00:00Z'),
-        createActivity('a2', '2023-10-26T10:01:00Z'),
+        createActivity('a1', recentDate(10)),
+        createActivity('a2', recentDate(5)),
       ];
 
       storageMock.scan = vi.fn().mockImplementation(async function* () {
@@ -80,8 +87,8 @@ describe('DefaultActivityClient', () => {
     });
 
     it('should sync new activities from network before yielding', async () => {
-      const existingActivity = createActivity('a1', '2023-10-26T10:00:00Z');
-      const newActivity = createActivity('a2', '2023-10-26T10:01:00Z');
+      const existingActivity = createActivity('a1', recentDate(10));
+      const newActivity = createActivity('a2', recentDate(5));
 
       // Storage has existing activity, scan will yield both after append
       const stored = [existingActivity];
@@ -114,7 +121,7 @@ describe('DefaultActivityClient', () => {
 
   describe('updates()', () => {
     it('should yield new activities and persist them to storage', async () => {
-      const newActivity = createActivity('a1', '2023-10-26T10:00:00Z');
+      const newActivity = createActivity('a1', recentDate(5));
       networkMock.rawStream = vi.fn().mockImplementation(async function* () {
         yield newActivity;
       });
@@ -134,9 +141,9 @@ describe('DefaultActivityClient', () => {
     });
 
     it('should filter out activities older than high-water mark', async () => {
-      const oldActivity = createActivity('a1', '2023-10-26T09:00:00Z');
-      const latestStored = createActivity('a2', '2023-10-26T10:00:00Z');
-      const newActivity = createActivity('a3', '2023-10-26T11:00:00Z');
+      const oldActivity = createActivity('a1', recentDate(15));
+      const latestStored = createActivity('a2', recentDate(10));
+      const newActivity = createActivity('a3', recentDate(5));
 
       storageMock.latest = vi.fn().mockResolvedValue(latestStored);
       networkMock.rawStream = vi.fn().mockImplementation(async function* () {
@@ -156,9 +163,10 @@ describe('DefaultActivityClient', () => {
     });
 
     it('should deduplicate activities with same timestamp AND id as high-water mark', async () => {
-      const latestStored = createActivity('a1', '2023-10-26T10:00:00Z');
+      const sameTime = recentDate(10);
+      const latestStored = createActivity('a1', sameTime);
       // Same time, different ID -> should be yielded
-      const sameTimeDiffId = createActivity('a2', '2023-10-26T10:00:00Z');
+      const sameTimeDiffId = createActivity('a2', sameTime);
 
       storageMock.latest = vi.fn().mockResolvedValue(latestStored);
       networkMock.rawStream = vi.fn().mockImplementation(async function* () {
@@ -178,8 +186,8 @@ describe('DefaultActivityClient', () => {
 
   describe('stream()', () => {
     it('should yield history then updates', async () => {
-      const historyActivity = createActivity('a1', '2023-10-26T10:00:00Z');
-      const updateActivity = createActivity('a2', '2023-10-26T11:00:00Z');
+      const historyActivity = createActivity('a1', recentDate(10));
+      const updateActivity = createActivity('a2', recentDate(5));
 
       storageMock.scan = vi.fn().mockImplementation(async function* () {
         yield historyActivity;
@@ -211,11 +219,11 @@ describe('DefaultActivityClient', () => {
   });
 
   describe('select()', () => {
-    const a1 = createActivity('a1', '2023-10-26T10:00:00Z', 'typeA');
-    const a2 = createActivity('a2', '2023-10-26T10:01:00Z', 'typeB');
-    const a3 = createActivity('a3', '2023-10-26T10:02:00Z', 'typeA');
-    const a4 = createActivity('a4', '2023-10-26T10:03:00Z', 'typeC');
-    const a5 = createActivity('a5', '2023-10-26T10:04:00Z', 'typeA');
+    const a1 = createActivity('a1', recentDate(20), 'typeA');
+    const a2 = createActivity('a2', recentDate(15), 'typeB');
+    const a3 = createActivity('a3', recentDate(10), 'typeA');
+    const a4 = createActivity('a4', recentDate(5), 'typeC');
+    const a5 = createActivity('a5', recentDate(1), 'typeA');
 
     beforeEach(() => {
       storageMock.scan = vi.fn().mockImplementation(async function* () {
@@ -276,7 +284,7 @@ describe('DefaultActivityClient', () => {
   describe('list()', () => {
     it('should delegate to network.listActivities', async () => {
       const mockResponse = {
-        activities: [createActivity('a1', '2023-10-26T10:00:00Z')],
+        activities: [createActivity('a1', recentDate(10))],
         nextPageToken: 'token',
       };
       (networkMock.listActivities as any).mockResolvedValue(mockResponse);
@@ -291,7 +299,7 @@ describe('DefaultActivityClient', () => {
 
   describe('get()', () => {
     it('should return from storage if found (cache hit)', async () => {
-      const cachedActivity = createActivity('a1', '2023-10-26T10:00:00Z');
+      const cachedActivity = createActivity('a1', recentDate(10));
       storageMock.get = vi.fn().mockResolvedValue(cachedActivity);
 
       const result = await client.get('a1');
@@ -303,7 +311,7 @@ describe('DefaultActivityClient', () => {
     });
 
     it('should fetch from network, persist, and return if not in storage (cache miss)', async () => {
-      const freshActivity = createActivity('a1', '2023-10-26T10:00:00Z');
+      const freshActivity = createActivity('a1', recentDate(10));
       storageMock.get = vi.fn().mockResolvedValue(undefined);
       (networkMock.fetchActivity as any).mockResolvedValue(freshActivity);
 

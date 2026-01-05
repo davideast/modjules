@@ -576,3 +576,81 @@
   then:
     stats:
       sessionsIngested: 0
+
+# =============================================================================
+# PERFORMANCE: SESSION ITERATION BOUNDS
+# =============================================================================
+# These specs document critical performance behavior to prevent regressions.
+# Bug fixed: depth='activities' was iterating through ALL sessions instead of
+# stopping at the high-water mark, causing sync to hang indefinitely.
+
+- id: PERF-01
+  description: Activities depth stops at high-water mark (does not iterate all sessions)
+  category: performance
+  status: implemented
+  priority: P0
+  given:
+    localSessions:
+      - id: 'cached-session'
+        createTime: '2023-01-02T00:00:00Z'
+    apiSessions:
+      - id: 'new-session'
+        createTime: '2023-01-03T00:00:00Z'
+      - id: 'cached-session'
+        createTime: '2023-01-02T00:00:00Z'
+      - id: 'old-session-1'
+        createTime: '2023-01-01T00:00:00Z'
+      - id: 'old-session-2'
+        createTime: '2022-12-31T00:00:00Z'
+      - id: 'old-session-3'
+        createTime: '2022-12-30T00:00:00Z'
+    serverActivities:
+      new-session:
+        - id: 'act-1'
+      cached-session:
+        - id: 'act-2'
+    options:
+      depth: activities
+      incremental: true
+  when: sync
+  then:
+    stats:
+      sessionsIngested: 1 # Only new-session
+    calls:
+      # Should call hydrate exactly twice: new-session + cached-session (first hit)
+      # Should NOT call hydrate for old-session-1, old-session-2, old-session-3
+      - method: sessionClient.history
+        times: 2
+
+- id: PERF-02
+  description: Hydrate called only for first cached session hit (not all old sessions)
+  category: performance
+  status: implemented
+  priority: P0
+  given:
+    localSessions:
+      - id: 's1'
+        createTime: '2023-01-03T00:00:00Z'
+    apiSessions:
+      - id: 's1'
+        createTime: '2023-01-03T00:00:00Z'
+      - id: 's2'
+        createTime: '2023-01-02T00:00:00Z'
+      - id: 's3'
+        createTime: '2023-01-01T00:00:00Z'
+    serverActivities:
+      s1:
+        - id: 'act-new'
+    options:
+      depth: activities
+      incremental: true
+  when: sync
+  then:
+    stats:
+      sessionsIngested: 0 # No new sessions
+      activitiesIngested: 1 # Only s1's new activity
+    calls:
+      # Should call hydrate exactly once for s1, then STOP
+      # Should NOT iterate to s2, s3
+      - method: sessionClient.history
+        times: 1
