@@ -268,10 +268,13 @@ describe('Unified Query Engine (select)', () => {
       });
       const act1 = results.find((a) => a.id === 'act_1_1');
       expect(act1).toBeDefined();
+      // Default projection now includes computed fields: artifactCount, summary
       expect(Object.keys(act1!).sort()).toEqual([
+        'artifactCount',
         'createTime',
         'id',
         'originator',
+        'summary',
         'type',
       ]);
       expect((act1! as any).artifacts).toBeUndefined();

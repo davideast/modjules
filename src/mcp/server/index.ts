@@ -19,6 +19,7 @@ import {
 } from '../../index.js';
 import { truncateToTokenBudget } from '../tokenizer.js';
 import { toLightweight } from '../lightweight.js';
+import { getAllSchemas, generateMarkdownDocs } from '../schema.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -78,6 +79,8 @@ export class JulesMCPServer {
             return await this.handleGetSessionAnalysisContext(args);
           case 'jules_sync':
             return await this.handleSync(args);
+          case 'jules_schema':
+            return await this.handleSchema(args);
           default:
             throw new Error(`Tool not found: ${name}`);
         }
@@ -486,6 +489,28 @@ export class JulesMCPServer {
             },
           },
         },
+        {
+          name: 'jules_schema',
+          description:
+            'Returns the Jules Query Language (JQL) schema for sessions and activities. Use this to understand field names, types, and available query operators before constructing queries with jules_select.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              domain: {
+                type: 'string',
+                enum: ['sessions', 'activities', 'all'],
+                description:
+                  "Domain to get schema for: 'sessions', 'activities', or 'all' (default).",
+              },
+              format: {
+                type: 'string',
+                enum: ['json', 'markdown'],
+                description:
+                  "Output format: 'json' (default) for structured data, 'markdown' for human-readable docs.",
+              },
+            },
+          },
+        },
       ],
     };
   }
@@ -570,6 +595,51 @@ export class JulesMCPServer {
         {
           type: 'text',
           text: JSON.stringify(stats, null, 2),
+        },
+      ],
+    };
+  }
+
+  private async handleSchema(args: any) {
+    const domain = (args?.domain as string) || 'all';
+    const format = (args?.format as string) || 'json';
+
+    if (format === 'markdown') {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: generateMarkdownDocs(),
+          },
+        ],
+      };
+    }
+
+    // JSON format
+    const schemas = getAllSchemas();
+    let result: unknown;
+
+    if (domain === 'sessions') {
+      result = {
+        sessions: schemas.sessions,
+        filterOps: schemas.filterOps,
+        projection: schemas.projection,
+      };
+    } else if (domain === 'activities') {
+      result = {
+        activities: schemas.activities,
+        filterOps: schemas.filterOps,
+        projection: schemas.projection,
+      };
+    } else {
+      result = schemas;
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(result, null, 2),
         },
       ],
     };
