@@ -636,6 +636,39 @@ export interface ActivitySessionFailed extends BaseActivity {
 }
 
 /**
+ * A lightweight summary of an activity, designed for token-efficient transmission.
+ */
+export interface ActivitySummary {
+  id: string;
+  type: string;
+  createTime: string;
+  summary: string;
+}
+
+/**
+ * A media artifact with its base64 data stripped.
+ */
+export type StrippedMediaArtifact = Omit<MediaArtifact, 'data'> & {
+  dataStripped: true;
+  hasData: true;
+};
+
+/**
+ * A union of artifact types that can be included in a lightweight activity.
+ */
+export type LightweightArtifact =
+  | Exclude<Artifact, MediaArtifact>
+  | StrippedMediaArtifact;
+
+/**
+ * A lightweight representation of an activity, with artifacts stripped by default.
+ */
+export interface LightweightActivity extends ActivitySummary {
+  artifacts: LightweightArtifact[] | null;
+  artifactCount: number;
+}
+
+/**
  * A single event or unit of work within a session.
  * This discriminated union represents all possible activities streamed by the SDK.
  * Maps to the `Activity` resource in the REST API.
