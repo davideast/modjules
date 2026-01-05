@@ -12,7 +12,7 @@
 - id: SHAPE-01
   description: Default projection includes lightweight fields only
   category: defaults
-  status: pending
+  status: implemented
   priority: P0
   given:
     sessionId: 'sess-shape'
@@ -34,7 +34,7 @@
 - id: SHAPE-02
   description: Default session projection excludes heavy fields
   category: defaults
-  status: pending
+  status: implemented
   priority: P0
   given:
     session:
@@ -95,7 +95,7 @@
 - id: SHAPE-05
   description: Empty select array returns all fields
   category: projection
-  status: pending
+  status: implemented
   priority: P1
   given:
     sessionId: 'sess-all'

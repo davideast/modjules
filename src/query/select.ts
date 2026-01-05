@@ -9,11 +9,21 @@ import {
 } from '../types.js';
 import { pMap } from '../utils.js';
 
+const DEFAULT_ACTIVITY_PROJECTION = [
+  'id',
+  'type',
+  'createTime',
+  'originator',
+];
+const DEFAULT_SESSION_PROJECTION = ['id', 'state', 'title', 'createTime'];
+
 /**
  * Recursively applies the 'select' projection mask to an object.
  */
 function project<T>(data: any, selection?: string[]): any {
-  if (!selection || selection.length === 0) return data;
+  if (selection === undefined) return data; // Should not happen with new logic, but safe
+  if (selection.length === 0) return data; // SHAPE-05: Empty array returns all
+
   const result: any = {};
   for (const key of selection) {
     if (key in data) result[key] = data[key];
@@ -118,7 +128,11 @@ export async function select<T extends JulesDomain>(
       const cached = await storage.get(entry.id);
       if (!cached) continue;
 
-      const item: any = project(cached.resource, query.select as string[]);
+      const selection =
+        query.select === undefined
+          ? DEFAULT_SESSION_PROJECTION
+          : (query.select as string[]);
+      const item: any = project(cached.resource, selection);
       results.push(item);
     }
 
@@ -213,7 +227,11 @@ export async function select<T extends JulesDomain>(
         if (where?.id && !match(act.id, where.id)) continue;
         if (where?.type && !match(act.type, where.type)) continue;
 
-        const item: any = project(act, query.select as string[]);
+        const selection =
+          query.select === undefined
+            ? DEFAULT_ACTIVITY_PROJECTION
+            : (query.select as string[]);
+        const item: any = project(act, selection);
 
         // PASS 2: Reverse Join (Include Session Metadata)
         if (query.include && 'session' in query.include) {
