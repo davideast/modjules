@@ -230,19 +230,20 @@ describe('Incremental Activity Sync Spec', async () => {
         const newCount = await client.hydrate();
 
         // Verify expectations
-        if (tc.then.apiCalledWithPageToken) {
+        const expected = tc.then as HydrationTestCase['then'];
+        if (expected.apiCalledWithPageToken) {
           expect(mockNetwork.calls.length).toBeGreaterThan(0);
           expect(mockNetwork.calls[0].pageToken).toBeDefined();
         }
-        if (tc.then.apiCalledWithoutPageToken) {
+        if (expected.apiCalledWithoutPageToken) {
           expect(mockNetwork.calls.length).toBeGreaterThan(0);
           expect(mockNetwork.calls[0].pageToken).toBeUndefined();
         }
-        if (tc.then.newActivitiesCached !== undefined) {
-          expect(newCount).toBe(tc.then.newActivitiesCached);
+        if (expected.newActivitiesCached !== undefined) {
+          expect(newCount).toBe(expected.newActivitiesCached);
         }
-        if (tc.then.totalApiCalls !== undefined) {
-          expect(mockNetwork.calls.length).toBe(tc.then.totalApiCalls);
+        if (expected.totalApiCalls !== undefined) {
+          expect(mockNetwork.calls.length).toBe(expected.totalApiCalls);
         }
       });
     }
@@ -336,8 +337,9 @@ describe('Incremental Activity Sync Spec', async () => {
           const client = new DefaultActivityClient(storage, mockNetwork);
           const newCount = await client.hydrate();
 
-          if (tc.then.newActivitiesCached !== undefined) {
-            expect(newCount).toBe(tc.then.newActivitiesCached);
+          const expected = tc.then as HydrationTestCase['then'];
+          if (expected.newActivitiesCached !== undefined) {
+            expect(newCount).toBe(expected.newActivitiesCached);
           }
         }
       });
