@@ -64,20 +64,6 @@ interface ToLightweightTestCase extends BaseTestCase {
   };
 }
 
-interface McpGetSessionStatusTestCase extends BaseTestCase {
-  when: 'mcp_jules_get_session_status';
-  given: {
-    sessionId: string;
-    activityLimit: number;
-    activities: Activity[];
-  };
-  then: {
-    result: {
-      recentActivities: Partial<ActivitySummary>[];
-    };
-  };
-}
-
 interface McpSelectTestCase extends BaseTestCase {
   when: 'mcp_jules_select';
   given: {
@@ -124,7 +110,6 @@ interface CompareFormatsTestCase extends BaseTestCase {
 type TestCase =
   | ToSummaryTestCase
   | ToLightweightTestCase
-  | McpGetSessionStatusTestCase
   | McpSelectTestCase
   | CompareFormatsTestCase;
 // #endregion
@@ -225,33 +210,6 @@ describe('Lightweight Responses Spec', async () => {
               );
             }
           }
-          break;
-        }
-
-        case 'mcp_jules_get_session_status': {
-          const mockSessionClient: Pick<SessionClient, 'info' | 'history'> = {
-            info: vi.fn().mockResolvedValue({
-              state: 'inProgress',
-              url: 'http://test.com',
-            } as SessionResource),
-            history: vi
-              .fn()
-              .mockReturnValue(asyncGenerator(tc.given.activities)),
-          };
-          vi.spyOn(mockJules, 'session').mockReturnValue(
-            mockSessionClient as SessionClient,
-          );
-
-          const statusResult = await (
-            mcpServer as unknown as { handleGetSessionStatus: Function }
-          ).handleGetSessionStatus({
-            sessionId: tc.given.sessionId,
-            activityLimit: tc.given.activityLimit,
-          });
-          const statusContent = JSON.parse(statusResult.content[0].text);
-          expect(statusContent.recentActivities[0]).toEqual(
-            expect.objectContaining(tc.then.result.recentActivities[0]),
-          );
           break;
         }
 

@@ -70,6 +70,7 @@ export type {
   SourceManager,
   JulesQuery,
   JulesDomain,
+  SyncDepth,
 } from './types.js';
 
 export { SessionCursor } from './sessions.js';

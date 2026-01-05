@@ -15,6 +15,7 @@ import {
   JulesDomain,
   SessionConfig,
   Activity,
+  SyncDepth,
 } from '../../index.js';
 import { truncateToTokenBudget } from '../tokenizer.js';
 import { toLightweight } from '../lightweight.js';
@@ -67,8 +68,6 @@ export class JulesMCPServer {
             return await this.handleSessionState(args);
           case 'jules_session_timeline':
             return await this.handleSessionTimeline(args);
-          case 'jules_get_session_status':
-            return await this.handleGetSessionStatus(args);
           case 'jules_interact':
             return await this.handleInteract(args);
           case 'jules_list_sessions':
@@ -77,6 +76,8 @@ export class JulesMCPServer {
             return await this.handleSelect(args);
           case 'jules_get_session_analysis_context':
             return await this.handleGetSessionAnalysisContext(args);
+          case 'jules_sync':
+            return await this.handleSync(args);
           default:
             throw new Error(`Tool not found: ${name}`);
         }
@@ -179,39 +180,6 @@ export class JulesMCPServer {
 
     return {
       content: [{ type: 'text', text: `Session created. ID: ${result.id}` }],
-    };
-  }
-
-  private async handleGetSessionStatus(args: any) {
-    const sessionId = args.sessionId as string;
-    if (!sessionId) throw new Error('sessionId is required');
-
-    const client = this.julesClient.session(sessionId);
-    // TODO: Verify session existence? info() will likely throw if not found or unauthorized.
-
-    const info = await client.info();
-    const historyIter = client.history();
-    const allActivities: Activity[] = [];
-    for await (const act of historyIter) {
-      allActivities.push(act);
-    }
-
-    const limit = (args.activityLimit as number) || 5;
-    const recentActivities = allActivities
-      .slice(-limit)
-      .map((a) => toLightweight(a));
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(
-            { state: info.state, url: info.url, recentActivities },
-            null,
-            2,
-          ),
-        },
-      ],
     };
   }
 
@@ -401,26 +369,6 @@ export class JulesMCPServer {
           },
         },
         {
-          name: 'jules_get_session_status',
-          description:
-            '(DEPRECATED: Use jules_session_state and jules_session_timeline instead) Retrieves the current state, URL, and latest activities of a session.',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              sessionId: {
-                type: 'string',
-                description: 'The session ID (numeric string)',
-              },
-              activityLimit: {
-                type: 'number',
-                description:
-                  'Number of recent activities to fetch. Defaults to 5.',
-              },
-            },
-            required: ['sessionId'],
-          },
-        },
-        {
           name: 'jules_list_sessions',
           description: 'Lists recent Jules sessions.',
           inputSchema: {
@@ -517,6 +465,27 @@ export class JulesMCPServer {
             required: ['sessionId'],
           },
         },
+        {
+          name: 'jules_sync',
+          description:
+            'Fetches fresh session and activity data from the Jules API and populates the local cache. Use this before jules_select to ensure cache has latest data. Returns sync statistics.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description:
+                  'Optional session ID to sync. If omitted, syncs recent sessions.',
+              },
+              depth: {
+                type: 'string',
+                enum: ['metadata', 'activities'],
+                description:
+                  "Sync depth: 'metadata' (default) syncs session info only, 'activities' also syncs activity history.",
+              },
+            },
+          },
+        },
       ],
     };
   }
@@ -555,7 +524,8 @@ export class JulesMCPServer {
     const startAfter = args.startAfter as string | undefined;
     const typeFilter = args.type as string | undefined;
     const client = this.julesClient.session(sessionId);
-    // Use activities.select() for efficient querying
+    // Hydrate cache from API before querying
+    await client.activities.hydrate();
     const activities = await client.activities.select({
       order,
       after: startAfter,
@@ -581,6 +551,25 @@ export class JulesMCPServer {
             null,
             2,
           ),
+        },
+      ],
+    };
+  }
+
+  private async handleSync(args: any) {
+    const sessionId = args?.sessionId as string | undefined;
+    const depth = (args?.depth as SyncDepth) || 'metadata';
+
+    const stats = await this.julesClient.sync({
+      sessionId,
+      depth,
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(stats, null, 2),
         },
       ],
     };

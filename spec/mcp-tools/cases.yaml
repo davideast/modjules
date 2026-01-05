@@ -226,31 +226,6 @@
         count: 0
       hasMore: false
       nextCursor: null
-- id: MCP-11
-  description: Legacy get_session_status still works
-  category: mcp-tools
-  status: implemented
-  priority: P0
-  when: mcp_jules_get_session_status
-  given:
-    sessionId: session-123
-    activityLimit: 2
-    sessionResource:
-      state: inProgress
-      url: http://example.com
-    activities:
-      - id: act-1
-      - id: act-2
-      - id: act-3
-  then:
-    result:
-      state: inProgress
-      url: http://example.com
-      recentActivities:
-        count: 2
-        items:
-          - id: act-2
-          - id: act-3
 - id: MCP-12
   description: Timeline returns lightweight activities
   category: mcp-tools
