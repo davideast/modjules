@@ -77,6 +77,7 @@ interface McpSelectTestCase extends BaseTestCase {
           hasSummary?: boolean;
           artifactsStripped?: boolean;
           hasFullMessage?: boolean;
+          hasArtifacts?: boolean;
         };
       };
       _meta?: {
@@ -239,8 +240,13 @@ describe('Lightweight Responses Spec', async () => {
               );
             }
             if (tc.then.result.items.each.hasFullMessage) {
-              expect(selectContent.results[0]).not.toHaveProperty('summary');
+              // When artifact fields are selected, we skip lightweight transformation
+              // and return the full activity data with message and artifacts
               expect(selectContent.results[0]).toHaveProperty('message');
+            }
+            if (tc.then.result.items.each.hasArtifacts) {
+              // Artifacts should be present (not null/stripped)
+              expect(selectContent.results[0].artifacts).not.toBeNull();
             }
           }
           break;

@@ -176,15 +176,15 @@
           artifactsStripped: true
 
 - id: LIGHT-10
-  description: jules_select full mode returns complete activity data
+  description: jules_select with artifact fields returns complete activity data
   category: mcp_defaults
   status: implemented
   priority: P1
   given:
     query:
       from: activities
+      select: ['id', 'type', 'message', 'artifacts']
       limit: 10
-      mode: 'full'
   when: mcp_jules_select
   then:
     result:

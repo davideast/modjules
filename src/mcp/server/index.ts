@@ -248,7 +248,7 @@ export class JulesMCPServer {
   }
 
   private async handleSelect(args: any) {
-    const query = args?.query as JulesQuery<JulesDomain> & { mode?: string };
+    const query = args?.query as JulesQuery<JulesDomain>;
     if (!query) {
       throw new Error('Query argument is required');
     }
@@ -258,9 +258,21 @@ export class JulesMCPServer {
     let truncated = false;
     let tokenCount = 0;
 
-    // Lightweight responses by default for activities
-    if (query.from === 'activities' && query.mode !== 'full') {
-      results = (results as Activity[]).map((a) => toLightweight(a)) as any[];
+    // Lightweight responses by default for activities, UNLESS user explicitly
+    // selected artifact fields - in that case, respect their projection
+    if (query.from === 'activities') {
+      const select = query.select as string[] | undefined;
+      const selectsArtifactFields =
+        select?.some(
+          (field) =>
+            field === 'artifacts' ||
+            field.startsWith('artifacts.') ||
+            field === '*',
+        ) ?? false;
+
+      if (!selectsArtifactFields) {
+        results = (results as Activity[]).map((a) => toLightweight(a)) as any[];
+      }
     }
 
     if (tokenBudget && Array.isArray(results)) {
