@@ -226,6 +226,17 @@ export async function select<T extends JulesDomain>(
         query.select as string[] | undefined,
         'sessions',
       );
+
+      // Preserve sorting metadata from original document
+      const resourceRecord = cached.resource as unknown as Record<
+        string,
+        unknown
+      >;
+      item._sortKey = {
+        createTime: resourceRecord.createTime,
+        id: resourceRecord.id,
+      };
+
       results.push(item);
     }
 
@@ -306,13 +317,26 @@ export async function select<T extends JulesDomain>(
         if (where?.type && !match(act.type, where.type)) continue;
 
         // Apply dot-notation filters with existential matching
-        if (!matchWhere(act, where)) continue;
+        // Exclude sessionId from activity-level matching since it's handled by session routing
+        const activityWhere = where
+          ? Object.fromEntries(
+              Object.entries(where).filter(([k]) => k !== 'sessionId'),
+            )
+          : undefined;
+        if (!matchWhere(act, activityWhere)) continue;
 
         const item = applyProjection(
           act,
           query.select as string[] | undefined,
           'activities',
         );
+
+        // Preserve sorting metadata from original document
+        const actRecord = act as unknown as Record<string, unknown>;
+        item._sortKey = {
+          createTime: actRecord.createTime,
+          id: actRecord.id,
+        };
 
         // PASS 2: Reverse Join (Include Session Metadata)
         if (query.include && 'session' in query.include) {
@@ -339,31 +363,52 @@ export async function select<T extends JulesDomain>(
     }
   }
 
-  // Sorting
+  // Sorting - use _sortKey if available, fallback to document fields
   const order = query.order ?? 'desc';
   results.sort((a, b) => {
-    const timeA = new Date(a.createTime as string).getTime();
-    const timeB = new Date(b.createTime as string).getTime();
+    const sortKeyA = a._sortKey as
+      | { createTime: string; id: string }
+      | undefined;
+    const sortKeyB = b._sortKey as
+      | { createTime: string; id: string }
+      | undefined;
+    const timeA = new Date(
+      (sortKeyA?.createTime ?? a.createTime) as string,
+    ).getTime();
+    const timeB = new Date(
+      (sortKeyB?.createTime ?? b.createTime) as string,
+    ).getTime();
+    const idA = (sortKeyA?.id ?? a.id) as string;
+    const idB = (sortKeyB?.id ?? b.id) as string;
     if (timeA !== timeB) {
       return order === 'desc' ? timeB - timeA : timeA - timeB;
     }
     if (order === 'desc') {
-      return (b.id as string).localeCompare(a.id as string);
+      return idB.localeCompare(idA);
     }
-    return (a.id as string).localeCompare(b.id as string);
+    return idA.localeCompare(idB);
   });
 
   let finalResults = results;
 
-  // Handle cursor pagination
+  // Handle cursor pagination (before removing _sortKey so we can use the id)
   const cursorId = query.startAfter ?? query.startAt;
   if (cursorId) {
-    const cursorIndex = finalResults.findIndex((item) => item.id === cursorId);
+    const cursorIndex = finalResults.findIndex((item) => {
+      const sortKey = item._sortKey as { id: string } | undefined;
+      const itemId = sortKey?.id ?? item.id;
+      return itemId === cursorId;
+    });
     if (cursorIndex === -1) {
       return [];
     }
     const sliceIndex = query.startAfter ? cursorIndex + 1 : cursorIndex;
     finalResults = finalResults.slice(sliceIndex);
+  }
+
+  // Remove _sortKey from results
+  for (const result of finalResults) {
+    delete result._sortKey;
   }
 
   return finalResults.slice(0, limit) as unknown as QueryResult<T>[];

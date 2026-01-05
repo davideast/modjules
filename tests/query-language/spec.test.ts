@@ -1,10 +1,15 @@
 /**
  * Query Language Specification Tests
  *
- * Tests for the Jules Query Language (JQL) implementation based on
- * spec/query-language/grammar.md and spec/query-language/cases.yaml
+ * This test file loads test cases from spec/query-language/cases.yaml
+ * and executes them against the query engine implementation.
+ *
+ * The YAML file is the source of truth for query behavior.
  */
 import { describe, it, expect } from 'vitest';
+import * as fs from 'fs';
+import * as yaml from 'yaml';
+import { select } from '../../src/query/select.js';
 import {
   parseSelectExpression,
   projectDocument,
@@ -20,7 +25,291 @@ import {
   DEFAULT_ACTIVITY_PROJECTION,
   DEFAULT_SESSION_PROJECTION,
 } from '../../src/query/computed.js';
-import { Activity, BashArtifact } from '../../src/types.js';
+import { Activity, SessionResource, BashArtifact } from '../../src/types.js';
+
+// Load and parse the YAML test cases
+const casesFile = fs.readFileSync('spec/query-language/cases.yaml', 'utf8');
+const spec = yaml.parse(casesFile);
+
+// ============================================
+// Test Harness Types
+// ============================================
+
+type TestCase = {
+  id: string;
+  description: string;
+  category: string;
+  priority: string;
+  given: {
+    query: {
+      from: 'sessions' | 'activities';
+      select?: string[];
+      where?: Record<string, unknown>;
+      order?: 'asc' | 'desc';
+      limit?: number;
+      startAfter?: string;
+    };
+    data: Record<string, unknown>[];
+  };
+  then: {
+    returns: Record<string, unknown>[];
+  };
+};
+
+// ============================================
+// Mock Client Factory
+// ============================================
+
+/**
+ * Creates a mock JulesClient with the given test data.
+ * For activities domain, data is activity records.
+ * For sessions domain, data is session records.
+ */
+function createMockClient(
+  domain: 'sessions' | 'activities',
+  data: Record<string, unknown>[],
+) {
+  if (domain === 'sessions') {
+    return createSessionMockClient(data);
+  } else {
+    return createActivityMockClient(data);
+  }
+}
+
+function createSessionMockClient(sessions: Record<string, unknown>[]) {
+  const sessionMap = new Map<string, Record<string, unknown>>();
+  for (const session of sessions) {
+    sessionMap.set(session.id as string, session);
+  }
+
+  return {
+    storage: {
+      scanIndex: async function* () {
+        for (const session of sessions) {
+          yield {
+            id: session.id as string,
+            title: (session.title as string) || '',
+            state: (session.state as string) || 'running',
+          };
+        }
+      },
+      get: async (id: string) => {
+        const found = sessionMap.get(id);
+        return found ? { resource: found as unknown as SessionResource } : null;
+      },
+    },
+    session: (id: string) => ({
+      activities: {
+        select: async () => [],
+      },
+      info: async () => sessionMap.get(id) as unknown as SessionResource,
+      history: async function* () {},
+      stream: async function* () {},
+    }),
+  };
+}
+
+function createActivityMockClient(activities: Record<string, unknown>[]) {
+  // Group activities by sessionId for the scatter-gather pattern
+  const bySession = new Map<string, Record<string, unknown>[]>();
+
+  for (const activity of activities) {
+    const sessionId = (activity.sessionId as string) || 'default-session';
+    if (!bySession.has(sessionId)) {
+      bySession.set(sessionId, []);
+    }
+    bySession.get(sessionId)!.push(activity);
+  }
+
+  // If no sessionId specified, create a single session
+  if (bySession.size === 0) {
+    bySession.set('default-session', activities);
+  }
+
+  // Create session entries for the index scan
+  const sessionEntries = Array.from(bySession.keys()).map((id) => ({
+    id,
+    title: '',
+    state: 'running',
+  }));
+
+  return {
+    storage: {
+      scanIndex: async function* () {
+        for (const entry of sessionEntries) {
+          yield entry;
+        }
+      },
+      get: async (id: string) => {
+        if (bySession.has(id)) {
+          return {
+            resource: {
+              id,
+              name: `sessions/${id}`,
+              state: 'running',
+              title: '',
+              createTime: new Date().toISOString(),
+              updateTime: new Date().toISOString(),
+            } as unknown as SessionResource,
+          };
+        }
+        return null;
+      },
+    },
+    session: (id: string) => ({
+      activities: {
+        select: async () => {
+          const acts = bySession.get(id) || [];
+          return acts.map((a) => ({
+            ...a,
+            name: `sessions/${id}/activities/${a.id}`,
+          })) as unknown as Activity[];
+        },
+      },
+      info: async () =>
+        ({
+          id,
+          name: `sessions/${id}`,
+          state: 'running',
+          title: '',
+          createTime: new Date().toISOString(),
+          updateTime: new Date().toISOString(),
+        }) as unknown as SessionResource,
+      history: async function* () {
+        const acts = bySession.get(id) || [];
+        for (const act of acts) {
+          yield act as unknown as Activity;
+        }
+      },
+      stream: async function* () {},
+    }),
+  };
+}
+
+// ============================================
+// Result Comparison Helpers
+// ============================================
+
+/**
+ * Deep comparison that ignores extra fields in actual results.
+ * Expected is a subset of actual.
+ */
+function matchesExpected(
+  actual: Record<string, unknown>,
+  expected: Record<string, unknown>,
+): boolean {
+  for (const [key, expectedValue] of Object.entries(expected)) {
+    const actualValue = actual[key];
+
+    if (expectedValue === null) {
+      if (actualValue !== null && actualValue !== undefined) {
+        return false;
+      }
+      continue;
+    }
+
+    if (Array.isArray(expectedValue)) {
+      if (!Array.isArray(actualValue)) {
+        return false;
+      }
+      if (actualValue.length !== expectedValue.length) {
+        return false;
+      }
+      for (let i = 0; i < expectedValue.length; i++) {
+        if (typeof expectedValue[i] === 'object' && expectedValue[i] !== null) {
+          if (
+            !matchesExpected(
+              actualValue[i] as Record<string, unknown>,
+              expectedValue[i] as Record<string, unknown>,
+            )
+          ) {
+            return false;
+          }
+        } else if (actualValue[i] !== expectedValue[i]) {
+          return false;
+        }
+      }
+    } else if (typeof expectedValue === 'object' && expectedValue !== null) {
+      if (typeof actualValue !== 'object' || actualValue === null) {
+        return false;
+      }
+      if (
+        !matchesExpected(
+          actualValue as Record<string, unknown>,
+          expectedValue as Record<string, unknown>,
+        )
+      ) {
+        return false;
+      }
+    } else {
+      if (actualValue !== expectedValue) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+// ============================================
+// Spec Runner: YAML-Driven Tests
+// ============================================
+
+describe('Query Language Spec Runner', () => {
+  const testCases = spec.cases as TestCase[];
+
+  // Group cases by category for organized output
+  const categories = new Map<string, TestCase[]>();
+  for (const tc of testCases) {
+    if (!categories.has(tc.category)) {
+      categories.set(tc.category, []);
+    }
+    categories.get(tc.category)!.push(tc);
+  }
+
+  for (const [category, cases] of categories) {
+    describe(`[${category}]`, () => {
+      for (const testCase of cases) {
+        it(`${testCase.id}: ${testCase.description}`, async () => {
+          const { given, then } = testCase;
+          const { query, data } = given;
+
+          // Create mock client with test data
+          const mockClient = createMockClient(query.from, data);
+
+          // Execute query
+          const results = await select(mockClient as any, query as any);
+
+          // Validate results
+          const expected = then.returns;
+
+          // Check result count
+          expect(results).toHaveLength(expected.length);
+
+          // Check each result matches expected
+          for (let i = 0; i < expected.length; i++) {
+            const actualResult = results[i] as unknown as Record<
+              string,
+              unknown
+            >;
+            const expectedResult = expected[i];
+
+            // Use custom matcher for flexible comparison
+            const matches = matchesExpected(actualResult, expectedResult);
+
+            if (!matches) {
+              // Provide detailed error message
+              expect(actualResult).toMatchObject(expectedResult);
+            }
+          }
+        });
+      }
+    });
+  }
+});
+
+// ============================================
+// Unit Tests for Core Functions
+// ============================================
 
 describe('JQL Projection Engine', () => {
   describe('parseSelectExpression', () => {
@@ -393,14 +682,7 @@ describe('JQL Computed Fields', () => {
 });
 
 describe('JQL Where Clause (Dot Notation)', () => {
-  // These tests verify the matching behavior in select.ts
-  // We'll import and test the matching functions directly
-
   describe('Existential Matching for Arrays', () => {
-    // The WHERE-10 to WHERE-14 test cases from the spec
-    // These are integration tests that verify the full query path
-    // For now, we test the getPath behavior which underpins existential matching
-
     it('WHERE-10: should find value in array (existential)', () => {
       const doc = {
         artifacts: [{ type: 'bashOutput', exitCode: 0 }, { type: 'changeSet' }],
@@ -437,7 +719,6 @@ describe('JQL Where Clause (Dot Notation)', () => {
 });
 
 describe('JQL Schema Introspection', () => {
-  // Basic smoke tests for the schema module
   it('should export schema structures', async () => {
     const { getAllSchemas, getSchema } = await import(
       '../../src/mcp/schema.js'

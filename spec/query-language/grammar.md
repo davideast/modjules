@@ -225,9 +225,63 @@ The result shape mirrors the select paths:
 
 ## 9. Error Handling
 
-| Error             | Condition                                    |
-| ----------------- | -------------------------------------------- |
-| `InvalidDomain`   | from ∉ {sessions, activities}                |
-| `InvalidPath`     | Path doesn't exist in schema                 |
-| `InvalidOperator` | Filter operator not supported for field type |
-| `InvalidCursor`   | startAfter ID not found                      |
+### 9.1 Validation Errors
+
+Use `jules_validate_query` for pre-flight validation before executing with `jules_select`.
+
+| Error Code               | Condition                             | Recovery                                               |
+| ------------------------ | ------------------------------------- | ------------------------------------------------------ |
+| `INVALID_STRUCTURE`      | Query is not an object                | Provide a query object like `{ from: "sessions" }`     |
+| `MISSING_REQUIRED_FIELD` | Required field missing (e.g., `from`) | Add the required field                                 |
+| `INVALID_DOMAIN`         | `from` ∉ {sessions, activities}       | Use `"sessions"` or `"activities"`                     |
+| `INVALID_FIELD_PATH`     | Path doesn't exist in schema          | Check schema with `jules_schema`                       |
+| `INVALID_OPERATOR`       | Unknown filter operator               | Valid: eq, neq, gt, lt, gte, lte, in, contains, exists |
+| `INVALID_OPERATOR_VALUE` | Operator value has wrong type         | See operator type requirements below                   |
+| `COMPUTED_FIELD_FILTER`  | Filtering on computed field           | Use select instead; computed fields are read-only      |
+| `INVALID_ORDER`          | Order not `asc` or `desc`             | Use `"asc"` or `"desc"`                                |
+| `INVALID_LIMIT`          | Limit is not a positive integer       | Provide integer between 1 and 1000                     |
+
+### 9.2 Operator Type Requirements
+
+| Operator         | Required Value Type              |
+| ---------------- | -------------------------------- |
+| eq, neq          | string, number, boolean, or null |
+| gt, lt, gte, lte | string, number, boolean, or null |
+| contains         | string only                      |
+| in               | array of values                  |
+| exists           | boolean only                     |
+
+### 9.3 Warnings (Non-Blocking)
+
+Warnings indicate potential issues but don't prevent query execution:
+
+| Warning Code           | Condition                               |
+| ---------------------- | --------------------------------------- |
+| `UNKNOWN_FIELD`        | Field path not in schema                |
+| `NON_FILTERABLE_FIELD` | Field may not be efficiently filterable |
+| `LIMIT_TOO_HIGH`       | Limit exceeds 1000 (will be capped)     |
+| `UNKNOWN_QUERY_FIELD`  | Unknown top-level query field           |
+
+### 9.4 Runtime Errors
+
+| Error           | Condition               | Behavior               |
+| --------------- | ----------------------- | ---------------------- |
+| `InvalidCursor` | startAfter ID not found | Returns empty results  |
+| `EmptyCache`    | No data in local cache  | Run `jules_sync` first |
+
+### 9.5 LLM Workflow
+
+Recommended flow for constructing queries:
+
+```
+1. jules_query_help (if unsure about syntax)
+      ↓
+2. Construct query
+      ↓
+3. jules_validate_query (pre-flight check)
+      ↓
+   ┌───┴───┐
+ valid   invalid
+   ↓       ↓
+jules_select  Fix errors & retry (step 2)
+```
