@@ -65,6 +65,7 @@ async function main() {
   let targetUser = findHumanUser(prBody);
   let targetUserId = '';
   let targetUserLogin = '';
+  let targetUserName = ''; // Display name for the trailer
 
   if (targetUser) {
     console.log(`✅ Found mention: @${targetUser}`);
@@ -72,6 +73,7 @@ async function main() {
       const user = await getGitHubUser(targetUser, token);
       targetUserId = String(user.id);
       targetUserLogin = user.login; // Use canonical case
+      targetUserName = user.name || user.login; // Display name, fallback to login
     } catch (e) {
       console.warn(
         `⚠️ Could not resolve user @${targetUser}. Falling back to PR creator.`,
@@ -82,10 +84,16 @@ async function main() {
   }
 
   if (!targetUser) {
-    // Fallback
+    // Fallback - need to fetch display name for PR creator
     console.log(`ℹ️ No valid mention found. Using PR creator: ${prUserLogin}`);
     targetUserLogin = prUserLogin;
     targetUserId = prUserId;
+    try {
+      const user = await getGitHubUser(prUserLogin, token);
+      targetUserName = user.name || user.login;
+    } catch {
+      targetUserName = prUserLogin; // Fallback to login if API fails
+    }
   }
 
   if (!targetUserLogin || !targetUserId) {
@@ -95,7 +103,8 @@ async function main() {
 
   // The email is the definitive identifier - name can vary (display name vs login)
   const expectedEmail = `${targetUserId}+${targetUserLogin}@users.noreply.github.com`;
-  const trailer = `Co-authored-by: ${targetUserLogin} <${expectedEmail}>`;
+  // Use display name for the suggested trailer (e.g., "David East" not "davideast")
+  const trailer = `Co-authored-by: ${targetUserName} <${expectedEmail}>`;
   console.log(`🎯 Expected Email: "${expectedEmail}"`);
   console.log(`🎯 Suggested Trailer: "${trailer}"`);
 
