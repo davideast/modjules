@@ -45,16 +45,18 @@ describe('Lightweight Responses Spec', async () => {
   let mcpServer: JulesMCPServer;
 
   beforeAll(() => {
-    mockJules = new JulesClientImpl({
-      platform: mockPlatform,
-      storageFactory: {
-        activity: (sessionId: string) => new MemoryStorage<Activity>(),
-        session: () => new MemorySessionStorage(),
-      },
-      apiKey: 'test-key',
-      baseUrl: 'https://test.jules.com',
-      config: { requestTimeoutMs: 1000 },
-    });
+    mockJules = new JulesClientImpl(
+        {
+            apiKey: 'test-key',
+            baseUrl: 'https://test.jules.com',
+            config: { requestTimeoutMs: 1000 },
+        },
+        {
+            activity: (sessionId: string) => new MemoryStorage(),
+            session: () => new MemorySessionStorage(),
+        },
+        mockPlatform,
+    );
     mcpServer = new JulesMCPServer(mockJules);
   });
 
@@ -112,12 +114,10 @@ describe('Lightweight Responses Spec', async () => {
 
         case 'mcp_jules_get_session_status':
           vi.spyOn(mockJules, 'session').mockReturnValue({
-            info: vi
-              .fn()
-              .mockResolvedValue({
-                state: 'inProgress',
-                url: 'http://test.com',
-              } as SessionResource),
+            info: vi.fn().mockResolvedValue({
+              state: 'inProgress',
+              url: 'http://test.com',
+            } as SessionResource),
             history: vi.fn().mockReturnValue(
               (async function* () {
                 for (const a of tc.given.activities) yield a;
