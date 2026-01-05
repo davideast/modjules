@@ -53,7 +53,8 @@ export function toSummary(activity: Activity): ActivitySummary {
     }
     case 'planGenerated': {
       const plan = activity as ActivityPlanGenerated;
-      summary = `Plan generated with ${plan.plan.steps.length} steps`;
+      const stepCount = plan.plan?.steps?.length ?? 0;
+      summary = `Plan generated with ${stepCount} steps`;
       break;
     }
     case 'planApproved':

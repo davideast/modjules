@@ -777,10 +777,13 @@ export type FilterOp<V> =
   | {
       eq?: V;
       neq?: V;
-      contains?: string; // Fuzzy text search
+      contains?: string; // Fuzzy text search (case-insensitive)
       gt?: V;
       lt?: V;
+      gte?: V;
+      lte?: V;
       in?: V[];
+      exists?: boolean; // Field existence check
     };
 
 /**
