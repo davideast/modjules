@@ -1,0 +1,243 @@
+## MCP Tools Spec
+##
+## Behavior: "I need focused MCP tools that return minimal, relevant data"
+##
+## These specs define the expected behavior for MCP tool splitting.
+## Tools should be focused on single responsibilities with sensible defaults.
+
+# =============================================================================
+# jules_session_state - Lightweight session metadata
+# =============================================================================
+
+- id: MCP-01
+  description: jules_session_state returns only session metadata
+  category: session_state
+  status: pending
+  priority: P0
+  given:
+    sessionId: 'sess-1'
+    session:
+      id: 'sess-1'
+      state: 'inProgress'
+      url: 'https://jules.google.com/session/sess-1'
+      title: 'Fix login bug'
+      createTime: '2024-01-01T00:00:00Z'
+      updateTime: '2024-01-01T01:00:00Z'
+  when: mcp_jules_session_state
+  then:
+    result:
+      id: 'sess-1'
+      state: 'inProgress'
+      url: 'https://jules.google.com/session/sess-1'
+      title: 'Fix login bug'
+    excludes:
+      - activities
+      - recentActivities
+
+- id: MCP-02
+  description: jules_session_state includes PR info when available
+  category: session_state
+  status: pending
+  priority: P0
+  given:
+    sessionId: 'sess-completed'
+    session:
+      id: 'sess-completed'
+      state: 'completed'
+      url: 'https://jules.google.com/session/sess-completed'
+      outputs:
+        - type: 'pullRequest'
+          pullRequest:
+            url: 'https://github.com/org/repo/pull/123'
+            title: 'Fix login bug'
+  when: mcp_jules_session_state
+  then:
+    result:
+      state: 'completed'
+      pr:
+        url: 'https://github.com/org/repo/pull/123'
+        title: 'Fix login bug'
+
+- id: MCP-03
+  description: jules_session_state is token-efficient
+  category: session_state
+  status: pending
+  priority: P1
+  given:
+    sessionId: 'sess-large'
+    sessionWithActivities:
+      activityCount: 100
+  when: mcp_jules_session_state
+  then:
+    tokenCount:
+      lessThan: 500
+
+# =============================================================================
+# jules_session_timeline - Paginated activity history
+# =============================================================================
+
+- id: MCP-04
+  description: jules_session_timeline returns lightweight activities
+  category: session_timeline
+  status: pending
+  priority: P0
+  given:
+    sessionId: 'sess-1'
+    activities:
+      - id: 'act-1'
+        type: 'agentMessaged'
+        message: 'Starting work...'
+        createTime: '2024-01-01T00:00:00Z'
+  when: mcp_jules_session_timeline
+  then:
+    result:
+      activities:
+        - id: 'act-1'
+          type: 'agentMessaged'
+          summary: 'Starting work...'
+          artifactCount: 0
+
+- id: MCP-05
+  description: jules_session_timeline defaults to 10 activities
+  category: session_timeline
+  status: pending
+  priority: P0
+  given:
+    sessionId: 'sess-many'
+    cachedActivities: 50
+  when: mcp_jules_session_timeline
+  then:
+    result:
+      activityCount: 10
+
+- id: MCP-06
+  description: jules_session_timeline supports limit parameter
+  category: session_timeline
+  status: pending
+  priority: P0
+  given:
+    sessionId: 'sess-many'
+    cachedActivities: 50
+    options:
+      limit: 25
+  when: mcp_jules_session_timeline
+  then:
+    result:
+      activityCount: 25
+
+- id: MCP-07
+  description: jules_session_timeline supports startAfter cursor
+  category: session_timeline
+  status: pending
+  priority: P0
+  given:
+    sessionId: 'sess-paginate'
+    activities:
+      - id: 'act-1'
+        createTime: '2024-01-01T00:00:00Z'
+      - id: 'act-2'
+        createTime: '2024-01-02T00:00:00Z'
+      - id: 'act-3'
+        createTime: '2024-01-03T00:00:00Z'
+    options:
+      startAfter: 'act-1'
+      limit: 2
+  when: mcp_jules_session_timeline
+  then:
+    result:
+      activityIds: ['act-2', 'act-3']
+
+- id: MCP-08
+  description: jules_session_timeline returns newest first by default
+  category: session_timeline
+  status: pending
+  priority: P1
+  given:
+    sessionId: 'sess-ordered'
+    activities:
+      - id: 'act-old'
+        createTime: '2024-01-01T00:00:00Z'
+      - id: 'act-new'
+        createTime: '2024-01-02T00:00:00Z'
+  when: mcp_jules_session_timeline
+  then:
+    result:
+      firstActivityId: 'act-new'
+
+- id: MCP-09
+  description: jules_session_timeline supports order parameter
+  category: session_timeline
+  status: pending
+  priority: P1
+  given:
+    sessionId: 'sess-ordered'
+    activities:
+      - id: 'act-old'
+        createTime: '2024-01-01T00:00:00Z'
+      - id: 'act-new'
+        createTime: '2024-01-02T00:00:00Z'
+    options:
+      order: 'asc'
+  when: mcp_jules_session_timeline
+  then:
+    result:
+      firstActivityId: 'act-old'
+
+- id: MCP-10
+  description: jules_session_timeline includes hasMore for pagination
+  category: session_timeline
+  status: pending
+  priority: P0
+  given:
+    sessionId: 'sess-many'
+    cachedActivities: 50
+    options:
+      limit: 10
+  when: mcp_jules_session_timeline
+  then:
+    result:
+      hasMore: true
+      nextCursor: exists
+
+# =============================================================================
+# Deprecation of jules_get_session_status
+# =============================================================================
+
+- id: MCP-11
+  description: jules_get_session_status still works (backward compatible)
+  category: deprecation
+  status: pending
+  priority: P0
+  given:
+    sessionId: 'sess-1'
+  when: mcp_jules_get_session_status
+  then:
+    result:
+      state: exists
+      recentActivities: exists
+    deprecationWarning: true
+
+# =============================================================================
+# Type filtering
+# =============================================================================
+
+- id: MCP-12
+  description: jules_session_timeline supports type filter
+  category: filtering
+  status: pending
+  priority: P1
+  given:
+    sessionId: 'sess-mixed'
+    activities:
+      - id: 'act-1'
+        type: 'agentMessaged'
+      - id: 'act-2'
+        type: 'progressUpdated'
+      - id: 'act-3'
+        type: 'agentMessaged'
+    options:
+      type: 'agentMessaged'
+  when: mcp_jules_session_timeline
+  then:
+    result:
+      activityIds: ['act-1', 'act-3']
