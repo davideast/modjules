@@ -142,17 +142,6 @@
       - 'agentMessaged'
       - 'planGenerated'
 
-- id: POLISH-10
-  description: jules_get_session_status marked deprecated in description
-  category: tool_descriptions
-  status: pending
-  priority: P0
-  given:
-    tool: 'jules_get_session_status'
-  when: list_tools
-  then:
-    descriptionStartsWith: '(DEPRECATED'
-
 # =============================================================================
 # Schema property descriptions
 # =============================================================================
@@ -180,3 +169,20 @@
     orderDescriptionContains:
       - 'desc'
       - 'newest first'
+
+# =============================================================================
+# Timeline correctness
+# =============================================================================
+
+- id: POLISH-13
+  description: jules_session_timeline hydrates cache before select query
+  category: timeline_correctness
+  status: pending
+  priority: P0
+  given:
+    tool: 'jules_session_timeline'
+    cacheState: 'empty'
+  when: call_tool
+  then:
+    behavior: 'calls hydrate() before select() to ensure fresh data'
+    returns: 'activities from API, not empty results'
