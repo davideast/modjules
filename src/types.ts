@@ -795,6 +795,8 @@ export interface JulesQuery<T extends JulesDomain> {
   limit?: number;
   offset?: number;
   order?: 'asc' | 'desc';
+  startAt?: string;
+  startAfter?: string;
 }
 
 /**

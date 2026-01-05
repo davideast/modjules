@@ -204,7 +204,8 @@
 - id: EFF-11
   description: startAfter returns activities after cursor (exclusive)
   category: range_cursors
-  status: pending
+  status: implemented
+  testedIn: tests/efficient-queries/spec.test.ts
   priority: P0
   given:
     sessionId: 'sess-range'
@@ -230,7 +231,8 @@
 - id: EFF-12
   description: startAt returns activities at and after cursor (inclusive)
   category: range_cursors
-  status: pending
+  status: implemented
+  testedIn: tests/efficient-queries/spec.test.ts
   priority: P0
   given:
     sessionId: 'sess-range-inclusive'
@@ -254,7 +256,8 @@
 - id: EFF-13
   description: startAfter with limit enables pagination
   category: range_cursors
-  status: pending
+  status: implemented
+  testedIn: tests/efficient-queries/spec.test.ts
   priority: P0
   given:
     sessionId: 'sess-paginate'
@@ -284,7 +287,8 @@
 - id: EFF-14
   description: startAfter with desc order returns older activities
   category: range_cursors
-  status: pending
+  status: implemented
+  testedIn: tests/efficient-queries/spec.test.ts
   priority: P1
   given:
     sessionId: 'sess-range-desc'
@@ -310,7 +314,8 @@
 - id: EFF-15
   description: Cursor resolves to createTime with id as tiebreaker
   category: range_cursors
-  status: pending
+  status: implemented
+  testedIn: tests/efficient-queries/spec.test.ts
   priority: P1
   given:
     sessionId: 'sess-tiebreaker'
@@ -334,7 +339,8 @@
 - id: EFF-16
   description: Invalid cursor ID returns empty result (graceful handling)
   category: range_cursors
-  status: pending
+  status: implemented
+  testedIn: tests/efficient-queries/spec.test.ts
   priority: P1
   given:
     sessionId: 'sess-invalid-cursor'

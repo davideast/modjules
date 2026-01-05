@@ -208,16 +208,12 @@ export async function select<T extends JulesDomain>(
     // PASS 1: Scatter-Gather (Cross-session activity search)
     // We iterate over every session we know about
     for await (const sessionEntry of sessionScanner()) {
-      if (results.length >= limit) break;
-
       const sessionClient = await client.session(sessionEntry.id);
 
       // Use select() to ensure strictly local access
       const localActivities = await sessionClient.activities.select({});
 
       for (const act of localActivities) {
-        if (results.length >= limit) break;
-
         // Apply filters manually since we are consuming the raw history stream
         if (where?.id && !match(act.id, where.id)) continue;
         if (where?.type && !match(act.type, where.type)) continue;
@@ -252,10 +248,30 @@ export async function select<T extends JulesDomain>(
   // After the results are collected, before returning:
   const order = query.order ?? 'desc'; // Default to newest first
   results.sort((a, b) => {
-    const timeA = new Date(a.createTime).getTime();
+    const timeA = new Date(a.createTime).getTime(); // Assuming createTime exists
     const timeB = new Date(b.createTime).getTime();
-    return order === 'desc' ? timeB - timeA : timeA - timeB;
+    if (timeA !== timeB) {
+      return order === 'desc' ? timeB - timeA : timeA - timeB;
+    }
+    // Tiebreaker for same timestamp using ID
+    if (order === 'desc') {
+      return b.id.localeCompare(a.id);
+    }
+    return a.id.localeCompare(b.id);
   });
 
-  return results;
+  let finalResults = results;
+
+  // Handle cursor pagination
+  const cursorId = query.startAfter ?? query.startAt;
+  if (cursorId) {
+    const cursorIndex = finalResults.findIndex((item) => item.id === cursorId);
+    if (cursorIndex === -1) {
+      return []; // Invalid cursor ID, return empty result
+    }
+    const sliceIndex = query.startAfter ? cursorIndex + 1 : cursorIndex;
+    finalResults = finalResults.slice(sliceIndex);
+  }
+
+  return finalResults.slice(0, limit);
 }
