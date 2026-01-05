@@ -15,6 +15,7 @@ import {
   JulesDomain,
   SessionConfig,
   Activity,
+  SyncDepth,
 } from '../../index.js';
 import { truncateToTokenBudget } from '../tokenizer.js';
 import { toLightweight } from '../lightweight.js';
@@ -75,6 +76,8 @@ export class JulesMCPServer {
             return await this.handleSelect(args);
           case 'jules_get_session_analysis_context':
             return await this.handleGetSessionAnalysisContext(args);
+          case 'jules_sync':
+            return await this.handleSync(args);
           default:
             throw new Error(`Tool not found: ${name}`);
         }
@@ -462,6 +465,27 @@ export class JulesMCPServer {
             required: ['sessionId'],
           },
         },
+        {
+          name: 'jules_sync',
+          description:
+            'Fetches fresh session and activity data from the Jules API and populates the local cache. Use this before jules_select to ensure cache has latest data. Returns sync statistics.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description:
+                  'Optional session ID to sync. If omitted, syncs recent sessions.',
+              },
+              depth: {
+                type: 'string',
+                enum: ['metadata', 'activities'],
+                description:
+                  "Sync depth: 'metadata' (default) syncs session info only, 'activities' also syncs activity history.",
+              },
+            },
+          },
+        },
       ],
     };
   }
@@ -527,6 +551,25 @@ export class JulesMCPServer {
             null,
             2,
           ),
+        },
+      ],
+    };
+  }
+
+  private async handleSync(args: any) {
+    const sessionId = args?.sessionId as string | undefined;
+    const depth = (args?.depth as SyncDepth) || 'metadata';
+
+    const stats = await this.julesClient.sync({
+      sessionId,
+      depth,
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(stats, null, 2),
         },
       ],
     };

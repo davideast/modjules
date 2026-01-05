@@ -142,11 +142,6 @@ describe('MCP Polish Specs', () => {
       );
     });
 
-    it('POLISH-08: jules_get_session_status description is updated', () => {
-      const tool = getTool('jules_get_session_status');
-      expect(tool.description).toMatch(/^\(DEPRECATED:/);
-    });
-
     it('POLISH-09: jules_session_timeline type description is updated', () => {
       const tool = getTool('jules_session_timeline');
       const typeProp = tool.inputSchema.properties.type;
@@ -172,7 +167,6 @@ describe('MCP Polish Specs', () => {
       };
       checkDesc('jules_session_state');
       checkDesc('jules_session_timeline');
-      checkDesc('jules_get_session_status');
     });
 
     it('POLISH-12: jules_session_timeline order description is updated', () => {

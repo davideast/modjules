@@ -158,28 +158,6 @@
 # MCP TOOL DEFAULTS
 # =============================================================================
 
-- id: LIGHT-08
-  description: jules_get_session_status returns lightweight activities
-  category: mcp_defaults
-  status: implemented
-  priority: P0
-  given:
-    sessionId: 'sess-1'
-    activityLimit: 5
-    activities:
-      - id: 'act-1'
-        type: 'agentMessaged'
-        message: 'Starting work...'
-        artifacts: []
-  when: mcp_jules_get_session_status
-  then:
-    result:
-      recentActivities:
-        - id: 'act-1'
-          type: 'agentMessaged'
-          summary: 'Starting work...'
-          artifacts: null
-
 - id: LIGHT-09
   description: jules_select returns lightweight results by default
   category: mcp_defaults

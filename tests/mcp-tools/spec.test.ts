@@ -72,30 +72,7 @@ interface McpSessionTimelineTestCase extends BaseTestCase {
   };
 }
 
-interface McpGetSessionStatusTestCase extends BaseTestCase {
-  when: 'mcp_jules_get_session_status';
-  given: {
-    sessionId: string;
-    activityLimit: number;
-    sessionResource: Partial<SessionResource>;
-    activities: Partial<Activity>[];
-  };
-  then: {
-    result: {
-      state: string;
-      url: string;
-      recentActivities: {
-        count: number;
-        items?: Partial<Activity>[];
-      };
-    };
-  };
-}
-
-type TestCase =
-  | McpSessionStateTestCase
-  | McpSessionTimelineTestCase
-  | McpGetSessionStatusTestCase;
+type TestCase = McpSessionStateTestCase | McpSessionTimelineTestCase;
 // #endregion
 
 function createTestActivity(overrides: Partial<Activity> = {}): Activity {
@@ -188,6 +165,7 @@ describe('MCP Tools Spec', async () => {
         case 'mcp_jules_session_timeline': {
           const mockSessionClient: Pick<SessionClient, 'activities'> = {
             activities: {
+              hydrate: vi.fn().mockResolvedValue(0),
               select: vi
                 .fn()
                 .mockResolvedValue(tc.given.activities.map(createTestActivity)),
@@ -228,42 +206,6 @@ describe('MCP Tools Spec', async () => {
             expect(content.nextCursor).toBe(tc.then.result.nextCursor);
           } else if (tc.then.result.nextCursor === null) {
             expect(content.nextCursor).toBeUndefined();
-          }
-          break;
-        }
-
-        case 'mcp_jules_get_session_status': {
-          const mockSessionClient: Pick<SessionClient, 'info' | 'history'> = {
-            info: vi
-              .fn()
-              .mockResolvedValue(tc.given.sessionResource as SessionResource),
-            history: vi
-              .fn()
-              .mockReturnValue(
-                asyncGenerator(tc.given.activities.map(createTestActivity)),
-              ),
-          };
-          vi.spyOn(mockJules, 'session').mockReturnValue(
-            mockSessionClient as SessionClient,
-          );
-
-          const result = await (mcpServer as any).handleGetSessionStatus({
-            sessionId: tc.given.sessionId,
-            activityLimit: tc.given.activityLimit,
-          });
-
-          const content = JSON.parse(result.content[0].text);
-          expect(content.state).toBe(tc.then.result.state);
-          expect(content.url).toBe(tc.then.result.url);
-          expect(content.recentActivities.length).toBe(
-            tc.then.result.recentActivities.count,
-          );
-          if (tc.then.result.recentActivities.items) {
-            tc.then.result.recentActivities.items.forEach((item, index) => {
-              expect(content.recentActivities[index]).toEqual(
-                expect.objectContaining(item),
-              );
-            });
           }
           break;
         }
