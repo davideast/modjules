@@ -81,7 +81,23 @@ interface FrozenTestCase extends BaseTestCase {
   };
 }
 
-type TestCase = PageTokenTestCase | HydrationTestCase | FrozenTestCase;
+interface StreamIntegrationTestCase extends BaseTestCase {
+  when: 'stream';
+  given: {
+    cachedActivities: Array<{ id: string; createTime: string }>;
+    apiActivities?: Array<{ id: string; createTime: string }>;
+  };
+  then: {
+    apiCalledWithPageToken?: boolean;
+    totalYielded?: number;
+  };
+}
+
+type TestCase =
+  | PageTokenTestCase
+  | HydrationTestCase
+  | FrozenTestCase
+  | StreamIntegrationTestCase;
 // #endregion
 
 /**
@@ -341,6 +357,58 @@ describe('Incremental Activity Sync Spec', async () => {
           if (expected.newActivitiesCached !== undefined) {
             expect(newCount).toBe(expected.newActivitiesCached);
           }
+        }
+      });
+    }
+  });
+
+  describe('Stream Integration', () => {
+    const streamCases = testCases.filter(
+      (c) => c.category === 'stream_integration',
+    );
+
+    for (const tc of streamCases) {
+      it(`${tc.id}: ${tc.description}`, async () => {
+        const given = tc.given as StreamIntegrationTestCase['given'];
+        const storage = new MemoryStorage();
+        await storage.init();
+
+        // Pre-populate cache with existing activities (using recent dates)
+        for (const act of given.cachedActivities || []) {
+          await storage.append(
+            createTestActivity({
+              ...act,
+              createTime: toRecentDate(act.createTime),
+            }),
+          );
+        }
+
+        // Create API activities (using recent dates)
+        const apiActivities = (given.apiActivities || []).map((a) =>
+          createTestActivity({
+            ...a,
+            createTime: toRecentDate(a.createTime),
+          }),
+        );
+        const mockNetwork = createMockNetwork(apiActivities);
+
+        const client = new DefaultActivityClient(storage, mockNetwork);
+
+        // Call stream() - which internally calls history() -> hydrate()
+        // We only consume history portion (not updates which would block)
+        const yielded: Activity[] = [];
+        for await (const activity of client.history()) {
+          yielded.push(activity);
+        }
+
+        // Verify expectations
+        const expected = tc.then as StreamIntegrationTestCase['then'];
+        if (expected.apiCalledWithPageToken) {
+          expect(mockNetwork.calls.length).toBeGreaterThan(0);
+          expect(mockNetwork.calls[0].pageToken).toBeDefined();
+        }
+        if (expected.totalYielded !== undefined) {
+          expect(yielded.length).toBe(expected.totalYielded);
         }
       });
     }

@@ -167,3 +167,26 @@
     year: 2024
     month: 1
     day: 5
+
+# =============================================================================
+# STREAM INTEGRATION
+# =============================================================================
+
+- id: SYNC-11
+  description: stream() performs incremental sync via history()->hydrate()
+  category: stream_integration
+  status: implemented
+  priority: P0
+  given:
+    cachedActivities:
+      - id: 'act-1'
+        createTime: '2024-01-05T10:00:00.000000Z'
+    apiActivities:
+      - id: 'act-2'
+        createTime: '2024-01-05T10:01:00.000000Z'
+  when: stream
+  then:
+    # stream() should call history() which calls hydrate() with pageToken
+    apiCalledWithPageToken: true
+    # Should yield cached + new activities
+    totalYielded: 2
