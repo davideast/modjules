@@ -423,7 +423,7 @@ export class JulesMCPServer {
         {
           name: 'jules_select',
           description:
-            'Query the LOCAL CACHE of sessions and activities. Results are limited to previously synced data. Use jules_session_timeline for fresh activity data from the API. Best for searching across multiple sessions or filtering by type/state.',
+            'Query the LOCAL CACHE of sessions and activities. Returns only previously synced data (fast, but may be stale). To ensure fresh data: call jules_sync first, then jules_select. Best for searching across multiple sessions or filtering by type/state.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -488,7 +488,7 @@ export class JulesMCPServer {
         {
           name: 'jules_sync',
           description:
-            'Fetches fresh session and activity data from the Jules API and populates the local cache. Use this before jules_select to ensure cache has latest data. Returns sync statistics.',
+            'Fetches NEW sessions and activities from the Jules API and adds them to the local cache. Only downloads data not already cached (incremental). Call this before jules_select when fresh data is needed. Returns sync statistics including counts of new items.',
           inputSchema: {
             type: 'object',
             properties: {
