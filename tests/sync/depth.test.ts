@@ -32,6 +32,9 @@ describe('Ingestion Depth', () => {
     };
 
     mockSessionClient = {
+      activities: {
+        hydrate: vi.fn(async () => 0),
+      },
       history: vi.fn(async function* () {}),
     };
 
@@ -83,18 +86,14 @@ describe('Ingestion Depth', () => {
       })() as any;
     });
 
-    // Mock history to return 3 activities
-    mockSessionClient.history.mockImplementation(async function* () {
-      yield {};
-      yield {};
-      yield {};
-    });
+    // Mock hydrate to return 3 activities
+    mockSessionClient.activities.hydrate.mockResolvedValue(3);
 
     const stats = await client.sync({ depth: 'activities' });
 
     expect(stats.sessionsIngested).toBe(1);
     expect(stats.activitiesIngested).toBe(3);
     expect(client.session).toHaveBeenCalledWith('1');
-    expect(mockSessionClient.history).toHaveBeenCalled();
+    expect(mockSessionClient.activities.hydrate).toHaveBeenCalled();
   });
 });

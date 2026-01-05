@@ -220,13 +220,17 @@ export class JulesClientImpl implements JulesClient {
           }
 
           if (highWaterMark && new Date(session.createTime) <= highWaterMark) {
+            // We've reached sessions we already have cached.
+            // For activities depth: include this session for hydration (to get new activities)
+            // but stop iterating after - we don't need to process older sessions.
             if (depth === 'activities') {
               await this.storage.upsert(session);
               candidates.push(session);
-              continue;
-            } else {
-              break;
+              // Don't increment sessionsIngested - this is an existing session
             }
+            // For both depths, stop iterating - the hydrate() method uses pageToken
+            // to efficiently fetch only NEW activities for cached sessions.
+            break;
           }
 
           await this.storage.upsert(session);
@@ -253,6 +257,10 @@ export class JulesClientImpl implements JulesClient {
 
       // 3. Deep Ingestion (Activity Hydration)
       // Uses pMap for backpressure to prevent quota saturation.
+      // The hydrate() method is optimized to:
+      // - Skip frozen sessions (> 30 days old) entirely
+      // - Use pageToken to fetch only new activities
+      // - Handle duplicate detection at timestamp boundaries
       if (depth === 'activities' && candidates.length > 0 && !wasAborted) {
         let hydratedCount = 0;
         onProgress?.({
@@ -266,39 +274,12 @@ export class JulesClientImpl implements JulesClient {
           async (session) => {
             if (signal?.aborted) return; // Skip if aborted
 
-            const activityStorage = this.storageFactory.activity(session.id);
-            await activityStorage.init();
-
-            // Get the high-water mark for activities
-            const latestLocal = await activityStorage.latest();
-            const activityHighWaterMark = latestLocal?.createTime;
-
-            // Fetch activities from server
             const sessionClient = this.session(session.id);
-            let count = 0;
-
-            for await (const activity of sessionClient.history()) {
-              // If we have a high-water mark, only append newer activities
-              if (
-                activityHighWaterMark &&
-                activity.createTime <= activityHighWaterMark
-              ) {
-                // We've reached activities we already have - stop
-                break;
-              }
-
-              await activityStorage.append(activity);
-              count++;
-              activitiesIngested++;
-
-              onProgress?.({
-                phase: 'hydrating_activities',
-                current: hydratedCount,
-                total: candidates.length,
-                lastIngestedId: session.id,
-                activityCount: count,
-              });
-            }
+            // hydrate() handles all the optimization:
+            // - Frozen sessions (> 30 days) return 0 immediately
+            // - Uses pageToken for incremental sync
+            const count = await sessionClient.activities.hydrate();
+            activitiesIngested += count;
 
             hydratedCount++;
             onProgress?.({
@@ -306,6 +287,7 @@ export class JulesClientImpl implements JulesClient {
               current: hydratedCount,
               total: candidates.length,
               lastIngestedId: session.id,
+              activityCount: count,
             });
           },
           { concurrency },

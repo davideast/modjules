@@ -49,8 +49,11 @@ describe('JulesClient.sync Progress', () => {
       })(),
     );
 
-    // Mock session() to return a client with history()
+    // Mock session() to return a client with activities.hydrate()
     const mockSessionClient = {
+      activities: {
+        hydrate: vi.fn().mockResolvedValue(3), // Simulate 3 activities hydrated
+      },
       history: vi.fn().mockReturnValue(
         (async function* () {
           yield { id: 'act-1' };
@@ -90,35 +93,13 @@ describe('JulesClient.sync Progress', () => {
       total: 1,
     });
 
-    // 4. Hydrating activities
-    expect(onProgress).toHaveBeenCalledWith({
-      phase: 'hydrating_activities',
-      current: 0,
-      total: 1,
-      lastIngestedId: 'session-123',
-      activityCount: 1,
-    });
-    expect(onProgress).toHaveBeenCalledWith({
-      phase: 'hydrating_activities',
-      current: 0,
-      total: 1,
-      lastIngestedId: 'session-123',
-      activityCount: 2,
-    });
-    expect(onProgress).toHaveBeenCalledWith({
-      phase: 'hydrating_activities',
-      current: 0,
-      total: 1,
-      lastIngestedId: 'session-123',
-      activityCount: 3,
-    });
-
-    // 5. Done hydrating
+    // 4. Done hydrating (now uses activities.hydrate() which reports total count at end)
     expect(onProgress).toHaveBeenCalledWith({
       phase: 'hydrating_records',
       current: 1,
       total: 1,
       lastIngestedId: 'session-123',
+      activityCount: 3, // Reported by hydrate()
     });
   });
 });

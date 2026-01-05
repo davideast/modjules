@@ -4,6 +4,13 @@ import { Activity } from '../../src/types.js';
 import { ActivityStorage } from '../../src/storage/types.js';
 import { NetworkClient } from '../../src/activities/client.js';
 
+// Generate recent ISO dates to avoid triggering frozen session detection (> 30 days)
+const recentDate = (minutesAgo: number): string => {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() - minutesAgo);
+  return date.toISOString();
+};
+
 // Mock storage factory
 const createMockStorage = (activities: Activity[] = []): ActivityStorage => {
   let stored = [...activities];
@@ -48,8 +55,8 @@ const createMockNetwork = (pages: Activity[][]): NetworkClient => {
 describe('DefaultActivityClient.history()', () => {
   it('returns activities from cache when available (after hydrate)', async () => {
     const cachedActivities = [
-      { id: '1', createTime: '2024-01-01T00:00:00Z' } as Activity,
-      { id: '2', createTime: '2024-01-02T00:00:00Z' } as Activity,
+      { id: '1', createTime: recentDate(10) } as Activity,
+      { id: '2', createTime: recentDate(5) } as Activity,
     ];
 
     const storage = createMockStorage(cachedActivities);
@@ -73,8 +80,8 @@ describe('DefaultActivityClient.history()', () => {
 
   it('fetches from network when cache is empty', async () => {
     const networkActivities = [
-      { id: '1', createTime: '2024-01-01T00:00:00Z' } as Activity,
-      { id: '2', createTime: '2024-01-02T00:00:00Z' } as Activity,
+      { id: '1', createTime: recentDate(10) } as Activity,
+      { id: '2', createTime: recentDate(5) } as Activity,
     ];
 
     const storage = createMockStorage([]); // Empty cache
@@ -92,9 +99,9 @@ describe('DefaultActivityClient.history()', () => {
   });
 
   it('handles paginated network responses', async () => {
-    const page1 = [{ id: '1', createTime: '2024-01-01T00:00:00Z' } as Activity];
-    const page2 = [{ id: '2', createTime: '2024-01-02T00:00:00Z' } as Activity];
-    const page3 = [{ id: '3', createTime: '2024-01-03T00:00:00Z' } as Activity];
+    const page1 = [{ id: '1', createTime: recentDate(15) } as Activity];
+    const page2 = [{ id: '2', createTime: recentDate(10) } as Activity];
+    const page3 = [{ id: '3', createTime: recentDate(5) } as Activity];
 
     const storage = createMockStorage([]);
     const network = createMockNetwork([page1, page2, page3]);
@@ -111,8 +118,8 @@ describe('DefaultActivityClient.history()', () => {
 
   it('hydrates all activities before yielding from storage', async () => {
     const activities = [
-      { id: '1', createTime: '2024-01-01T00:00:00Z' } as Activity,
-      { id: '2', createTime: '2024-01-02T00:00:00Z' } as Activity,
+      { id: '1', createTime: recentDate(10) } as Activity,
+      { id: '2', createTime: recentDate(5) } as Activity,
     ];
 
     const storage = createMockStorage([]);
@@ -134,8 +141,8 @@ describe('DefaultActivityClient.history()', () => {
 describe('DefaultActivityClient.hydrate()', () => {
   it('syncs all activities from network', async () => {
     const activities = [
-      { id: '1', createTime: '2024-01-01T00:00:00Z' } as Activity,
-      { id: '2', createTime: '2024-01-02T00:00:00Z' } as Activity,
+      { id: '1', createTime: recentDate(10) } as Activity,
+      { id: '2', createTime: recentDate(5) } as Activity,
     ];
 
     const storage = createMockStorage([]);
@@ -151,11 +158,11 @@ describe('DefaultActivityClient.hydrate()', () => {
   it('skips activities already in cache', async () => {
     const existing = {
       id: '1',
-      createTime: '2024-01-01T00:00:00Z',
+      createTime: recentDate(10),
     } as Activity;
     const newActivity = {
       id: '2',
-      createTime: '2024-01-02T00:00:00Z',
+      createTime: recentDate(5),
     } as Activity;
 
     const storage = createMockStorage([existing]);
