@@ -1,12 +1,13 @@
 {
   "name": "modjules",
+  "private": true,
   "type": "module",
   "version": "0.1.1",
   "engines": {
     "node": ">=18"
   },
   "workspaces": [
-    ".",
+    "packages/*",
     "examples/*"
   ],
   "description": "The agent-ready SDK for Jules.",
@@ -108,31 +109,30 @@
     "@changesets/changelog-github": "^0.5.1",
     "@changesets/cli": "^2.29.7",
     "@google/jules": "^0.1.37",
+    "@inquirer/prompts": "^7.10.1",
+    "@modelcontextprotocol/sdk": "^1.25.1",
     "@octokit/rest": "^22.0.1",
     "@opentelemetry/api": "^1.9.0",
     "@types/google-apps-script": "^2.0.7",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^24.9.1",
     "ai": "^6.0.5",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.2",
     "fake-indexeddb": "^6.2.5",
     "firebase-admin": "^13.6.0",
     "husky": "^9.1.7",
+    "idb": "^8.0.3",
     "jsdom": "^27.1.0",
     "lint-staged": "^16.2.6",
     "msw": "^2.11.6",
     "prettier": "^3.6.2",
     "tsx": "^4.20.6",
+    "turbo": "^2.0.6",
     "typescript": "^5.9.3",
     "vite": "^7.3.0",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^3.2.4",
     "yaml": "^2.8.2"
-  },
-  "dependencies": {
-    "@inquirer/prompts": "^7.10.1",
-    "@modelcontextprotocol/sdk": "^1.25.1",
-    "chalk": "^5.6.2",
-    "commander": "^14.0.2",
-    "idb": "^8.0.3"
   }
 }
