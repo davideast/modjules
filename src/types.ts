@@ -352,6 +352,13 @@ export interface SessionResource {
    * Only populated when `include: { activities: true }` is used in `jules.select()`.
    */
   activities?: Activity[];
+  /**
+   * The final outcome of the session, if it is in a terminal state.
+   */
+  outcome?: {
+    status: 'SUCCESS' | 'FAILURE';
+    summary: string;
+  };
 }
 
 // -----------------------------------------------------------------------------

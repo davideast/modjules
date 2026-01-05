@@ -54,6 +54,10 @@ describe('Unified Query Engine (select)', () => {
         url: 'http://jules/sess_1',
         outputs: [],
         sourceContext: { source: 'github/owner/repo' },
+        outcome: {
+          status: 'SUCCESS',
+          summary: 'Fixed the login bug.',
+        },
       },
       {
         id: 'sess_2',
@@ -78,7 +82,16 @@ describe('Unified Query Engine (select)', () => {
           message: 'Hello',
           createTime: '2023-01-01T00:00:01Z',
           originator: 'agent',
-          artifacts: [],
+          artifacts: [
+            {
+              type: 'bashOutput',
+              command: 'ls',
+              stdout: 'file1.txt',
+              stderr: '',
+              exitCode: 0,
+              toString: () => '',
+            },
+          ],
         } as ActivityAgentMessaged,
       ],
       sess_2: [
@@ -162,6 +175,21 @@ describe('Unified Query Engine (select)', () => {
       expect((sess2! as any).state).toBeUndefined();
     });
 
+    it('should use a default projection for lightweight fields (SHAPE-02)', async () => {
+      const results = await select(mockClient as any, {
+        from: 'sessions',
+      });
+      const sess1 = results.find((s) => s.id === 'sess_1');
+      expect(sess1).toBeDefined();
+      expect(Object.keys(sess1!).sort()).toEqual([
+        'createTime',
+        'id',
+        'state',
+        'title',
+      ]);
+      expect((sess1! as any).outcome).toBeUndefined();
+    });
+
     it('should filter by state (index optimization)', async () => {
       const results = await select(mockClient as any, {
         from: 'sessions',
@@ -234,6 +262,32 @@ describe('Unified Query Engine (select)', () => {
   });
 
   describe('Querying Activities (Scatter-Gather)', () => {
+    it('should use a default projection for lightweight fields (SHAPE-01)', async () => {
+      const results = await select(mockClient as any, {
+        from: 'activities',
+      });
+      const act1 = results.find((a) => a.id === 'act_1_1');
+      expect(act1).toBeDefined();
+      expect(Object.keys(act1!).sort()).toEqual([
+        'createTime',
+        'id',
+        'originator',
+        'type',
+      ]);
+      expect((act1! as any).artifacts).toBeUndefined();
+    });
+
+    it('should return all fields for an empty select array (SHAPE-05)', async () => {
+      const results = await select(mockClient as any, {
+        from: 'activities',
+        select: [],
+      });
+      const act1 = results.find((a) => a.id === 'act_1_1');
+      expect(act1).toBeDefined();
+      expect(Object.keys(act1!).length).toBeGreaterThan(4);
+      expect((act1! as any).artifacts).toBeDefined();
+    });
+
     it('should find activities across all sessions', async () => {
       const results = await select(mockClient as any, {
         from: 'activities',
