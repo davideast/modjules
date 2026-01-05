@@ -196,3 +196,156 @@
   when: select
   then:
     resultIds: ['act-1', 'act-2']
+
+# =============================================================================
+# QUERY ENGINE RANGE CURSORS (JulesQuery)
+# =============================================================================
+
+- id: EFF-11
+  description: startAfter returns activities after cursor (exclusive)
+  category: range_cursors
+  status: pending
+  priority: P0
+  given:
+    sessionId: 'sess-range'
+    activities:
+      - id: 'act-1'
+        createTime: '2024-01-01T00:00:00Z'
+      - id: 'act-2'
+        createTime: '2024-01-02T00:00:00Z'
+      - id: 'act-3'
+        createTime: '2024-01-03T00:00:00Z'
+      - id: 'act-4'
+        createTime: '2024-01-04T00:00:00Z'
+    query:
+      from: activities
+      where:
+        sessionId: 'sess-range'
+      startAfter: 'act-2'
+      order: asc
+  when: jules.select
+  then:
+    resultIds: ['act-3', 'act-4']
+
+- id: EFF-12
+  description: startAt returns activities at and after cursor (inclusive)
+  category: range_cursors
+  status: pending
+  priority: P0
+  given:
+    sessionId: 'sess-range-inclusive'
+    activities:
+      - id: 'act-1'
+        createTime: '2024-01-01T00:00:00Z'
+      - id: 'act-2'
+        createTime: '2024-01-02T00:00:00Z'
+      - id: 'act-3'
+        createTime: '2024-01-03T00:00:00Z'
+    query:
+      from: activities
+      where:
+        sessionId: 'sess-range-inclusive'
+      startAt: 'act-2'
+      order: asc
+  when: jules.select
+  then:
+    resultIds: ['act-2', 'act-3']
+
+- id: EFF-13
+  description: startAfter with limit enables pagination
+  category: range_cursors
+  status: pending
+  priority: P0
+  given:
+    sessionId: 'sess-paginate'
+    activities:
+      - id: 'act-1'
+        createTime: '2024-01-01T00:00:00Z'
+      - id: 'act-2'
+        createTime: '2024-01-02T00:00:00Z'
+      - id: 'act-3'
+        createTime: '2024-01-03T00:00:00Z'
+      - id: 'act-4'
+        createTime: '2024-01-04T00:00:00Z'
+      - id: 'act-5'
+        createTime: '2024-01-05T00:00:00Z'
+    query:
+      from: activities
+      where:
+        sessionId: 'sess-paginate'
+      startAfter: 'act-2'
+      limit: 2
+      order: asc
+  when: jules.select
+  then:
+    resultIds: ['act-3', 'act-4']
+    hasMore: true
+
+- id: EFF-14
+  description: startAfter with desc order returns older activities
+  category: range_cursors
+  status: pending
+  priority: P1
+  given:
+    sessionId: 'sess-range-desc'
+    activities:
+      - id: 'act-1'
+        createTime: '2024-01-01T00:00:00Z'
+      - id: 'act-2'
+        createTime: '2024-01-02T00:00:00Z'
+      - id: 'act-3'
+        createTime: '2024-01-03T00:00:00Z'
+      - id: 'act-4'
+        createTime: '2024-01-04T00:00:00Z'
+    query:
+      from: activities
+      where:
+        sessionId: 'sess-range-desc'
+      startAfter: 'act-3'
+      order: desc
+  when: jules.select
+  then:
+    resultIds: ['act-2', 'act-1']
+
+- id: EFF-15
+  description: Cursor resolves to createTime with id as tiebreaker
+  category: range_cursors
+  status: pending
+  priority: P1
+  given:
+    sessionId: 'sess-tiebreaker'
+    activities:
+      - id: 'act-a'
+        createTime: '2024-01-01T12:00:00Z'
+      - id: 'act-b'
+        createTime: '2024-01-01T12:00:00Z'
+      - id: 'act-c'
+        createTime: '2024-01-01T12:00:00Z'
+    query:
+      from: activities
+      where:
+        sessionId: 'sess-tiebreaker'
+      startAfter: 'act-a'
+      order: asc
+  when: jules.select
+  then:
+    resultIds: ['act-b', 'act-c']
+
+- id: EFF-16
+  description: Invalid cursor ID returns empty result (graceful handling)
+  category: range_cursors
+  status: pending
+  priority: P1
+  given:
+    sessionId: 'sess-invalid-cursor'
+    activities:
+      - id: 'act-1'
+        createTime: '2024-01-01T00:00:00Z'
+    query:
+      from: activities
+      where:
+        sessionId: 'sess-invalid-cursor'
+      startAfter: 'nonexistent-id'
+  when: jules.select
+  then:
+    resultIds: []
