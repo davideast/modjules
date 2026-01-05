@@ -233,6 +233,45 @@ describe('Efficient Queries Specs', () => {
           if (tc.then.lastResultId) {
             expect(result[result.length - 1].id).toBe(tc.then.lastResultId);
           }
+        } else if (tc.when === 'jules.select') {
+          const { sessionId, activities, query: queryArgs } = tc.given;
+
+          const activityStorage = new NodeFileStorage(sessionId, rootDir);
+          const sessionStorage = new NodeSessionStorage(rootDir);
+          // Create activities
+          for (const act of activities) {
+            await activityStorage.append({
+              id: act.id,
+              type: 'progressUpdated',
+              createTime: act.createTime,
+            } as Activity);
+          }
+
+          // Create mock client
+          const mockClient: JulesClient = {
+            storage: sessionStorage,
+            session: (id: string) =>
+              ({
+                activities: {
+                  select: async () => {
+                    const storage = new NodeFileStorage(id, rootDir);
+                    const acts: Activity[] = [];
+                    for await (const activity of storage.scan()) {
+                      acts.push(activity);
+                    }
+                    return acts;
+                  },
+                },
+              }) as any,
+          } as any;
+
+          // Run select query using the query from the test case
+          const result = await select(mockClient, queryArgs);
+
+          // Assertions from the test case
+          if (tc.then.resultIds) {
+            expect(result.map((r) => r.id)).toEqual(tc.then.resultIds);
+          }
         }
       },
       30000,
