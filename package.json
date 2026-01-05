@@ -1,5 +1,5 @@
 {
-  "name": "modjules-root",
+  "name": "modjules",
   "private": true,
   "type": "module",
   "version": "0.1.1",
@@ -12,6 +12,53 @@
   ],
   "description": "The agent-ready SDK for Jules.",
   "repository": "davideast/modjules",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.mjs"
+    },
+    "./gas": {
+      "types": "./dist/gas/index.d.ts",
+      "import": "./dist/gas/index.mjs"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server.mjs"
+    },
+    "./server/auth/firebase": {
+      "types": "./dist/server/auth/firebase.d.ts",
+      "import": "./dist/server/auth/firebase.mjs"
+    },
+    "./server/auth/memory": {
+      "types": "./dist/server/auth/memory.d.ts",
+      "import": "./dist/server/auth/memory.mjs"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "import": "./dist/mcp.mjs"
+    },
+    "./mcp/cli": {
+      "types": "./dist/mcp/cli.d.ts",
+      "import": "./dist/mcp/cli.mjs"
+    },
+    "./server/auth/rbac": {
+      "types": "./dist/server/auth/rbac.d.ts",
+      "import": "./dist/server/auth/rbac.mjs"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
   "scripts": {
     "build": "vite build",
     "format": "prettier --write .",
@@ -53,6 +100,9 @@
     "singleQuote": true,
     "printWidth": 80,
     "tabWidth": 2
+  },
+  "bin": {
+    "modjules-mcp": "./dist/mcp/cli.mjs"
   },
   "devDependencies": {
     "@ai-sdk/google": "^3.0.2",
