@@ -25,13 +25,34 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+
+      - name: Cache node_modules
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          # Key on lockfile hash - cache invalidates when dependencies change
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          # Fallback to any recent cache if exact match unavailable
+          restore-keys: |
+            deps-${{ runner.os }}-
 
       - name: Install dependencies
-        run: npm ci
+        # Only run full npm ci if no cache hit; otherwise verify with quick install
+        run: |
+          if [ "${{ steps.cache-deps.outputs.cache-hit }}" == "true" ]; then
+            echo "Cache hit - running quick dependency check"
+            npm ci --prefer-offline --ignore-scripts || npm ci
+          else
+            echo "Cache miss - running full install"
+            npm ci
+          fi
 
-      # 1. Get Changed Files for Jules context
+      # 1. Get Changed Files for Jules context (PR only - base_ref is empty on push)
       - name: Get Changed Files
+        if: github.event_name == 'pull_request'
         id: changed-files
         run: |
           FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | tr '\n' ' ')
