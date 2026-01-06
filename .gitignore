@@ -8,3 +8,4 @@ husky
 .jules/
 .turbo/
 **/tests/temp/
+gen/
