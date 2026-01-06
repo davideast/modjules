@@ -673,8 +673,17 @@ export class JulesMCPServer {
                 type: 'string',
                 description: 'The session ID to get code changes from.',
               },
+              activityId: {
+                type: 'string',
+                description:
+                  'Activity ID to get changeset from. Use jules_session_files to discover activity IDs.',
+              },
+              filePath: {
+                type: 'string',
+                description: "Filter to specific file's diff",
+              },
             },
-            required: ['sessionId'],
+            required: ['sessionId', 'activityId'],
           },
         },
       ],
@@ -1016,60 +1025,109 @@ Quick start:
 
   private async handleGetCodeChanges(args: any) {
     const sessionId = args?.sessionId as string;
+    const activityId = args?.activityId as string;
+    const filePath = args?.filePath as string | undefined;
+
     if (!sessionId) {
       throw new Error('sessionId is required');
+    }
+    if (!activityId) {
+      throw new Error('activityId is required');
     }
 
     const client = this.julesClient.session(sessionId);
     await client.activities.hydrate();
 
-    const activities = await client.activities.select({
-      order: 'asc',
-    });
+    // The `select` method on `activities` does not support `where`.
+    // Instead, we fetch all activities and find the one with the matching ID.
+    const activities = await client.activities.select();
+    const activity = activities.find((a) => a.id === activityId);
 
-    const changes: Array<{
-      path: string;
-      changeType: 'created' | 'modified' | 'deleted';
-      artifactId: string;
-      additions: number;
-      deletions: number;
-    }> = [];
-
-    const summary = {
-      totalFiles: 0,
-      created: 0,
-      modified: 0,
-      deleted: 0,
-    };
-
-    for (const activity of activities) {
-      for (const artifact of activity.artifacts) {
-        if (artifact.type === 'changeSet') {
-          const parsed = artifact.parsed();
-          for (const file of parsed.files) {
-            changes.push({
-              path: file.path,
-              changeType: file.changeType,
-              artifactId: activity.id,
-              additions: file.additions,
-              deletions: file.deletions,
-            });
-            summary.totalFiles++;
-            if (file.changeType === 'created') summary.created++;
-            else if (file.changeType === 'modified') summary.modified++;
-            else if (file.changeType === 'deleted') summary.deleted++;
-          }
-        }
-      }
+    if (!activity) {
+      throw new Error('Activity not found');
     }
+
+    const changeSet = activity.artifacts.find((a) => a.type === 'changeSet');
+
+    if (!changeSet || changeSet.type !== 'changeSet') {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              {
+                sessionId,
+                activityId,
+                ...(filePath && { filePath }),
+                unidiffPatch: '',
+                files: [],
+                summary: {
+                  totalFiles: 0,
+                  created: 0,
+                  modified: 0,
+                  deleted: 0,
+                },
+              },
+              null,
+              2,
+            ),
+          },
+        ],
+      };
+    }
+
+    let unidiffPatch = changeSet.gitPatch.unidiffPatch || '';
+    const parsed = changeSet.parsed();
+    let files = parsed.files;
+    let summary = parsed.summary;
+
+    if (filePath) {
+      unidiffPatch = this.extractFileDiff(unidiffPatch, filePath);
+      files = files.filter((f) => f.path === filePath);
+      summary = {
+        totalFiles: files.length,
+        created: files.filter((f) => f.changeType === 'created').length,
+        modified: files.filter((f) => f.changeType === 'modified').length,
+        deleted: files.filter((f) => f.changeType === 'deleted').length,
+      };
+    }
+
+    const response = {
+      sessionId,
+      activityId,
+      ...(filePath && { filePath }),
+      unidiffPatch,
+      files: files.map((f) => ({
+        path: f.path,
+        changeType: f.changeType,
+        additions: f.additions,
+        deletions: f.deletions,
+      })),
+      summary,
+    };
 
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify({ sessionId, changes, summary }, null, 2),
+          text: JSON.stringify(response, null, 2),
         },
       ],
     };
+  }
+
+  /**
+   * Extracts a single file's diff from a larger unidiff patch.
+   */
+  private extractFileDiff(unidiffPatch: string, filePath: string): string {
+    if (!unidiffPatch) {
+      return '';
+    }
+    // Add a leading newline to handle the first entry correctly
+    const patches = ('\n' + unidiffPatch).split('\ndiff --git ');
+    const targetHeader = `a/${filePath} `;
+    const patch = patches.find((p) => p.startsWith(targetHeader));
+
+    return patch ? `diff --git ${patch}`.trim() : '';
   }
 }

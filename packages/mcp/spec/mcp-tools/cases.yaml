@@ -265,7 +265,7 @@
 - id: MCP-20
   description: Returns error when activityId is missing
   category: mcp-tools
-  status: pending
+  status: implemented
   priority: P0
   when: mcp_jules_get_code_changes
   given:
@@ -279,7 +279,7 @@
 - id: MCP-21
   description: Returns full unidiffPatch for activity with modified file
   category: mcp-tools
-  status: pending
+  status: implemented
   priority: P0
   when: mcp_jules_get_code_changes
   given:
@@ -323,7 +323,7 @@
 - id: MCP-22
   description: Returns unidiffPatch for activity with multiple files
   category: mcp-tools
-  status: pending
+  status: implemented
   priority: P0
   when: mcp_jules_get_code_changes
   given:
@@ -372,7 +372,7 @@
 - id: MCP-23
   description: Filters to specific file when filePath provided
   category: mcp-tools
-  status: pending
+  status: implemented
   priority: P0
   when: mcp_jules_get_code_changes
   given:
@@ -417,7 +417,7 @@
 - id: MCP-24
   description: Returns empty when activity has no changeSet artifacts
   category: mcp-tools
-  status: pending
+  status: implemented
   priority: P1
   when: mcp_jules_get_code_changes
   given:
@@ -442,7 +442,7 @@
 - id: MCP-24b
   description: Returns error when activityId not found
   category: mcp-tools
-  status: pending
+  status: implemented
   priority: P1
   when: mcp_jules_get_code_changes
   given:

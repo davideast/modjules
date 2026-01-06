@@ -82,18 +82,14 @@ interface McpSessionTimelineTestCase extends BaseTestCase {
   };
 }
 
-interface CodeChangeResultItem {
-  path: string;
-  changeType: 'created' | 'modified' | 'deleted';
-  artifactId?: string;
-  additions: number;
-  deletions: number;
-}
-
 interface McpGetCodeChangesTestCase extends BaseTestCase {
   when: 'mcp_jules_get_code_changes';
   given: {
     sessionId: string;
+    args?: {
+      activityId?: string;
+      filePath?: string;
+    };
     activities: Array<{
       id: string;
       type: string;
@@ -108,19 +104,28 @@ interface McpGetCodeChangesTestCase extends BaseTestCase {
     }>;
   };
   then: {
-    result: {
+    result?: {
       sessionId: string;
-      changes: {
+      activityId?: string;
+      filePath?: string;
+      unidiffPatch?: string | { contains?: string; excludes?: string };
+      files: {
         count: number;
-        items?: CodeChangeResultItem[];
+        items?: Array<{
+          path: string;
+          changeType: 'created' | 'modified' | 'deleted';
+          additions?: number;
+          deletions?: number;
+        }>;
       };
-      summary: {
+      summary?: {
         totalFiles: number;
-        created: number;
-        modified: number;
-        deleted: number;
+        created?: number;
+        modified?: number;
+        deleted?: number;
       };
     };
+    error?: string;
   };
 }
 
@@ -364,16 +369,30 @@ describe('MCP Tools Spec', async () => {
         }
 
         case 'mcp_jules_get_code_changes': {
+          if (tc.then.error) {
+            await expect(
+              (mcpServer as any).handleGetCodeChanges({
+                sessionId: tc.given.sessionId,
+                ...(tc.given.args || {}),
+              }),
+            ).rejects.toThrow(tc.then.error);
+            break;
+          }
+
+          // Find the specific activity that should be returned by select()
+          const activityId = tc.given.args?.activityId;
+          const activitiesToReturn = activityId
+            ? tc.given.activities.filter((a) => a.id === activityId)
+            : [];
+
           const mockSessionClient: Pick<SessionClient, 'activities'> = {
             activities: {
               hydrate: vi.fn().mockResolvedValue(0),
-              select: vi
-                .fn()
-                .mockResolvedValue(
-                  tc.given.activities.map((a) =>
-                    createTestActivityWithArtifacts(a),
-                  ),
+              select: vi.fn().mockResolvedValue(
+                activitiesToReturn.map((a) =>
+                  createTestActivityWithArtifacts(a),
                 ),
+              ),
             } as any,
           };
 
@@ -383,26 +402,76 @@ describe('MCP Tools Spec', async () => {
 
           const result = await (mcpServer as any).handleGetCodeChanges({
             sessionId: tc.given.sessionId,
+            ...(tc.given.args || {}),
           });
           const content = JSON.parse(result.content[0].text);
+          const expectedResult = tc.then.result;
 
-          expect(content.sessionId).toBe(tc.then.result.sessionId);
-          expect(content.changes.length).toBe(tc.then.result.changes.count);
+          if (!expectedResult) {
+            throw new Error(`Test case ${tc.id} missing 'then.result' block.`);
+          }
 
-          if (tc.then.result.changes.items) {
-            tc.then.result.changes.items.forEach((expected, index) => {
-              const actual = content.changes[index];
-              expect(actual.path).toBe(expected.path);
-              expect(actual.changeType).toBe(expected.changeType);
-              expect(actual.additions).toBe(expected.additions);
-              expect(actual.deletions).toBe(expected.deletions);
-              if (expected.artifactId) {
-                expect(actual.artifactId).toBe(expected.artifactId);
+          expect(content.sessionId).toBe(expectedResult.sessionId);
+          if (expectedResult.activityId) {
+            expect(content.activityId).toBe(expectedResult.activityId);
+          }
+          if (expectedResult.filePath) {
+            expect(content.filePath).toBe(expectedResult.filePath);
+          }
+
+          // unidiffPatch assertions
+          if (typeof expectedResult.unidiffPatch === 'string') {
+            expect(content.unidiffPatch).toBe(expectedResult.unidiffPatch);
+          } else if (expectedResult.unidiffPatch) {
+            if (expectedResult.unidiffPatch.contains) {
+              expect(content.unidiffPatch).toContain(
+                expectedResult.unidiffPatch.contains,
+              );
+            }
+            if (expectedResult.unidiffPatch.excludes) {
+              expect(content.unidiffPatch).not.toContain(
+                expectedResult.unidiffPatch.excludes,
+              );
+            }
+          }
+
+          // files assertions
+          expect(content.files.length).toBe(expectedResult.files.count);
+          if (expectedResult.files.items) {
+            expectedResult.files.items.forEach((expectedFile, index) => {
+              const actualFile = content.files[index];
+              expect(actualFile.path).toBe(expectedFile.path);
+              expect(actualFile.changeType).toBe(expectedFile.changeType);
+              if (expectedFile.additions !== undefined) {
+                expect(actualFile.additions).toBe(expectedFile.additions);
+              }
+              if (expectedFile.deletions !== undefined) {
+                expect(actualFile.deletions).toBe(expectedFile.deletions);
               }
             });
           }
 
-          expect(content.summary).toEqual(tc.then.result.summary);
+          // summary assertions
+          if (expectedResult.summary) {
+            expect(content.summary.totalFiles).toBe(
+              expectedResult.summary.totalFiles,
+            );
+            if (expectedResult.summary.created !== undefined) {
+              expect(content.summary.created).toBe(
+                expectedResult.summary.created,
+              );
+            }
+            if (expectedResult.summary.modified !== undefined) {
+              expect(content.summary.modified).toBe(
+                expectedResult.summary.modified,
+              );
+            }
+            if (expectedResult.summary.deleted !== undefined) {
+              expect(content.summary.deleted).toBe(
+                expectedResult.summary.deleted,
+              );
+            }
+          }
           break;
         }
 
