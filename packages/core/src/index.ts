@@ -48,7 +48,6 @@ export type {
   ActivityUserMessaged,
   Artifact,
   AutomatedSession,
-  BashArtifact,
   ChangeSet,
   GitHubRepo,
   GitPatch,
@@ -113,4 +112,4 @@ export type { Platform } from './platform/types.js';
 export type { StorageFactory } from './types.js';
 
 // Artifact classes with helper methods
-export { ChangeSetArtifact } from './artifacts.js';
+export { ChangeSetArtifact, BashArtifact } from './artifacts.js';
