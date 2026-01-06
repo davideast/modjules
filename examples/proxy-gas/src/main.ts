@@ -1,4 +1,4 @@
-import { createGasHandler } from 'modjules/gas';
+import { createGasHandler } from '@modjules/server/gas';
 
 // --- CONFIGURATION ---
 // Values are pulled from Project Settings > Script Properties
