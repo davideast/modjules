@@ -457,10 +457,12 @@
     error: Activity not found
 
 # jules_session_files tests
-# Returns file tree with activityIds for drill-down
+# Returns flat file list with activityIds for drill-down to jules_get_code_changes
+# Uses "net" change type: created→modified = created, created→deleted = omit
+# LLM renders ASCII tree from JSON using tool description guidance
 
 - id: MCP-30
-  description: Returns file tree with activityIds for single file change
+  description: Returns flat file list with activityIds for single file change
   category: mcp-tools
   status: pending
   priority: P0
@@ -484,19 +486,23 @@
   then:
     result:
       sessionId: session-single
-      tree:
-        src:
-          'index.ts':
-            change: modified
+      files:
+        count: 1
+        items:
+          - path: src/index.ts
+            changeType: modified
             activityIds:
               - act-1
+            additions: 1
+            deletions: 0
       summary:
-        modified: 1
+        totalFiles: 1
         created: 0
+        modified: 1
         deleted: 0
 
 - id: MCP-31
-  description: Returns file tree with multiple activityIds when file changed multiple times
+  description: Aggregates activityIds when file changed multiple times
   category: mcp-tools
   status: pending
   priority: P0
@@ -534,27 +540,30 @@
   then:
     result:
       sessionId: session-multi-changes
-      tree:
-        src:
-          'client.ts':
-            change: modified
+      files:
+        count: 1
+        items:
+          - path: src/client.ts
+            changeType: modified
             activityIds:
               - act-1
               - act-2
+            additions: 2
+            deletions: 0
       summary:
-        modified: 1
+        totalFiles: 1
         created: 0
+        modified: 1
         deleted: 0
-        totalActivities: 2
 
 - id: MCP-32
-  description: Returns nested file tree structure
+  description: Returns multiple files from single activity
   category: mcp-tools
   status: pending
   priority: P0
   when: mcp_jules_session_files
   given:
-    sessionId: session-nested
+    sessionId: session-multi-files
     activities:
       - id: act-1
         type: progressUpdated
@@ -577,33 +586,32 @@
                 +test('client', () => {});
   then:
     result:
-      sessionId: session-nested
-      tree:
-        packages:
-          core:
-            src:
-              'client.ts':
-                change: modified
-                activityIds:
-                  - act-1
-            tests:
-              'client.test.ts':
-                change: created
-                activityIds:
-                  - act-1
+      sessionId: session-multi-files
+      files:
+        count: 2
+        items:
+          - path: packages/core/src/client.ts
+            changeType: modified
+            activityIds:
+              - act-1
+          - path: packages/core/tests/client.test.ts
+            changeType: created
+            activityIds:
+              - act-1
       summary:
-        modified: 1
+        totalFiles: 2
         created: 1
+        modified: 1
         deleted: 0
 
 - id: MCP-33
-  description: Returns ASCII tree representation
+  description: Uses net change type - created then modified stays created
   category: mcp-tools
   status: pending
   priority: P1
   when: mcp_jules_session_files
   given:
-    sessionId: session-ascii
+    sessionId: session-net-change
     activities:
       - id: act-1
         type: progressUpdated
@@ -612,22 +620,44 @@
             source: agent
             gitPatch:
               unidiffPatch: |
-                diff --git a/src/index.ts b/src/index.ts
-                --- a/src/index.ts
-                +++ b/src/index.ts
+                diff --git a/src/new.ts b/src/new.ts
+                new file mode 100644
+                --- /dev/null
+                +++ b/src/new.ts
+                @@ -0,0 +1 @@
+                +const x = 1;
+      - id: act-2
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/new.ts b/src/new.ts
+                --- a/src/new.ts
+                +++ b/src/new.ts
                 @@ -1 +1,2 @@
-                 const a = 1;
-                +const b = 2;
+                 const x = 1;
+                +const y = 2;
   then:
     result:
-      sessionId: session-ascii
-      ascii:
-        containsAll:
-          - 'index.ts'
-          - '[M]'
+      sessionId: session-net-change
+      files:
+        count: 1
+        items:
+          - path: src/new.ts
+            changeType: created
+            activityIds:
+              - act-1
+              - act-2
+      summary:
+        totalFiles: 1
+        created: 1
+        modified: 0
+        deleted: 0
 
 - id: MCP-34
-  description: Returns empty tree for session with no changeSet artifacts
+  description: Returns empty files for session with no changeSet artifacts
   category: mcp-tools
   status: pending
   priority: P1
@@ -642,10 +672,58 @@
   then:
     result:
       sessionId: session-empty
-      tree: {}
+      files:
+        count: 0
       summary:
-        modified: 0
+        totalFiles: 0
         created: 0
+        modified: 0
+        deleted: 0
+
+- id: MCP-35
+  description: Omits file when net change is created then deleted
+  category: mcp-tools
+  status: pending
+  priority: P1
+  when: mcp_jules_session_files
+  given:
+    sessionId: session-created-deleted
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/temp.ts b/src/temp.ts
+                new file mode 100644
+                --- /dev/null
+                +++ b/src/temp.ts
+                @@ -0,0 +1 @@
+                +const temp = 1;
+      - id: act-2
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/temp.ts b/src/temp.ts
+                deleted file mode 100644
+                --- a/src/temp.ts
+                +++ /dev/null
+                @@ -1 +0,0 @@
+                -const temp = 1;
+  then:
+    result:
+      sessionId: session-created-deleted
+      files:
+        count: 0
+      summary:
+        totalFiles: 0
+        created: 0
+        modified: 0
         deleted: 0
 
 # jules_get_bash_outputs tests
