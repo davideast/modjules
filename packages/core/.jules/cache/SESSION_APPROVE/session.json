@@ -1,0 +1,7 @@
+{
+  "resource": {
+    "id": "SESSION_APPROVE",
+    "state": "awaitingPlanApproval"
+  },
+  "_lastSyncedAt": 1767661110492
+}

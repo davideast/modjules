@@ -1,12 +1,14 @@
 # .github/workflows/firebase-hosting-pull-request.yml
+# DISABLED: Re-enable after monorepo migration is complete
 name: Deploy to Firebase Hosting on PR
 on:
-  pull_request:
-    paths:
-      - 'src/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'tsconfig.json'
+  workflow_dispatch: # Manual trigger only for now
+  # pull_request:
+  #   paths:
+  #     - 'src/**'
+  #     - 'package.json'
+  #     - 'package-lock.json'
+  #     - 'tsconfig.json'
 permissions:
   checks: write
   contents: read

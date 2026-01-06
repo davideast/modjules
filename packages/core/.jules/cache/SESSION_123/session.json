@@ -1,0 +1,14 @@
+{
+  "resource": {
+    "id": "SESSION_123",
+    "state": "completed",
+    "outputs": [
+      {
+        "pullRequest": {
+          "url": "http://pr.url"
+        }
+      }
+    ]
+  },
+  "_lastSyncedAt": 1767661110518
+}

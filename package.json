@@ -1,8 +1,9 @@
 {
-  "name": "modjules",
+  "name": "modjules-monorepo",
   "private": true,
   "type": "module",
   "version": "0.1.1",
+  "packageManager": "npm@10.8.2",
   "engines": {
     "node": ">=18"
   },
@@ -12,64 +13,19 @@
   ],
   "description": "The agent-ready SDK for Jules.",
   "repository": "davideast/modjules",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs"
-    },
-    "./browser": {
-      "types": "./dist/browser.d.ts",
-      "import": "./dist/browser.mjs"
-    },
-    "./gas": {
-      "types": "./dist/gas/index.d.ts",
-      "import": "./dist/gas/index.mjs"
-    },
-    "./server": {
-      "types": "./dist/server/index.d.ts",
-      "import": "./dist/server.mjs"
-    },
-    "./server/auth/firebase": {
-      "types": "./dist/server/auth/firebase.d.ts",
-      "import": "./dist/server/auth/firebase.mjs"
-    },
-    "./server/auth/memory": {
-      "types": "./dist/server/auth/memory.d.ts",
-      "import": "./dist/server/auth/memory.mjs"
-    },
-    "./mcp": {
-      "types": "./dist/mcp/index.d.ts",
-      "import": "./dist/mcp.mjs"
-    },
-    "./mcp/cli": {
-      "types": "./dist/mcp/cli.d.ts",
-      "import": "./dist/mcp/cli.mjs"
-    },
-    "./server/auth/rbac": {
-      "types": "./dist/server/auth/rbac.d.ts",
-      "import": "./dist/server/auth/rbac.mjs"
-    },
-    "./types": {
-      "types": "./dist/types.d.ts"
-    },
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "dist/",
-    "README.md"
-  ],
   "scripts": {
-    "build": "vite build",
+    "build": "turbo run build --filter=modjules",
+    "build:all": "turbo run build",
+    "test": "turbo run test --filter=modjules",
+    "test:all": "turbo run test",
+    "type-check": "turbo run type-check --filter=modjules",
+    "type-check:all": "turbo run type-check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "pretest": "npm run build",
-    "test": "vitest --exclude tests/storage/browser.test.ts",
+    "precommit": "npm run format && npm run type-check && npm test",
     "test:browser": "vitest run -c vitest.browser.config.ts",
     "test:integration": "vitest run -c vitest.integration.config.ts",
     "test:smoke": "tsx scripts/smoke-test.ts",
-    "precommit": "npm run format && npm run type-check && npm test",
-    "type-check": "tsc --project tsconfig.test.json",
     "ci:report": "tsx scripts/ci-report.ts",
     "preflight": "tsx scripts/preflight.ts",
     "fix-attribution": "bun scripts/fix-attribution.ts",
@@ -77,18 +33,11 @@
     "prepare": "husky",
     "changeset": "changeset",
     "release": "changeset publish",
-    "mcp-server": "bun src/mcp/cli.ts",
+    "mcp-server": "bun packages/core/src/mcp/cli.ts",
     "monitor": "bun scripts/monitor.ts",
     "spec:pending": "grep -B2 'status: pending' spec/sync/cases.yaml | grep -E '^- id:|description:'",
     "spec:status": "echo '📊 Spec Status:' && echo 'Implemented:' $(grep -c 'status: implemented' spec/sync/cases.yaml) && echo 'Pending:' $(grep -c 'status: pending' spec/sync/cases.yaml) && echo 'Skipped:' $(grep -c 'status: skipped' spec/sync/cases.yaml)"
   },
-  "keywords": [
-    "jules",
-    "ai",
-    "agent",
-    "sdk",
-    "developer-tools"
-  ],
   "author": "",
   "license": "ISC",
   "lint-staged": {
@@ -100,9 +49,6 @@
     "singleQuote": true,
     "printWidth": 80,
     "tabWidth": 2
-  },
-  "bin": {
-    "modjules-mcp": "./dist/mcp/cli.mjs"
   },
   "devDependencies": {
     "@ai-sdk/google": "^3.0.2",
