@@ -257,3 +257,199 @@
             hasArtifacts: true
             artifactCount: 1
       hasMore: false
+
+# jules_get_code_changes tests
+- id: MCP-20
+  description: Returns empty changes for session with no changeSet artifacts
+  category: mcp-tools
+  status: implemented
+  priority: P0
+  when: mcp_jules_get_code_changes
+  given:
+    sessionId: session-no-changes
+    activities:
+      - id: act-1
+        type: agentMessaged
+        message: Hello
+        artifacts: []
+  then:
+    result:
+      sessionId: session-no-changes
+      changes:
+        count: 0
+      summary:
+        totalFiles: 0
+        created: 0
+        modified: 0
+        deleted: 0
+
+- id: MCP-21
+  description: Returns parsed code changes for modified file
+  category: mcp-tools
+  status: implemented
+  priority: P0
+  when: mcp_jules_get_code_changes
+  given:
+    sessionId: session-modified
+    activities:
+      - id: act-1
+        type: progressUpdated
+        createTime: '2026-01-05T20:45:00Z'
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/index.ts b/src/index.ts
+                index abc123..def456 100644
+                --- a/src/index.ts
+                +++ b/src/index.ts
+                @@ -1,2 +1,3 @@
+                 const a = 1;
+                +const b = 2;
+                 export { a };
+  then:
+    result:
+      sessionId: session-modified
+      changes:
+        count: 1
+        items:
+          - path: src/index.ts
+            changeType: modified
+            artifactId: act-1
+            additions: 1
+            deletions: 0
+      summary:
+        totalFiles: 1
+        created: 0
+        modified: 1
+        deleted: 0
+
+- id: MCP-22
+  description: Returns parsed code changes for created file
+  category: mcp-tools
+  status: implemented
+  priority: P1
+  when: mcp_jules_get_code_changes
+  given:
+    sessionId: session-created
+    activities:
+      - id: act-2
+        type: progressUpdated
+        createTime: '2026-01-05T20:46:00Z'
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/new.ts b/src/new.ts
+                new file mode 100644
+                --- /dev/null
+                +++ b/src/new.ts
+                @@ -0,0 +1,2 @@
+                +export const x = 1;
+                +export const y = 2;
+  then:
+    result:
+      sessionId: session-created
+      changes:
+        count: 1
+        items:
+          - path: src/new.ts
+            changeType: created
+            additions: 2
+            deletions: 0
+      summary:
+        totalFiles: 1
+        created: 1
+        modified: 0
+        deleted: 0
+
+- id: MCP-23
+  description: Returns parsed code changes for deleted file
+  category: mcp-tools
+  status: implemented
+  priority: P1
+  when: mcp_jules_get_code_changes
+  given:
+    sessionId: session-deleted
+    activities:
+      - id: act-3
+        type: progressUpdated
+        createTime: '2026-01-05T20:47:00Z'
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/old.ts b/src/old.ts
+                deleted file mode 100644
+                --- a/src/old.ts
+                +++ /dev/null
+                @@ -1,3 +0,0 @@
+                -const old = 1;
+                -const legacy = 2;
+                -export { old };
+  then:
+    result:
+      sessionId: session-deleted
+      changes:
+        count: 1
+        items:
+          - path: src/old.ts
+            changeType: deleted
+            additions: 0
+            deletions: 3
+      summary:
+        totalFiles: 1
+        created: 0
+        modified: 0
+        deleted: 1
+
+- id: MCP-24
+  description: Aggregates multiple file changes across activities
+  category: mcp-tools
+  status: implemented
+  priority: P0
+  when: mcp_jules_get_code_changes
+  given:
+    sessionId: session-multi
+    activities:
+      - id: act-1
+        type: progressUpdated
+        createTime: '2026-01-05T20:40:00Z'
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/a.ts b/src/a.ts
+                --- a/src/a.ts
+                +++ b/src/a.ts
+                @@ -1 +1,2 @@
+                 const a = 1;
+                +const aa = 2;
+      - id: act-2
+        type: progressUpdated
+        createTime: '2026-01-05T20:45:00Z'
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/b.ts b/src/b.ts
+                new file mode 100644
+                --- /dev/null
+                +++ b/src/b.ts
+                @@ -0,0 +1 @@
+                +export const b = 1;
+  then:
+    result:
+      sessionId: session-multi
+      changes:
+        count: 2
+      summary:
+        totalFiles: 2
+        created: 1
+        modified: 1
+        deleted: 0

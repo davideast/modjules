@@ -317,7 +317,11 @@ deleted file mode 100644
         const restArtifact: RestChangeSetArtifact = {
           changeSet: {
             source: 'agent',
-            gitPatch: { unidiffPatch: 'diff --git a/test.ts b/test.ts' },
+            gitPatch: {
+              unidiffPatch: 'diff --git a/test.ts b/test.ts',
+              baseCommitId: 'abc123',
+              suggestedCommitMessage: 'test commit',
+            },
           },
         };
         const sdkArtifact = mapRestArtifactToSdkArtifact(

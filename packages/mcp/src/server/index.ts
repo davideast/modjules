@@ -90,6 +90,8 @@ export class JulesMCPServer {
             return await this.handleQueryHelp(args);
           case 'jules_validate_query':
             return await this.handleValidateQuery(args);
+          case 'jules_get_code_changes':
+            return await this.handleGetCodeChanges(args);
           default:
             throw new Error(`Tool not found: ${name}`);
         }
@@ -589,6 +591,21 @@ export class JulesMCPServer {
             required: ['query'],
           },
         },
+        {
+          name: 'jules_get_code_changes',
+          description:
+            'Get all file changes from a Jules session with parsed diffs. Returns file paths, change types (created/modified/deleted), and line counts. Use for code review or understanding what files were modified.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'The session ID to get code changes from.',
+              },
+            },
+            required: ['sessionId'],
+          },
+        },
       ],
     };
   }
@@ -921,6 +938,65 @@ Quick start:
             null,
             2,
           ),
+        },
+      ],
+    };
+  }
+
+  private async handleGetCodeChanges(args: any) {
+    const sessionId = args?.sessionId as string;
+    if (!sessionId) {
+      throw new Error('sessionId is required');
+    }
+
+    const client = this.julesClient.session(sessionId);
+    await client.activities.hydrate();
+
+    const activities = await client.activities.select({
+      order: 'asc',
+    });
+
+    const changes: Array<{
+      path: string;
+      changeType: 'created' | 'modified' | 'deleted';
+      artifactId: string;
+      additions: number;
+      deletions: number;
+    }> = [];
+
+    const summary = {
+      totalFiles: 0,
+      created: 0,
+      modified: 0,
+      deleted: 0,
+    };
+
+    for (const activity of activities) {
+      for (const artifact of activity.artifacts) {
+        if (artifact.type === 'changeSet') {
+          const parsed = artifact.parsed();
+          for (const file of parsed.files) {
+            changes.push({
+              path: file.path,
+              changeType: file.changeType,
+              artifactId: activity.id,
+              additions: file.additions,
+              deletions: file.deletions,
+            });
+            summary.totalFiles++;
+            if (file.changeType === 'created') summary.created++;
+            else if (file.changeType === 'modified') summary.modified++;
+            else if (file.changeType === 'deleted') summary.deleted++;
+          }
+        }
+      }
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({ sessionId, changes, summary }, null, 2),
         },
       ],
     };
