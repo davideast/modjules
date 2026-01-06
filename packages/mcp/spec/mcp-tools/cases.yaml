@@ -259,38 +259,33 @@
       hasMore: false
 
 # jules_get_code_changes tests
+# New API: requires activityId, optional filePath filter
+# Returns full unidiffPatch for LLM code analysis
+
 - id: MCP-20
-  description: Returns empty changes for session with no changeSet artifacts
+  description: Returns error when activityId is missing
   category: mcp-tools
-  status: implemented
+  status: pending
   priority: P0
   when: mcp_jules_get_code_changes
   given:
-    sessionId: session-no-changes
-    activities:
-      - id: act-1
-        type: agentMessaged
-        message: Hello
-        artifacts: []
+    sessionId: session-123
+    args:
+      # activityId intentionally omitted
+    activities: []
   then:
-    result:
-      sessionId: session-no-changes
-      changes:
-        count: 0
-      summary:
-        totalFiles: 0
-        created: 0
-        modified: 0
-        deleted: 0
+    error: activityId is required
 
 - id: MCP-21
-  description: Returns parsed code changes for modified file
+  description: Returns full unidiffPatch for activity with modified file
   category: mcp-tools
-  status: implemented
+  status: pending
   priority: P0
   when: mcp_jules_get_code_changes
   given:
     sessionId: session-modified
+    args:
+      activityId: act-1
     activities:
       - id: act-1
         type: progressUpdated
@@ -311,113 +306,33 @@
   then:
     result:
       sessionId: session-modified
-      changes:
+      activityId: act-1
+      unidiffPatch:
+        contains: 'diff --git a/src/index.ts'
+      files:
         count: 1
         items:
           - path: src/index.ts
             changeType: modified
-            artifactId: act-1
             additions: 1
             deletions: 0
       summary:
         totalFiles: 1
-        created: 0
         modified: 1
-        deleted: 0
 
 - id: MCP-22
-  description: Returns parsed code changes for created file
+  description: Returns unidiffPatch for activity with multiple files
   category: mcp-tools
-  status: implemented
-  priority: P1
-  when: mcp_jules_get_code_changes
-  given:
-    sessionId: session-created
-    activities:
-      - id: act-2
-        type: progressUpdated
-        createTime: '2026-01-05T20:46:00Z'
-        artifacts:
-          - type: changeSet
-            source: agent
-            gitPatch:
-              unidiffPatch: |
-                diff --git a/src/new.ts b/src/new.ts
-                new file mode 100644
-                --- /dev/null
-                +++ b/src/new.ts
-                @@ -0,0 +1,2 @@
-                +export const x = 1;
-                +export const y = 2;
-  then:
-    result:
-      sessionId: session-created
-      changes:
-        count: 1
-        items:
-          - path: src/new.ts
-            changeType: created
-            additions: 2
-            deletions: 0
-      summary:
-        totalFiles: 1
-        created: 1
-        modified: 0
-        deleted: 0
-
-- id: MCP-23
-  description: Returns parsed code changes for deleted file
-  category: mcp-tools
-  status: implemented
-  priority: P1
-  when: mcp_jules_get_code_changes
-  given:
-    sessionId: session-deleted
-    activities:
-      - id: act-3
-        type: progressUpdated
-        createTime: '2026-01-05T20:47:00Z'
-        artifacts:
-          - type: changeSet
-            source: agent
-            gitPatch:
-              unidiffPatch: |
-                diff --git a/src/old.ts b/src/old.ts
-                deleted file mode 100644
-                --- a/src/old.ts
-                +++ /dev/null
-                @@ -1,3 +0,0 @@
-                -const old = 1;
-                -const legacy = 2;
-                -export { old };
-  then:
-    result:
-      sessionId: session-deleted
-      changes:
-        count: 1
-        items:
-          - path: src/old.ts
-            changeType: deleted
-            additions: 0
-            deletions: 3
-      summary:
-        totalFiles: 1
-        created: 0
-        modified: 0
-        deleted: 1
-
-- id: MCP-24
-  description: Aggregates multiple file changes across activities
-  category: mcp-tools
-  status: implemented
+  status: pending
   priority: P0
   when: mcp_jules_get_code_changes
   given:
-    sessionId: session-multi
+    sessionId: session-multi-files
+    args:
+      activityId: act-1
     activities:
       - id: act-1
         type: progressUpdated
-        createTime: '2026-01-05T20:40:00Z'
         artifacts:
           - type: changeSet
             source: agent
@@ -429,14 +344,6 @@
                 @@ -1 +1,2 @@
                  const a = 1;
                 +const aa = 2;
-      - id: act-2
-        type: progressUpdated
-        createTime: '2026-01-05T20:45:00Z'
-        artifacts:
-          - type: changeSet
-            source: agent
-            gitPatch:
-              unidiffPatch: |
                 diff --git a/src/b.ts b/src/b.ts
                 new file mode 100644
                 --- /dev/null
@@ -445,13 +352,300 @@
                 +export const b = 1;
   then:
     result:
-      sessionId: session-multi
-      changes:
+      sessionId: session-multi-files
+      activityId: act-1
+      unidiffPatch:
+        contains: 'diff --git a/src/a.ts'
+      files:
         count: 2
+        items:
+          - path: src/a.ts
+            changeType: modified
+          - path: src/b.ts
+            changeType: created
       summary:
         totalFiles: 2
         created: 1
         modified: 1
+        deleted: 0
+
+- id: MCP-23
+  description: Filters to specific file when filePath provided
+  category: mcp-tools
+  status: pending
+  priority: P0
+  when: mcp_jules_get_code_changes
+  given:
+    sessionId: session-filter
+    args:
+      activityId: act-1
+      filePath: src/a.ts
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/a.ts b/src/a.ts
+                --- a/src/a.ts
+                +++ b/src/a.ts
+                @@ -1 +1,2 @@
+                 const a = 1;
+                +const aa = 2;
+                diff --git a/src/b.ts b/src/b.ts
+                new file mode 100644
+                --- /dev/null
+                +++ b/src/b.ts
+                @@ -0,0 +1 @@
+                +export const b = 1;
+  then:
+    result:
+      sessionId: session-filter
+      activityId: act-1
+      filePath: src/a.ts
+      unidiffPatch:
+        contains: 'diff --git a/src/a.ts'
+        excludes: 'diff --git a/src/b.ts'
+      files:
+        count: 1
+        items:
+          - path: src/a.ts
+            changeType: modified
+
+- id: MCP-24
+  description: Returns empty when activity has no changeSet artifacts
+  category: mcp-tools
+  status: pending
+  priority: P1
+  when: mcp_jules_get_code_changes
+  given:
+    sessionId: session-no-changes
+    args:
+      activityId: act-1
+    activities:
+      - id: act-1
+        type: agentMessaged
+        message: Hello
+        artifacts: []
+  then:
+    result:
+      sessionId: session-no-changes
+      activityId: act-1
+      unidiffPatch: ''
+      files:
+        count: 0
+      summary:
+        totalFiles: 0
+
+- id: MCP-24b
+  description: Returns error when activityId not found
+  category: mcp-tools
+  status: pending
+  priority: P1
+  when: mcp_jules_get_code_changes
+  given:
+    sessionId: session-123
+    args:
+      activityId: nonexistent-activity
+    activities:
+      - id: act-1
+        type: agentMessaged
+        artifacts: []
+  then:
+    error: Activity not found
+
+# jules_session_files tests
+# Returns file tree with activityIds for drill-down
+
+- id: MCP-30
+  description: Returns file tree with activityIds for single file change
+  category: mcp-tools
+  status: pending
+  priority: P0
+  when: mcp_jules_session_files
+  given:
+    sessionId: session-single
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/index.ts b/src/index.ts
+                --- a/src/index.ts
+                +++ b/src/index.ts
+                @@ -1 +1,2 @@
+                 const a = 1;
+                +const b = 2;
+  then:
+    result:
+      sessionId: session-single
+      tree:
+        src:
+          'index.ts':
+            change: modified
+            activityIds:
+              - act-1
+      summary:
+        modified: 1
+        created: 0
+        deleted: 0
+
+- id: MCP-31
+  description: Returns file tree with multiple activityIds when file changed multiple times
+  category: mcp-tools
+  status: pending
+  priority: P0
+  when: mcp_jules_session_files
+  given:
+    sessionId: session-multi-changes
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/client.ts b/src/client.ts
+                --- a/src/client.ts
+                +++ b/src/client.ts
+                @@ -1 +1,2 @@
+                 const x = 1;
+                +const y = 2;
+      - id: act-2
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/client.ts b/src/client.ts
+                --- a/src/client.ts
+                +++ b/src/client.ts
+                @@ -1,2 +1,3 @@
+                 const x = 1;
+                 const y = 2;
+                +const z = 3;
+  then:
+    result:
+      sessionId: session-multi-changes
+      tree:
+        src:
+          'client.ts':
+            change: modified
+            activityIds:
+              - act-1
+              - act-2
+      summary:
+        modified: 1
+        created: 0
+        deleted: 0
+        totalActivities: 2
+
+- id: MCP-32
+  description: Returns nested file tree structure
+  category: mcp-tools
+  status: pending
+  priority: P0
+  when: mcp_jules_session_files
+  given:
+    sessionId: session-nested
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/packages/core/src/client.ts b/packages/core/src/client.ts
+                --- a/packages/core/src/client.ts
+                +++ b/packages/core/src/client.ts
+                @@ -1 +1,2 @@
+                 export class Client {}
+                +export class NewClient {}
+                diff --git a/packages/core/tests/client.test.ts b/packages/core/tests/client.test.ts
+                new file mode 100644
+                --- /dev/null
+                +++ b/packages/core/tests/client.test.ts
+                @@ -0,0 +1 @@
+                +test('client', () => {});
+  then:
+    result:
+      sessionId: session-nested
+      tree:
+        packages:
+          core:
+            src:
+              'client.ts':
+                change: modified
+                activityIds:
+                  - act-1
+            tests:
+              'client.test.ts':
+                change: created
+                activityIds:
+                  - act-1
+      summary:
+        modified: 1
+        created: 1
+        deleted: 0
+
+- id: MCP-33
+  description: Returns ASCII tree representation
+  category: mcp-tools
+  status: pending
+  priority: P1
+  when: mcp_jules_session_files
+  given:
+    sessionId: session-ascii
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/index.ts b/src/index.ts
+                --- a/src/index.ts
+                +++ b/src/index.ts
+                @@ -1 +1,2 @@
+                 const a = 1;
+                +const b = 2;
+  then:
+    result:
+      sessionId: session-ascii
+      ascii:
+        containsAll:
+          - 'index.ts'
+          - '[M]'
+
+- id: MCP-34
+  description: Returns empty tree for session with no changeSet artifacts
+  category: mcp-tools
+  status: pending
+  priority: P1
+  when: mcp_jules_session_files
+  given:
+    sessionId: session-empty
+    activities:
+      - id: act-1
+        type: agentMessaged
+        message: Hello
+        artifacts: []
+  then:
+    result:
+      sessionId: session-empty
+      tree: {}
+      summary:
+        modified: 0
+        created: 0
         deleted: 0
 
 # jules_get_bash_outputs tests
