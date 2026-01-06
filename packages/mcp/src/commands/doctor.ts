@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import dns from 'dns/promises';
 import { resolveApiKey } from '../config.js';
-import { jules } from '../../index.js';
+import { jules } from 'modjules';
 
 export async function doctorAction() {
   console.log(chalk.bold('Modjules MCP Doctor\n'));

@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  estimateTokens,
-  truncateToTokenBudget,
-} from '../../src/mcp/tokenizer.js';
+import { estimateTokens, truncateToTokenBudget } from '../src/tokenizer.js';
 
 describe('MCP Tokenizer', () => {
   describe('estimateTokens', () => {

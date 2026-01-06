@@ -1,27 +1,21 @@
-import { JulesClientImpl } from '../../src/client.js';
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
-import yaml from 'js-yaml';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import {
+import { JulesClientImpl, MemoryStorage, MemorySessionStorage } from 'modjules';
+import type {
   Activity,
   JulesClient,
-  SessionResource,
   ActivitySummary,
   Artifact,
   JulesQuery,
   JulesDomain,
   ActivityAgentMessaged,
-  SessionClient,
-} from '../../src/index.js';
-import { toLightweight, toSummary } from '../../src/mcp/lightweight.js';
-import { JulesMCPServer } from '../../src/mcp/server/index.js';
-import * as tokenizer from '../../src/mcp/tokenizer.js';
-import {
-  MemoryStorage,
-  MemorySessionStorage,
-} from '../../src/storage/memory.js';
+} from 'modjules';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import yaml from 'js-yaml';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { toLightweight, toSummary } from '../../src/lightweight.js';
+import { JulesMCPServer } from '../../src/server/index.js';
+import * as tokenizer from '../../src/tokenizer.js';
 import { mockPlatform } from '../mocks/platform.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -130,12 +124,6 @@ function createTestActivity(
   };
 }
 
-async function* asyncGenerator<T>(items: T[]): AsyncIterable<T> {
-  for (const item of items) {
-    yield item;
-  }
-}
-
 describe('Lightweight Responses Spec', async () => {
   const specContent = await fs.readFile(SPEC_FILE, 'utf-8');
   const testCases = (yaml.load(specContent) as TestCase[]).filter(
@@ -153,7 +141,7 @@ describe('Lightweight Responses Spec', async () => {
         config: { requestTimeoutMs: 1000 },
       },
       {
-        activity: (sessionId: string) => new MemoryStorage(),
+        activity: () => new MemoryStorage(),
         session: () => new MemorySessionStorage(),
       },
       mockPlatform,

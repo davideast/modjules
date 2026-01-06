@@ -9,9 +9,6 @@ export default defineConfig({
       entry: {
         index: 'src/index.ts',
         browser: 'src/browser.ts',
-        // MCP
-        mcp: 'src/mcp/index.ts',
-        'mcp/cli': 'src/mcp/cli.ts',
       },
       name: 'modjules',
       formats: ['es'],
@@ -21,10 +18,6 @@ export default defineConfig({
       external: [
         // Runtime dependencies (keep bundled for Node, external for Browser if provided by platform)
         'idb',
-        /@modelcontextprotocol\/sdk(\/.*)?/,
-        'commander',
-        'chalk',
-        /@inquirer\/prompts(\/.*)?/,
 
         // Node.js Built-ins (Bare specifiers)
         '_http_agent',

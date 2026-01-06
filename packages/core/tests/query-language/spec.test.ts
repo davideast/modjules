@@ -721,7 +721,7 @@ describe('JQL Where Clause (Dot Notation)', () => {
 describe('JQL Schema Introspection', () => {
   it('should export schema structures', async () => {
     const { getAllSchemas, getSchema } = await import(
-      '../../src/mcp/schema.js'
+      '../../src/query/schema.js'
     );
 
     const schemas = getAllSchemas();
@@ -740,7 +740,7 @@ describe('JQL Schema Introspection', () => {
   });
 
   it('should generate markdown documentation', async () => {
-    const { generateMarkdownDocs } = await import('../../src/mcp/schema.js');
+    const { generateMarkdownDocs } = await import('../../src/query/schema.js');
 
     const markdown = generateMarkdownDocs();
     expect(markdown).toContain('# Jules Query Language');

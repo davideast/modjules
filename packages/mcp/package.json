@@ -1,8 +1,8 @@
 {
-  "name": "modjules",
+  "name": "@modjules/mcp",
   "version": "0.1.1",
   "type": "module",
-  "description": "The agent-ready SDK for Jules.",
+  "description": "MCP server and client for Jules",
   "repository": "davideast/modjules",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -10,12 +10,9 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs"
     },
-    "./browser": {
-      "types": "./dist/browser.d.ts",
-      "import": "./dist/browser.mjs"
-    },
-    "./types": {
-      "types": "./dist/types.d.ts"
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.mjs"
     },
     "./package.json": "./package.json"
   },
@@ -23,25 +20,35 @@
     "dist/",
     "README.md"
   ],
+  "bin": {
+    "modjules-mcp": "./dist/cli.mjs"
+  },
   "scripts": {
     "build": "vite build",
-    "test": "vitest --exclude tests/storage/browser.test.ts",
+    "test": "vitest",
     "type-check": "tsc --project tsconfig.test.json"
   },
   "keywords": [
     "jules",
+    "mcp",
     "ai",
     "agent",
-    "sdk",
-    "developer-tools"
+    "sdk"
   ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "idb": "^8.0.3"
+    "@inquirer/prompts": "^7.10.1",
+    "@modelcontextprotocol/sdk": "^1.25.1",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.2"
+  },
+  "peerDependencies": {
+    "modjules": "*"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
+    "modjules": "*",
     "msw": "^2.10.4",
     "typescript": "^5.8.3",
     "vite": "^7.3.0",

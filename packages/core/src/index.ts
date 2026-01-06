@@ -54,6 +54,8 @@ export type {
   GitPatch,
   JulesClient,
   JulesOptions,
+  LightweightActivity,
+  LightweightArtifact,
   MediaArtifact,
   Outcome,
   Plan,
@@ -68,13 +70,37 @@ export type {
   SourceContext,
   SourceInput,
   SourceManager,
+  StrippedMediaArtifact,
   JulesQuery,
   JulesDomain,
   SyncDepth,
 } from './types.js';
 
+// Re-export schema and validation for MCP and other consumers
+export {
+  SESSION_SCHEMA,
+  ACTIVITY_SCHEMA,
+  FILTER_OP_SCHEMA,
+  PROJECTION_SCHEMA,
+  getSchema,
+  getAllSchemas,
+  generateTypeDefinition,
+  generateMarkdownDocs,
+} from './query/schema.js';
+export type { FieldMeta, DomainSchema, QueryExample } from './query/schema.js';
+export { validateQuery, formatValidationResult } from './query/validate.js';
+export type {
+  ValidationError,
+  ValidationWarning,
+  ValidationResult,
+  ValidationErrorCode,
+} from './query/validate.js';
+
 export { SessionCursor } from './sessions.js';
 export type { ListSessionsOptions, ListSessionsResponse } from './sessions.js';
+
+// Activity utilities
+export { toSummary } from './activity/summary.js';
 
 // Internal exports for @modjules/server package
 export { JulesClientImpl } from './client.js';

@@ -10,7 +10,7 @@ import {
   ACTIVITY_SCHEMA,
   FILTER_OP_SCHEMA,
   FieldMeta,
-} from '../mcp/schema.js';
+} from './schema.js';
 
 // ============================================
 // Types

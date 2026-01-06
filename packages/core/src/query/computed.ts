@@ -6,7 +6,7 @@
  */
 
 import { Activity } from '../types.js';
-import { toSummary } from '../mcp/lightweight.js';
+import { toSummary } from '../activity/summary.js';
 
 /**
  * List of computed field names for activities
