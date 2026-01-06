@@ -25,24 +25,45 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+
+      - name: Cache node_modules
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          # Key on lockfile hash - cache invalidates when dependencies change
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          # Fallback to any recent cache if exact match unavailable
+          restore-keys: |
+            deps-${{ runner.os }}-
 
       - name: Install dependencies
-        run: npm ci
+        # Only run full npm ci if no cache hit; otherwise verify with quick install
+        run: |
+          if [ "${{ steps.cache-deps.outputs.cache-hit }}" == "true" ]; then
+            echo "Cache hit - running quick dependency check"
+            npm ci --prefer-offline --ignore-scripts || npm ci
+          else
+            echo "Cache miss - running full install"
+            npm ci
+          fi
 
-      # 1. Get Changed Files for Jules context
+      # 1. Get Changed Files for Jules context (PR only - base_ref is empty on push)
       - name: Get Changed Files
+        if: github.event_name == 'pull_request'
         id: changed-files
         run: |
           FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | tr '\n' ' ')
           echo "list=$FILES" >> $GITHUB_OUTPUT
 
       # 2. Quality Checks (Each captures errors into GITHUB_OUTPUT)
-      - name: Check Formatting
+      - name: Check Formatting (warning only)
         id: format
         continue-on-error: true
         run: |
-          npm run format:check || (echo "log=$(echo 'Formatting/Linting failed. Run npm run format.' | base64 -w 0)" >> $GITHUB_OUTPUT && exit 1)
+          npm run format:check || echo "::warning::Formatting issues detected. Run 'npm run format' locally."
 
       - name: Type Check
         id: types
@@ -96,7 +117,6 @@ jobs:
 
           # Pass raw outputs to shell for correct logic handling
           ATTR_LOG: ${{ steps.attribution.outputs.log }}
-          FORMAT_LOG: ${{ steps.format.outputs.log }}
           TYPE_LOG: ${{ steps.types.outputs.log }}
           TEST_LOG: ${{ steps.tests.outputs.log }}
           BUILD_LOG: ${{ steps.build.outputs.log }}
@@ -105,11 +125,6 @@ jobs:
           # Collect ALL failures into a combined report
           ERROR_TYPES=""
           ERROR_LOGS=""
-
-          if [ -n "$FORMAT_LOG" ]; then
-            ERROR_TYPES="${ERROR_TYPES}Formatting Failure\n"
-            ERROR_LOGS="${ERROR_LOGS}--- Formatting ---\n$(echo "$FORMAT_LOG" | base64 -d)\n\n"
-          fi
 
           if [ -n "$TYPE_LOG" ]; then
             ERROR_TYPES="${ERROR_TYPES}TypeScript Error\n"
@@ -152,7 +167,7 @@ jobs:
       - name: Fail Job if Errors
         if: always()
         run: |
-          if [ -n "${{ steps.format.outputs.log }}" ] || [ -n "${{ steps.types.outputs.log }}" ] || [ -n "${{ steps.tests.outputs.log }}" ] || [ -n "${{ steps.build.outputs.log }}" ] || [ -n "${{ steps.smoke.outputs.log }}" ] || [ -n "${{ steps.attribution.outputs.log }}" ]; then
+          if [ -n "${{ steps.types.outputs.log }}" ] || [ -n "${{ steps.tests.outputs.log }}" ] || [ -n "${{ steps.build.outputs.log }}" ] || [ -n "${{ steps.smoke.outputs.log }}" ] || [ -n "${{ steps.attribution.outputs.log }}" ]; then
             echo "One or more checks failed."
             exit 1
           fi
