@@ -1,4 +1,9 @@
-import { Activity } from '../types.js';
+import {
+  MediaArtifact,
+  BashArtifact,
+  ChangeSetArtifact,
+} from '../artifacts.js';
+import { Activity, Artifact } from '../types.js';
 import { ActivityStorage } from '../storage/types.js';
 import { ActivityClient, ListOptions, SelectOptions } from './types.js';
 import { createTimeToPageToken, isSessionFrozen } from '../utils/page-token.js';
@@ -28,6 +33,63 @@ export class DefaultActivityClient implements ActivityClient {
   ) {}
 
   /**
+   * Re-hydrates plain artifact objects from storage into rich class instances.
+   * JSON serialization loses class information (methods), so we need to restore it.
+   *
+   * **Behavior:**
+   * - Iterates through artifacts in an activity.
+   * - If an artifact is a plain object (not a class instance), it's re-instantiated.
+   * - Handles backward compatibility: if an artifact is already a class instance, it's skipped.
+   *
+   * @param activity The activity from storage, potentially with plain artifacts.
+   * @returns The same activity with its artifacts guaranteed to be class instances.
+   */
+  private _hydrateActivityArtifacts(activity: Activity): Activity {
+    if (!activity.artifacts || activity.artifacts.length === 0) {
+      return activity;
+    }
+
+    const hydratedArtifacts = activity.artifacts.map((artifact) => {
+      // If it's already a class instance, we're done.
+      if (artifact instanceof MediaArtifact) return artifact;
+      if (artifact instanceof BashArtifact) return artifact;
+      if (artifact instanceof ChangeSetArtifact) return artifact;
+
+      // It's a plain object from JSON.parse(), so we need to re-hydrate it.
+      // We check for the 'type' property to know which class to use.
+      switch (artifact.type) {
+        case 'changeSet':
+          // The raw cached format has artifact.changeSet.gitPatch structure.
+          // We need to handle this legacy format gracefully.
+          const rawChangeSet = (artifact as any).changeSet || artifact;
+          return new ChangeSetArtifact(
+            rawChangeSet.source,
+            rawChangeSet.gitPatch,
+          );
+        case 'bashOutput':
+          // The raw cached format has artifact.bashOutput...
+          const rawBashOutput = (artifact as any).bashOutput || artifact;
+          return new BashArtifact(rawBashOutput);
+        case 'media':
+          // MediaArtifact requires the platform object for some methods.
+          // However, for local cache re-hydration, we don't have access to it here.
+          // For now, we accept this limitation as the primary bug is with ChangeSetArtifact.
+          // A future refactor could pass the platform object down.
+          const rawMedia = (artifact as any).media || artifact;
+          return new MediaArtifact(rawMedia, {} as any, activity.id);
+        default:
+          // If we don't recognize the type, return it as-is.
+          return artifact as Artifact;
+      }
+    });
+
+    return {
+      ...activity,
+      artifacts: hydratedArtifacts,
+    };
+  }
+
+  /**
    * Returns an async iterable of all activities.
    *
    * **Behavior:**
@@ -44,7 +106,9 @@ export class DefaultActivityClient implements ActivityClient {
     await this.hydrate();
 
     // Now yield all activities from storage (including newly synced ones)
-    yield* this.storage.scan();
+    for await (const activity of this.storage.scan()) {
+      yield this._hydrateActivityArtifacts(activity);
+    }
   }
 
   /**
@@ -241,7 +305,7 @@ export class DefaultActivityClient implements ActivityClient {
       }
 
       // 4. Collect result
-      results.push(act);
+      results.push(this._hydrateActivityArtifacts(act));
       count++;
 
       // 5. Check limits
@@ -283,7 +347,7 @@ export class DefaultActivityClient implements ActivityClient {
     // 1. Try cache first (Aggressive Caching)
     const cached = await this.storage.get(activityId);
     if (cached) {
-      return cached;
+      return this._hydrateActivityArtifacts(cached);
     }
 
     // 2. Network fallback (Read-Through)
@@ -293,6 +357,8 @@ export class DefaultActivityClient implements ActivityClient {
     // We await this to guarantee consistency.
     await this.storage.append(fresh);
 
+    // No need to hydrate 'fresh' as it comes directly from the network mapper
+    // which already creates class instances.
     return fresh;
   }
 }
