@@ -1,5 +1,5 @@
 // src/mappers.ts
-import { MediaArtifact, BashArtifact } from './artifacts.js';
+import { MediaArtifact, BashArtifact, ChangeSetArtifact } from './artifacts.js';
 import { AutomatedSessionFailedError } from './errors.js';
 import {
   Activity,
@@ -24,7 +24,10 @@ export function mapRestArtifactToSdkArtifact(
   activityId?: string,
 ): Artifact {
   if ('changeSet' in restArtifact) {
-    return { type: 'changeSet', changeSet: restArtifact.changeSet };
+    return new ChangeSetArtifact(
+      restArtifact.changeSet.source,
+      restArtifact.changeSet.gitPatch,
+    );
   }
   if ('media' in restArtifact) {
     return new MediaArtifact(restArtifact.media, platform, activityId);

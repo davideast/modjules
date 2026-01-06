@@ -25,9 +25,12 @@ describe('mapRestArtifactToSdkArtifact', () => {
       mockPlatform,
     );
     expect(sdkArtifact.type).toBe('changeSet');
-    expect((sdkArtifact as any).changeSet.source).toBe(
-      'sources/github/test/repo',
+    // After mapping, it's a rich ChangeSetArtifact class with flattened properties
+    expect((sdkArtifact as any).source).toBe('sources/github/test/repo');
+    expect((sdkArtifact as any).gitPatch.unidiffPatch).toBe(
+      '--- a/file.ts\n+++ b/file.ts',
     );
+    expect(typeof (sdkArtifact as any).parsed).toBe('function');
   });
 
   it('should map a bashOutput artifact correctly', () => {
