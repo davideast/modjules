@@ -127,7 +127,7 @@ async function main() {
     console.log('✅ Attribution present in at least one commit.');
     process.exit(0);
   } else {
-    console.error('❌ Missing attribution in all commits.');
+    console.error('❌ Missing attribution. Expected trailer:', trailer);
 
     // Write to GITHUB_OUTPUT if available
     const githubOutput = process.env.GITHUB_OUTPUT;
