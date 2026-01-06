@@ -92,6 +92,8 @@ export class JulesMCPServer {
             return await this.handleValidateQuery(args);
           case 'jules_get_code_changes':
             return await this.handleGetCodeChanges(args);
+          case 'jules_get_bash_outputs':
+            return await this.handleGetBashOutputs(args);
           default:
             throw new Error(`Tool not found: ${name}`);
         }
@@ -122,6 +124,60 @@ export class JulesMCPServer {
               required: true,
             },
           ],
+        },
+      ],
+    };
+  }
+
+  private async handleGetBashOutputs(args: any) {
+    const sessionId = args?.sessionId as string;
+    if (!sessionId) {
+      throw new Error('sessionId is required');
+    }
+
+    const client = this.julesClient.session(sessionId);
+    await client.activities.hydrate();
+
+    const activities = await client.activities.select({
+      order: 'asc',
+    });
+
+    const outputs: Array<{
+      command: string;
+      stdout: string;
+      stderr: string;
+      exitCode: number | null;
+      activityId: string;
+    }> = [];
+
+    const summary = {
+      totalCommands: 0,
+      succeeded: 0,
+      failed: 0,
+    };
+
+    for (const activity of activities) {
+      for (const artifact of activity.artifacts) {
+        if (artifact.type === 'bashOutput') {
+          outputs.push({
+            command: artifact.command,
+            stdout: artifact.stdout,
+            stderr: artifact.stderr,
+            exitCode: artifact.exitCode,
+            activityId: activity.id,
+          });
+          summary.totalCommands++;
+          if (artifact.exitCode === 0) summary.succeeded++;
+          else summary.failed++;
+        }
+      }
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({ sessionId, outputs, summary }, null, 2),
         },
       ],
     };
@@ -355,6 +411,21 @@ export class JulesMCPServer {
               sessionId: {
                 type: 'string',
                 description: 'The session ID (numeric string)',
+              },
+            },
+            required: ['sessionId'],
+          },
+        },
+        {
+          name: 'jules_get_bash_outputs',
+          description:
+            'Get all bash command outputs from a Jules session. Returns commands executed, their stdout/stderr, and exit codes. Use to understand what shell commands were run.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'The session ID to get bash outputs from.',
               },
             },
             required: ['sessionId'],
