@@ -22,9 +22,12 @@ export function toLightweight(
 ): LightweightActivity {
   const summary = toSummary(activity);
   const artifactCount = activity.artifacts?.length ?? 0;
+
+  // Include artifacts by default (opt-out with includeArtifacts: false)
+  const shouldIncludeArtifacts = options?.includeArtifacts !== false;
   let artifacts: LightweightArtifact[] | null = null;
 
-  if (options?.includeArtifacts && activity.artifacts) {
+  if (shouldIncludeArtifacts && activity.artifacts) {
     artifacts = activity.artifacts.map((artifact: Artifact) => {
       if (artifact.type === 'media') {
         const mediaArtifact = artifact as MediaArtifact;
@@ -41,5 +44,11 @@ export function toLightweight(
     });
   }
 
-  return { ...summary, artifacts, artifactCount };
+  // Extract full message for activities that have one (not truncated like summary)
+  let message: string | undefined;
+  if ('message' in activity && typeof activity.message === 'string') {
+    message = activity.message;
+  }
+
+  return { ...summary, message, artifacts, artifactCount };
 }

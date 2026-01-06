@@ -69,6 +69,7 @@ interface McpSelectTestCase extends BaseTestCase {
       items: {
         each: {
           hasSummary?: boolean;
+          hasMessage?: boolean;
           artifactsStripped?: boolean;
           hasFullMessage?: boolean;
           hasArtifacts?: boolean;
@@ -220,6 +221,10 @@ describe('Lightweight Responses Spec', async () => {
           } else {
             if (tc.then.result.items.each.hasSummary) {
               expect(selectContent.results[0]).toHaveProperty('summary');
+            }
+            if (tc.then.result.items.each.hasMessage) {
+              // Lightweight activities now include the full message field
+              expect(selectContent.results[0]).toHaveProperty('message');
             }
             if (tc.then.result.items.each.artifactsStripped) {
               expect(selectContent.results[0]).toHaveProperty(
