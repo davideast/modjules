@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { JulesMCPServer } from '../../src/mcp/server/index.js';
+import { JulesMCPServer } from '../src/server/index.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import {
   ListPromptsRequestSchema,

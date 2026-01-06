@@ -4,10 +4,10 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import * as inquirer from '@inquirer/prompts';
-import { doctorAction } from '../../src/mcp/commands/doctor.js';
-import { registerAction } from '../../src/mcp/commands/register.js';
-import { resolveApiKey } from '../../src/mcp/config.js';
-import { jules } from '../../src/index.js';
+import { doctorAction } from '../src/commands/doctor.js';
+import { registerAction } from '../src/commands/register.js';
+import { resolveApiKey } from '../src/config.js';
+import { jules } from 'modjules';
 
 // Mocks
 vi.mock('fs');
@@ -19,8 +19,8 @@ vi.mock('dns/promises', () => ({
   },
 }));
 vi.mock('@inquirer/prompts');
-vi.mock('../../src/mcp/config.js');
-vi.mock('../../src/index.js', () => ({
+vi.mock('../src/config.js');
+vi.mock('modjules', () => ({
   jules: {
     with: vi.fn(),
   },

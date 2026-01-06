@@ -24,7 +24,7 @@ vi.mock('path', () => ({
 }));
 
 // Import after mocks are defined
-import { loadConfig, saveConfig, resolveApiKey } from '../../src/mcp/config.js';
+import { loadConfig, saveConfig, resolveApiKey } from '../src/config.js';
 
 describe('MCP Configuration', () => {
   beforeEach(() => {

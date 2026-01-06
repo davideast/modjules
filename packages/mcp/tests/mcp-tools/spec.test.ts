@@ -1,20 +1,16 @@
-import { JulesClientImpl } from '../../src/client.js';
+import { JulesClientImpl, MemoryStorage, MemorySessionStorage } from 'modjules';
+import type {
+  Activity,
+  JulesClient,
+  SessionResource,
+  SessionClient,
+} from 'modjules';
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import yaml from 'js-yaml';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import {
-  Activity,
-  JulesClient,
-  SessionResource,
-  SessionClient,
-} from '../../src/index.js';
-import { JulesMCPServer } from '../../src/mcp/server/index.js';
-import {
-  MemoryStorage,
-  MemorySessionStorage,
-} from '../../src/storage/memory.js';
+import { JulesMCPServer } from '../../src/server/index.js';
 import { mockPlatform } from '../mocks/platform.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -93,12 +89,6 @@ function createTestActivity(overrides: Partial<Activity> = {}): Activity {
   return { ...defaults, ...overrides } as Activity;
 }
 
-async function* asyncGenerator<T>(items: T[]): AsyncIterable<T> {
-  for (const item of items) {
-    yield item;
-  }
-}
-
 describe('MCP Tools Spec', async () => {
   const specContent = await fs.readFile(SPEC_FILE, 'utf-8');
   const testCases = (yaml.load(specContent) as TestCase[]).filter(
@@ -116,7 +106,7 @@ describe('MCP Tools Spec', async () => {
         config: { requestTimeoutMs: 1000 },
       },
       {
-        activity: (sessionId: string) => new MemoryStorage(),
+        activity: () => new MemoryStorage(),
         session: () => new MemorySessionStorage(),
       },
       mockPlatform,

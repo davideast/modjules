@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 import { JulesMCPServer } from './server/index.js';
 import { resolveApiKey } from './config.js';
-import { jules } from '../index.js';
+import { jules } from 'modjules';
 import { doctorAction } from './commands/doctor.js';
 import { registerAction } from './commands/register.js';
 import { configAction } from './commands/config.js';

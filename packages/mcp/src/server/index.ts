@@ -9,18 +9,22 @@ import {
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import {
+import type {
   JulesClient,
   JulesQuery,
   JulesDomain,
   SessionConfig,
   Activity,
   SyncDepth,
-} from '../../index.js';
+} from 'modjules';
+import {
+  getAllSchemas,
+  generateMarkdownDocs,
+  validateQuery,
+  formatValidationResult,
+} from 'modjules';
 import { truncateToTokenBudget } from '../tokenizer.js';
 import { toLightweight } from '../lightweight.js';
-import { getAllSchemas, generateMarkdownDocs } from '../schema.js';
-import { validateQuery, formatValidationResult } from '../../query/validate.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -153,10 +157,10 @@ export class JulesMCPServer {
     const snapshot = await client.snapshot();
 
     // Read template from context/session-analysis.md
-    // Resolve path relative to this file: src/mcp/server/index.ts -> ../../../context/session-analysis.md
+    // Resolve path relative to this file: src/server/index.ts -> ../../context/session-analysis.md
     const templatePath = path.resolve(
       __dirname,
-      '../../../context/session-analysis.md',
+      '../../context/session-analysis.md',
     );
     let templateContent;
 

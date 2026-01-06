@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, afterEach } from 'vitest';
-import { registerAction } from '../../src/mcp/commands/register.js';
+import { registerAction } from '../../src/commands/register.js';
 import * as os from 'node:os';
 
 vi.mock('node:os');

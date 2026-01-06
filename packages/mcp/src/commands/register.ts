@@ -24,7 +24,7 @@ export async function registerAction(tool?: string) {
     mcpServers: {
       modjules: {
         command: 'npx',
-        args: ['-y', '--package', 'modjules', 'modjules-mcp'],
+        args: ['-y', '--package', '@modjules/mcp', 'modjules-mcp'],
       },
     },
   };
@@ -51,7 +51,7 @@ export async function registerAction(tool?: string) {
       mcpServers: {
         modjules: {
           command: 'npx',
-          args: ['-y', '--package', 'modjules', 'modjules-mcp'],
+          args: ['-y', '--package', '@modjules/mcp', 'modjules-mcp'],
           env: {
             HOME: os.homedir(),
             JULES_API_KEY: '<YOUR_API_KEY>',

@@ -1,17 +1,13 @@
-import { toSummary } from '../../src/mcp/lightweight.js';
+import { toSummary } from '../../src/lightweight.js';
 import { vi, describe, it, expect, beforeAll } from 'vitest';
-import {
+import type {
   ActivityAgentMessaged,
   ActivityProgressUpdated,
   ActivityUserMessaged,
   ActivitySessionFailed,
-} from '../../src/types.js';
-import { JulesMCPServer } from '../../src/mcp/server/index.js';
-import { JulesClientImpl } from '../../src/client.js';
-import {
-  MemoryStorage,
-  MemorySessionStorage,
-} from '../../src/storage/memory.js';
+} from 'modjules';
+import { JulesClientImpl, MemoryStorage, MemorySessionStorage } from 'modjules';
+import { JulesMCPServer } from '../../src/server/index.js';
 import { mockPlatform } from '../mocks/platform.js';
 
 const STUB_ACTIVITY_SESSION_FAILED: ActivitySessionFailed = {
@@ -118,7 +114,7 @@ describe('MCP Polish Specs', () => {
           config: { requestTimeoutMs: 1000 },
         },
         {
-          activity: (sessionId: string) => new MemoryStorage(),
+          activity: () => new MemoryStorage(),
           session: () => new MemorySessionStorage(),
         },
         mockPlatform,
