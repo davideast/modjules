@@ -14,26 +14,6 @@
       "types": "./dist/browser.d.ts",
       "import": "./dist/browser.mjs"
     },
-    "./gas": {
-      "types": "./dist/gas/index.d.ts",
-      "import": "./dist/gas/index.mjs"
-    },
-    "./server": {
-      "types": "./dist/server/index.d.ts",
-      "import": "./dist/server.mjs"
-    },
-    "./server/auth/firebase": {
-      "types": "./dist/server/auth/firebase.d.ts",
-      "import": "./dist/server/auth/firebase.mjs"
-    },
-    "./server/auth/memory": {
-      "types": "./dist/server/auth/memory.d.ts",
-      "import": "./dist/server/auth/memory.mjs"
-    },
-    "./server/auth/rbac": {
-      "types": "./dist/server/auth/rbac.d.ts",
-      "import": "./dist/server/auth/rbac.mjs"
-    },
     "./mcp": {
       "types": "./dist/mcp/index.d.ts",
       "import": "./dist/mcp.mjs"
@@ -75,12 +55,12 @@
     "commander": "^14.0.2",
     "idb": "^8.0.3"
   },
-  "peerDependencies": {
-    "firebase-admin": ">=12.0.0"
-  },
-  "peerDependenciesMeta": {
-    "firebase-admin": {
-      "optional": true
-    }
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "msw": "^2.10.4",
+    "typescript": "^5.8.3",
+    "vite": "^7.3.0",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^3.2.4"
   }
 }

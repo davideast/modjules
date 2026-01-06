@@ -1,0 +1,8 @@
+# Build output
+dist/
+
+# Test cache
+.jules/
+
+# Node modules (handled at root level but good to have)
+node_modules/

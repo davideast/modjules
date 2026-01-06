@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHandlerCore } from '../../src/server/core.js';
-import { NodePlatform } from '../../src/platform/node.js';
+import { NodePlatform } from 'modjules';
 import { Scope } from '../../src/server/types.js';
 
 describe('Server Core (The Vendor)', () => {

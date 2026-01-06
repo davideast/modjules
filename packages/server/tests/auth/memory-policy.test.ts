@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createMemoryPolicy } from '../src/auth/strategies/memory.js';
+import { createMemoryPolicy } from '../../src/auth/strategies/memory.js';
 
 // Mock Data
 const db = {
@@ -33,22 +33,21 @@ describe('Authorization Logic', () => {
     );
   });
 
-  it('allows non-owner to access public resource via Custom Rule', async () => {
-    // Alice accessing Bob's session (Allowed because it is public)
-    const { resource: result } = await policy({ uid: 'alice' }, 'session-B');
-    expect(result).toBeDefined();
+  it('allows public access to public resources', async () => {
+    const result = await policy({ uid: 'charlie' }, 'session-B');
+    expect(result.scopes).toContain('read');
   });
 
-  it('allows admin to access anything', async () => {
-    const { resource: result } = await policy(
-      { uid: 'unknown', email: 'admin@test.com' },
+  it('grants admin full access', async () => {
+    const result = await policy(
+      { uid: 'admin', email: 'admin@test.com' },
       'session-A',
     );
-    expect(result).toBeDefined();
+    expect(result.scopes).toEqual(['read', 'write', 'admin']);
   });
 
-  it('handles missing resources gracefully', async () => {
-    await expect(policy({ uid: 'alice' }, 'session-missing')).rejects.toThrow(
+  it('throws if session not found', async () => {
+    await expect(policy({ uid: 'alice' }, 'session-Z')).rejects.toThrow(
       'Access Denied',
     );
   });

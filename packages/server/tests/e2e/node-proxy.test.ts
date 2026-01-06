@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createServer, Server } from 'node:http';
 import { AddressInfo } from 'node:net';
-import { connect } from '../../src/index.js';
+import { connect } from 'modjules';
 import { createNodeHandler } from '../../src/node/proxy.js';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';

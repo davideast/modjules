@@ -1,4 +1,4 @@
-import { Platform } from '../platform/types.js';
+import type { Platform } from 'modjules';
 import { TokenClaims, TokenScope } from './protocol.js';
 
 export class TokenManager {

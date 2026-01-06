@@ -1,5 +1,5 @@
+import type { Platform } from 'modjules';
 import { Identity } from '../auth/types.js';
-import { Platform } from '../platform/types.js';
 
 export { Identity };
 

@@ -75,3 +75,11 @@ export type {
 
 export { SessionCursor } from './sessions.js';
 export type { ListSessionsOptions, ListSessionsResponse } from './sessions.js';
+
+// Internal exports for @modjules/server package
+export { JulesClientImpl } from './client.js';
+export { MemoryStorage, MemorySessionStorage } from './storage/memory.js';
+export { WebPlatform } from './platform/web.js';
+export { NodePlatform } from './platform/node.js';
+export type { Platform } from './platform/types.js';
+export type { StorageFactory } from './types.js';

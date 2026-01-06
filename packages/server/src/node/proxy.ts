@@ -1,4 +1,4 @@
-import { NodePlatform } from '../platform/node.js';
+import { NodePlatform } from 'modjules';
 import { createHandlerCore } from '../server/core.js';
 import { ServerConfig } from '../server/types.js';
 

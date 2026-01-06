@@ -1,4 +1,5 @@
-import { Platform } from '../platform/types.js';
+import type { Platform } from 'modjules';
+import { JulesClientImpl, MemoryStorage, MemorySessionStorage } from 'modjules';
 import { TokenManager } from '../auth/tokenizer.js';
 import {
   HandshakeRequest,
@@ -6,8 +7,6 @@ import {
   TokenScope,
 } from '../auth/protocol.js';
 import { ServerConfig, ServerRequest, Scope } from './types.js';
-import { JulesClientImpl } from '../client.js';
-import { MemoryStorage, MemorySessionStorage } from '../storage/memory.js';
 import { Identity } from '../auth/types.js';
 
 // --- 1. The Forwarder (Dumb Proxy) ---

@@ -1,4 +1,12 @@
-import { Platform, PlatformResponse } from './types.js';
+import type { Platform } from 'modjules';
+
+// Platform response type
+interface PlatformResponse {
+  ok: boolean;
+  status: number;
+  json: () => Promise<any>;
+  text: () => Promise<string>;
+}
 
 // Declare GAS globals to satisfy TypeScript
 declare const Utilities: any;

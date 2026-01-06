@@ -9,13 +9,6 @@ export default defineConfig({
       entry: {
         index: 'src/index.ts',
         browser: 'src/browser.ts',
-        'gas/index': 'src/gas/index.ts',
-        // New server entry point
-        server: 'src/server/index.ts',
-        // Auth strategies under server namespace
-        'server/auth/firebase': 'src/auth/strategies/firebase.ts',
-        'server/auth/memory': 'src/auth/strategies/memory.ts',
-        'server/auth/rbac': 'src/auth/strategies/rbac.ts',
         // MCP
         mcp: 'src/mcp/index.ts',
         'mcp/cli': 'src/mcp/cli.ts',
@@ -28,7 +21,6 @@ export default defineConfig({
       external: [
         // Runtime dependencies (keep bundled for Node, external for Browser if provided by platform)
         'idb',
-        'firebase-admin',
         /@modelcontextprotocol\/sdk(\/.*)?/,
         'commander',
         'chalk',
