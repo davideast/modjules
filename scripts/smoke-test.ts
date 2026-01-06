@@ -9,6 +9,7 @@ const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
+const CORE_PKG_DIR = path.join(ROOT_DIR, 'packages', 'core');
 
 async function runCommand(
   command: string,
@@ -69,7 +70,7 @@ async function main() {
       console.log('\n=== 1. Build and Pack (Local) ===');
       await runCommand('npm run build', ROOT_DIR);
 
-      const packOutput = await runCommand('npm pack', ROOT_DIR);
+      const packOutput = await runCommand('npm pack', CORE_PKG_DIR);
       const lines = packOutput.trim().split('\n');
       const tarballName = lines[lines.length - 1].trim();
 
@@ -79,11 +80,11 @@ async function main() {
         );
       }
 
-      tarballPath = path.join(ROOT_DIR, tarballName);
+      tarballPath = path.join(CORE_PKG_DIR, tarballName);
       console.log(`Creating tarball: ${tarballPath}`);
 
       console.log('\n=== 2. Inspect Tarball Contents ===');
-      const tarList = await runCommand(`tar -tf "${tarballName}"`, ROOT_DIR);
+      const tarList = await runCommand(`tar -tf "${tarballPath}"`, ROOT_DIR);
       const files = new Set(tarList.split('\n').map((f) => f.trim()));
 
       const REQUIRED_FILES = [
