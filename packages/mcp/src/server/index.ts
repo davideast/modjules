@@ -1036,20 +1036,20 @@ Quick start:
     }
 
     const client = this.julesClient.session(sessionId);
-    await client.activities.hydrate();
-
-    // The `select` method on `activities` does not support `where`.
-    // Instead, we fetch all activities and find the one with the matching ID.
-    const activities = await client.activities.select();
-    const activity = activities.find((a) => a.id === activityId);
+    const activity = await client.activities.get(activityId).catch(() => {
+      // Return undefined if get() throws (e.g., 404 Not Found)
+      return undefined;
+    });
 
     if (!activity) {
       throw new Error('Activity not found');
     }
 
-    const changeSet = activity.artifacts.find((a) => a.type === 'changeSet');
+    const changeSets = activity.artifacts.filter(
+      (a) => a.type === 'changeSet',
+    );
 
-    if (!changeSet || changeSet.type !== 'changeSet') {
+    if (changeSets.length === 0) {
       return {
         content: [
           {
@@ -1076,6 +1076,7 @@ Quick start:
       };
     }
 
+    const changeSet = changeSets[0];
     let unidiffPatch = changeSet.gitPatch.unidiffPatch || '';
     const parsed = changeSet.parsed();
     let files = parsed.files;

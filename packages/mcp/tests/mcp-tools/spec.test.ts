@@ -369,6 +369,24 @@ describe('MCP Tools Spec', async () => {
         }
 
         case 'mcp_jules_get_code_changes': {
+          const mockGet = vi.fn().mockImplementation((id: string) => {
+            const activity = tc.given.activities.find((a) => a.id === id);
+            if (activity) {
+              return Promise.resolve(createTestActivityWithArtifacts(activity));
+            }
+            return Promise.reject(new Error('Activity not found'));
+          });
+
+          const mockSessionClient: Pick<SessionClient, 'activities'> = {
+            activities: {
+              get: mockGet,
+            } as any,
+          };
+
+          vi.spyOn(mockJules, 'session').mockReturnValue(
+            mockSessionClient as SessionClient,
+          );
+
           if (tc.then.error) {
             await expect(
               (mcpServer as any).handleGetCodeChanges({
@@ -378,27 +396,6 @@ describe('MCP Tools Spec', async () => {
             ).rejects.toThrow(tc.then.error);
             break;
           }
-
-          // Find the specific activity that should be returned by select()
-          const activityId = tc.given.args?.activityId;
-          const activitiesToReturn = activityId
-            ? tc.given.activities.filter((a) => a.id === activityId)
-            : [];
-
-          const mockSessionClient: Pick<SessionClient, 'activities'> = {
-            activities: {
-              hydrate: vi.fn().mockResolvedValue(0),
-              select: vi.fn().mockResolvedValue(
-                activitiesToReturn.map((a) =>
-                  createTestActivityWithArtifacts(a),
-                ),
-              ),
-            } as any,
-          };
-
-          vi.spyOn(mockJules, 'session').mockReturnValue(
-            mockSessionClient as SessionClient,
-          );
 
           const result = await (mcpServer as any).handleGetCodeChanges({
             sessionId: tc.given.sessionId,
