@@ -1,0 +1,64 @@
+{
+  "name": "@modjules/server",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Server-side authentication and proxy for modjules",
+  "repository": "davideast/modjules",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./auth/firebase": {
+      "types": "./dist/auth/strategies/firebase.d.ts",
+      "import": "./dist/auth-firebase.mjs"
+    },
+    "./auth/memory": {
+      "types": "./dist/auth/strategies/memory.d.ts",
+      "import": "./dist/auth-memory.mjs"
+    },
+    "./auth/rbac": {
+      "types": "./dist/auth/strategies/rbac.d.ts",
+      "import": "./dist/auth-rbac.mjs"
+    },
+    "./node": {
+      "types": "./dist/node/proxy.d.ts",
+      "import": "./dist/node.mjs"
+    },
+    "./gas": {
+      "types": "./dist/gas/index.d.ts",
+      "import": "./dist/gas.mjs"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest",
+    "type-check": "tsc --project tsconfig.test.json"
+  },
+  "keywords": [
+    "jules",
+    "ai",
+    "agent",
+    "server",
+    "auth",
+    "proxy"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "modjules": "*"
+  },
+  "peerDependencies": {
+    "firebase-admin": ">=12.0.0"
+  },
+  "peerDependenciesMeta": {
+    "firebase-admin": {
+      "optional": true
+    }
+  }
+}

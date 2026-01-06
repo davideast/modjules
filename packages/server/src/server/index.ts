@@ -1,3 +1,10 @@
+import type { Platform } from 'modjules';
+import {
+  WebPlatform,
+  JulesClientImpl,
+  MemoryStorage,
+  MemorySessionStorage,
+} from 'modjules';
 import {
   GatewayConfig,
   ProxyGatewayConfig,
@@ -5,12 +12,8 @@ import {
   ServerRequest,
   ServerResponse,
 } from './types.js';
-import { WebPlatform } from '../platform/web.js';
-import { JulesClientImpl } from '../client.js';
 import { TokenManager } from '../auth/tokenizer.js';
-import { MemoryStorage, MemorySessionStorage } from '../storage/memory.js';
 import { proxyRequest, verifyAccess, handleHandshake } from './gateway.js';
-import { Platform } from '../platform/types.js';
 
 /**
  * Creates a Jules Gateway to handle traffic to the Jules API.

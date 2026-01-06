@@ -1,6 +1,13 @@
 import { createHandlerCore } from '../server/core.js';
-import { GasPlatform } from '../platform/gas.js';
+import { GasPlatform } from './platform.js';
 import { ServerConfig } from '../server/types.js';
+
+// Declare GAS globals to satisfy TypeScript
+declare const Utilities: { sleep: (ms: number) => void };
+declare const ContentService: {
+  createTextOutput: (text: string) => any;
+  MimeType: { JSON: any };
+};
 
 export function createGasHandler(config: ServerConfig) {
   const platform = new GasPlatform();
@@ -57,3 +64,5 @@ export function createGasHandler(config: ServerConfig) {
     return output;
   };
 }
+
+export { GasPlatform } from './platform.js';
