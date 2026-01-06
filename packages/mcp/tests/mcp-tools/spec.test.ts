@@ -3,6 +3,7 @@ import {
   MemoryStorage,
   MemorySessionStorage,
   ChangeSetArtifact,
+  BashArtifact,
 } from 'modjules';
 import type {
   Activity,
@@ -123,10 +124,50 @@ interface McpGetCodeChangesTestCase extends BaseTestCase {
   };
 }
 
+interface McpGetBashOutputsTestCase extends BaseTestCase {
+  when: 'mcp_jules_get_bash_outputs';
+  given: {
+    sessionId: string;
+    activities: Array<{
+      id: string;
+      type: string;
+      message?: string;
+      artifacts: Array<{
+        type: string;
+        command?: string;
+        stdout?: string;
+        stderr?: string;
+        exitCode?: number;
+      }>;
+    }>;
+  };
+  then: {
+    result: {
+      sessionId: string;
+      outputs: {
+        count: number;
+        items?: Array<{
+          command: string;
+          stdout?: string;
+          stderr?: string;
+          exitCode: number;
+          activityId?: string;
+        }>;
+      };
+      summary: {
+        totalCommands: number;
+        succeeded: number;
+        failed: number;
+      };
+    };
+  };
+}
+
 type TestCase =
   | McpSessionStateTestCase
   | McpSessionTimelineTestCase
-  | McpGetCodeChangesTestCase;
+  | McpGetCodeChangesTestCase
+  | McpGetBashOutputsTestCase;
 // #endregion
 
 function createTestActivity(overrides: Partial<Activity> = {}): Activity {
@@ -162,11 +203,23 @@ function createTestActivityWithArtifacts(input: {
     gitPatch?: {
       unidiffPatch: string;
     };
+    command?: string;
+    stdout?: string;
+    stderr?: string;
+    exitCode?: number;
   }>;
 }): Activity {
   const artifacts = input.artifacts.map((a) => {
     if (a.type === 'changeSet' && a.gitPatch) {
       return new ChangeSetArtifact(a.source || 'agent', a.gitPatch);
+    }
+    if (a.type === 'bashOutput') {
+      return new BashArtifact({
+        command: a.command || '',
+        stdout: a.stdout || '',
+        stderr: a.stderr || '',
+        exitCode: a.exitCode === undefined ? null : a.exitCode,
+      });
     }
     return a;
   });
@@ -345,6 +398,53 @@ describe('MCP Tools Spec', async () => {
               expect(actual.deletions).toBe(expected.deletions);
               if (expected.artifactId) {
                 expect(actual.artifactId).toBe(expected.artifactId);
+              }
+            });
+          }
+
+          expect(content.summary).toEqual(tc.then.result.summary);
+          break;
+        }
+
+        case 'mcp_jules_get_bash_outputs': {
+          const mockSessionClient: Pick<SessionClient, 'activities'> = {
+            activities: {
+              hydrate: vi.fn().mockResolvedValue(0),
+              select: vi
+                .fn()
+                .mockResolvedValue(
+                  tc.given.activities.map((a) =>
+                    createTestActivityWithArtifacts(a as any),
+                  ),
+                ),
+            } as any,
+          };
+
+          vi.spyOn(mockJules, 'session').mockReturnValue(
+            mockSessionClient as SessionClient,
+          );
+
+          const result = await (mcpServer as any).handleGetBashOutputs({
+            sessionId: tc.given.sessionId,
+          });
+          const content = JSON.parse(result.content[0].text);
+
+          expect(content.sessionId).toBe(tc.then.result.sessionId);
+          expect(content.outputs.length).toBe(tc.then.result.outputs.count);
+
+          if (tc.then.result.outputs.items) {
+            tc.then.result.outputs.items.forEach((expected, index) => {
+              const actual = content.outputs[index];
+              expect(actual.command).toBe(expected.command);
+              expect(actual.exitCode).toBe(expected.exitCode);
+              if (expected.stdout) {
+                expect(actual.stdout).toBe(expected.stdout);
+              }
+              if (expected.stderr) {
+                expect(actual.stderr).toBe(expected.stderr);
+              }
+              if (expected.activityId) {
+                expect(actual.activityId).toBe(expected.activityId);
               }
             });
           }

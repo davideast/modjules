@@ -453,3 +453,125 @@
         created: 1
         modified: 1
         deleted: 0
+
+# jules_get_bash_outputs tests
+- id: MCP-25
+  description: Returns empty outputs for session with no bash artifacts
+  category: mcp-tools
+  status: implemented
+  priority: P0
+  when: mcp_jules_get_bash_outputs
+  given:
+    sessionId: session-no-bash
+    activities:
+      - id: act-1
+        type: agentMessaged
+        message: Hello
+        artifacts: []
+  then:
+    result:
+      sessionId: session-no-bash
+      outputs:
+        count: 0
+      summary:
+        totalCommands: 0
+        succeeded: 0
+        failed: 0
+
+- id: MCP-26
+  description: Returns single successful bash command
+  category: mcp-tools
+  status: implemented
+  priority: P0
+  when: mcp_jules_get_bash_outputs
+  given:
+    sessionId: session-bash-success
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: bashOutput
+            command: 'echo "hello"'
+            stdout: 'hello'
+            stderr: ''
+            exitCode: 0
+  then:
+    result:
+      sessionId: session-bash-success
+      outputs:
+        count: 1
+        items:
+          - command: 'echo "hello"'
+            stdout: 'hello'
+            stderr: ''
+            exitCode: 0
+            activityId: act-1
+      summary:
+        totalCommands: 1
+        succeeded: 1
+        failed: 0
+
+- id: MCP-27
+  description: Returns single failed bash command
+  category: mcp-tools
+  status: implemented
+  priority: P1
+  when: mcp_jules_get_bash_outputs
+  given:
+    sessionId: session-bash-failed
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: bashOutput
+            command: 'cat nonexistent.txt'
+            stdout: ''
+            stderr: 'No such file or directory'
+            exitCode: 1
+  then:
+    result:
+      sessionId: session-bash-failed
+      outputs:
+        count: 1
+        items:
+          - command: 'cat nonexistent.txt'
+            exitCode: 1
+      summary:
+        totalCommands: 1
+        succeeded: 0
+        failed: 1
+
+- id: MCP-28
+  description: Returns multiple bash commands across activities
+  category: mcp-tools
+  status: implemented
+  priority: P0
+  when: mcp_jules_get_bash_outputs
+  given:
+    sessionId: session-multi-bash
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: bashOutput
+            command: 'npm install'
+            stdout: 'added 100 packages'
+            stderr: ''
+            exitCode: 0
+      - id: act-2
+        type: progressUpdated
+        artifacts:
+          - type: bashOutput
+            command: 'npm test'
+            stdout: ''
+            stderr: 'Tests failed'
+            exitCode: 1
+  then:
+    result:
+      sessionId: session-multi-bash
+      outputs:
+        count: 2
+      summary:
+        totalCommands: 2
+        succeeded: 1
+        failed: 1
