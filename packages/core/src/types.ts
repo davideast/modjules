@@ -419,6 +419,60 @@ export interface ChangeSet {
 }
 
 /**
+ * A single file change extracted from a unified diff.
+ */
+export interface ParsedFile {
+  /** The file path relative to the repository root */
+  path: string;
+  /** The type of change */
+  changeType: 'created' | 'modified' | 'deleted';
+  /** Number of lines added */
+  additions: number;
+  /** Number of lines removed */
+  deletions: number;
+}
+
+/**
+ * Parsed representation of a ChangeSet's unified diff.
+ */
+export interface ParsedChangeSet {
+  /** Individual file changes */
+  files: ParsedFile[];
+  /** Summary counts */
+  summary: {
+    totalFiles: number;
+    created: number;
+    modified: number;
+    deleted: number;
+  };
+}
+
+/**
+ * A set of code changes with a helper method to parse the diff.
+ * This is an SDK-specific enhancement.
+ */
+export interface ChangeSetArtifact {
+  readonly type: 'changeSet';
+  readonly source: string;
+  readonly gitPatch: GitPatch;
+  /**
+   * Parses the unified diff and returns structured file change information.
+   *
+   * @returns Parsed diff with file paths, change types, and line counts.
+   *
+   * @example
+   * if (artifact.type === 'changeSet') {
+   *   const parsed = artifact.parsed();
+   *   console.log(`Changed ${parsed.summary.totalFiles} files`);
+   *   for (const file of parsed.files) {
+   *     console.log(`${file.changeType}: ${file.path} (+${file.additions}/-${file.deletions})`);
+   *   }
+   * }
+   */
+  parsed(): ParsedChangeSet;
+}
+
+/**
  * A media output (e.g., an image) with a helper method to save the data.
  * This is an SDK-specific enhancement.
  */
@@ -491,14 +545,12 @@ export interface BashArtifact {
  * @example
  * (artifact: Artifact) => {
  *   if (artifact.type === 'changeSet') {
- *     console.log(artifact.changeSet.gitPatch.suggestedCommitMessage);
+ *     const parsed = artifact.parsed();
+ *     console.log(`Modified ${parsed.summary.totalFiles} files`);
  *   }
  * }
  */
-export type Artifact =
-  | { type: 'changeSet'; changeSet: ChangeSet }
-  | MediaArtifact
-  | BashArtifact;
+export type Artifact = ChangeSetArtifact | MediaArtifact | BashArtifact;
 
 // Raw REST API type definitions for artifacts, used by mappers.
 // These represent the JSON structure before being mapped to rich SDK objects.

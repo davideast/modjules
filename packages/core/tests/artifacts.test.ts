@@ -3,6 +3,7 @@ import { Buffer } from 'buffer';
 import type {
   RestMediaArtifact,
   RestBashOutputArtifact,
+  RestChangeSetArtifact,
 } from '../src/types.js';
 
 import { mockPlatform } from './mocks/platform.js';
@@ -11,6 +12,7 @@ describe('Artifacts', () => {
   // These modules will be dynamically imported to handle environment mocking
   let MediaArtifact: any;
   let BashArtifact: any;
+  let ChangeSetArtifact: any;
   let mapRestArtifactToSdkArtifact: any;
   let fs_promises: any;
 
@@ -28,6 +30,7 @@ describe('Artifacts', () => {
 
       MediaArtifact = artifacts.MediaArtifact;
       BashArtifact = artifacts.BashArtifact;
+      ChangeSetArtifact = artifacts.ChangeSetArtifact;
       mapRestArtifactToSdkArtifact = mappers.mapRestArtifactToSdkArtifact;
 
       vi.clearAllMocks(); // Clear mock history before each test
@@ -139,6 +142,148 @@ describe('Artifacts', () => {
       });
     });
 
+    describe('ChangeSetArtifact', () => {
+      it('should parse a simple file modification', () => {
+        const patch = `diff --git a/src/index.ts b/src/index.ts
+index abc123..def456 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -1,3 +1,4 @@
+ import { foo } from './foo';
++import { bar } from './bar';
+
+ export function main() {`;
+        const artifact = new ChangeSetArtifact('agent', {
+          unidiffPatch: patch,
+        });
+        const parsed = artifact.parsed();
+
+        expect(parsed.files).toHaveLength(1);
+        expect(parsed.files[0]).toEqual({
+          path: 'src/index.ts',
+          changeType: 'modified',
+          additions: 1,
+          deletions: 0,
+        });
+        expect(parsed.summary).toEqual({
+          totalFiles: 1,
+          created: 0,
+          modified: 1,
+          deleted: 0,
+        });
+      });
+
+      it('should parse a file creation', () => {
+        const patch = `diff --git a/src/new-file.ts b/src/new-file.ts
+new file mode 100644
+index 0000000..abc123
+--- /dev/null
++++ b/src/new-file.ts
+@@ -0,0 +1,5 @@
++export function newFunction() {
++  return 'hello';
++}
++
++export const value = 42;`;
+        const artifact = new ChangeSetArtifact('agent', {
+          unidiffPatch: patch,
+        });
+        const parsed = artifact.parsed();
+
+        expect(parsed.files).toHaveLength(1);
+        expect(parsed.files[0]).toEqual({
+          path: 'src/new-file.ts',
+          changeType: 'created',
+          additions: 5,
+          deletions: 0,
+        });
+        expect(parsed.summary.created).toBe(1);
+      });
+
+      it('should parse a file deletion', () => {
+        const patch = `diff --git a/src/old-file.ts b/src/old-file.ts
+deleted file mode 100644
+index abc123..0000000
+--- a/src/old-file.ts
++++ /dev/null
+@@ -1,3 +0,0 @@
+-export function oldFunction() {
+-  return 'goodbye';
+-}`;
+        const artifact = new ChangeSetArtifact('agent', {
+          unidiffPatch: patch,
+        });
+        const parsed = artifact.parsed();
+
+        expect(parsed.files).toHaveLength(1);
+        expect(parsed.files[0]).toEqual({
+          path: 'src/old-file.ts',
+          changeType: 'deleted',
+          additions: 0,
+          deletions: 3,
+        });
+        expect(parsed.summary.deleted).toBe(1);
+      });
+
+      it('should parse multiple files with mixed changes', () => {
+        const patch = `diff --git a/src/a.ts b/src/a.ts
+index abc..def 100644
+--- a/src/a.ts
++++ b/src/a.ts
+@@ -1,2 +1,3 @@
+ const a = 1;
++const b = 2;
+ export { a };
+diff --git a/src/b.ts b/src/b.ts
+new file mode 100644
+--- /dev/null
++++ b/src/b.ts
+@@ -0,0 +1 @@
++export const b = 'new';
+diff --git a/src/c.ts b/src/c.ts
+deleted file mode 100644
+--- a/src/c.ts
++++ /dev/null
+@@ -1,2 +0,0 @@
+-const c = 3;
+-export { c };`;
+        const artifact = new ChangeSetArtifact('agent', {
+          unidiffPatch: patch,
+        });
+        const parsed = artifact.parsed();
+
+        expect(parsed.files).toHaveLength(3);
+        expect(parsed.summary).toEqual({
+          totalFiles: 3,
+          created: 1,
+          modified: 1,
+          deleted: 1,
+        });
+      });
+
+      it('should handle empty patch', () => {
+        const artifact = new ChangeSetArtifact('agent', { unidiffPatch: '' });
+        const parsed = artifact.parsed();
+
+        expect(parsed.files).toHaveLength(0);
+        expect(parsed.summary).toEqual({
+          totalFiles: 0,
+          created: 0,
+          modified: 0,
+          deleted: 0,
+        });
+      });
+
+      it('should expose source and gitPatch properties', () => {
+        const patch = 'diff --git a/test.ts b/test.ts';
+        const artifact = new ChangeSetArtifact('user', { unidiffPatch: patch });
+
+        expect(artifact.type).toBe('changeSet');
+        expect(artifact.source).toBe('user');
+        expect(artifact.gitPatch).toEqual({ unidiffPatch: patch });
+      });
+    });
+
     describe('Mapper Integration', () => {
       it('should map REST media artifact to a MediaArtifact instance', () => {
         const restArtifact: RestMediaArtifact = {
@@ -166,6 +311,22 @@ describe('Artifacts', () => {
         expect(sdkArtifact).toBeInstanceOf(BashArtifact);
         expect(sdkArtifact.type).toBe('bashOutput');
         expect(typeof sdkArtifact.toString).toBe('function');
+      });
+
+      it('should map REST changeset artifact to a ChangeSetArtifact instance', () => {
+        const restArtifact: RestChangeSetArtifact = {
+          changeSet: {
+            source: 'agent',
+            gitPatch: { unidiffPatch: 'diff --git a/test.ts b/test.ts' },
+          },
+        };
+        const sdkArtifact = mapRestArtifactToSdkArtifact(
+          restArtifact,
+          mockPlatform,
+        );
+        expect(sdkArtifact).toBeInstanceOf(ChangeSetArtifact);
+        expect(sdkArtifact.type).toBe('changeSet');
+        expect(typeof sdkArtifact.parsed).toBe('function');
       });
     });
   });
