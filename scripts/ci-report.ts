@@ -1,5 +1,5 @@
 // scripts/ci-report.ts
-import { jules } from 'modjules';
+import { jules } from '../src/index.ts';
 
 /**
  * Replicates the logic to find the human user from the PR body.
