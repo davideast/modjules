@@ -418,7 +418,8 @@ export class JulesMCPServer {
         },
         {
           name: 'jules_get_bash_outputs',
-          description: 'Get all bash command outputs from a Jules session. Returns commands executed, their stdout/stderr, and exit codes. Use to understand what shell commands were run.',
+          description:
+            'Get all bash command outputs from a Jules session. Returns commands executed, their stdout/stderr, and exit codes. Use to understand what shell commands were run.',
           inputSchema: {
             type: 'object',
             properties: {
