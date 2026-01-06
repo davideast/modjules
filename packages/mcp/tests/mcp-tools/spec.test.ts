@@ -1,4 +1,9 @@
-import { JulesClientImpl, MemoryStorage, MemorySessionStorage } from 'modjules';
+import {
+  JulesClientImpl,
+  MemoryStorage,
+  MemorySessionStorage,
+  ChangeSetArtifact,
+} from 'modjules';
 import type {
   Activity,
   JulesClient,
@@ -76,7 +81,52 @@ interface McpSessionTimelineTestCase extends BaseTestCase {
   };
 }
 
-type TestCase = McpSessionStateTestCase | McpSessionTimelineTestCase;
+interface CodeChangeResultItem {
+  path: string;
+  changeType: 'created' | 'modified' | 'deleted';
+  artifactId?: string;
+  additions: number;
+  deletions: number;
+}
+
+interface McpGetCodeChangesTestCase extends BaseTestCase {
+  when: 'mcp_jules_get_code_changes';
+  given: {
+    sessionId: string;
+    activities: Array<{
+      id: string;
+      type: string;
+      createTime?: string;
+      artifacts: Array<{
+        type: string;
+        source?: string;
+        gitPatch?: {
+          unidiffPatch: string;
+        };
+      }>;
+    }>;
+  };
+  then: {
+    result: {
+      sessionId: string;
+      changes: {
+        count: number;
+        items?: CodeChangeResultItem[];
+      };
+      summary: {
+        totalFiles: number;
+        created: number;
+        modified: number;
+        deleted: number;
+      };
+    };
+  };
+}
+
+type TestCase =
+  | McpSessionStateTestCase
+  | McpSessionTimelineTestCase
+  | McpGetCodeChangesTestCase;
 // #endregion
 
 function createTestActivity(overrides: Partial<Activity> = {}): Activity {
@@ -95,6 +145,41 @@ function createTestActivity(overrides: Partial<Activity> = {}): Activity {
   }
 
   return { ...defaults, ...overrides } as Activity;
+}
+
+/**
+ * Creates a test activity with properly structured artifacts.
+ * For changeSet artifacts, creates ChangeSetArtifact instances with parsed() method.
+ */
+function createTestActivityWithArtifacts(input: {
+  id: string;
+  type: string;
+  createTime?: string;
+  message?: string;
+  artifacts: Array<{
+    type: string;
+    source?: string;
+    gitPatch?: {
+      unidiffPatch: string;
+    };
+  }>;
+}): Activity {
+  const artifacts = input.artifacts.map((a) => {
+    if (a.type === 'changeSet' && a.gitPatch) {
+      return new ChangeSetArtifact(a.source || 'agent', a.gitPatch);
+    }
+    return a;
+  });
+
+  return {
+    id: input.id,
+    name: `sessions/test/activities/${input.id}`,
+    type: input.type as any,
+    createTime: input.createTime || new Date().toISOString(),
+    originator: 'agent',
+    artifacts,
+    ...(input.message && { message: input.message }),
+  } as Activity;
 }
 
 describe('MCP Tools Spec', async () => {
@@ -222,6 +307,49 @@ describe('MCP Tools Spec', async () => {
           } else if (tc.then.result.nextCursor === null) {
             expect(content.nextCursor).toBeUndefined();
           }
+          break;
+        }
+
+        case 'mcp_jules_get_code_changes': {
+          const mockSessionClient: Pick<SessionClient, 'activities'> = {
+            activities: {
+              hydrate: vi.fn().mockResolvedValue(0),
+              select: vi
+                .fn()
+                .mockResolvedValue(
+                  tc.given.activities.map((a) =>
+                    createTestActivityWithArtifacts(a),
+                  ),
+                ),
+            } as any,
+          };
+
+          vi.spyOn(mockJules, 'session').mockReturnValue(
+            mockSessionClient as SessionClient,
+          );
+
+          const result = await (mcpServer as any).handleGetCodeChanges({
+            sessionId: tc.given.sessionId,
+          });
+          const content = JSON.parse(result.content[0].text);
+
+          expect(content.sessionId).toBe(tc.then.result.sessionId);
+          expect(content.changes.length).toBe(tc.then.result.changes.count);
+
+          if (tc.then.result.changes.items) {
+            tc.then.result.changes.items.forEach((expected, index) => {
+              const actual = content.changes[index];
+              expect(actual.path).toBe(expected.path);
+              expect(actual.changeType).toBe(expected.changeType);
+              expect(actual.additions).toBe(expected.additions);
+              expect(actual.deletions).toBe(expected.deletions);
+              if (expected.artifactId) {
+                expect(actual.artifactId).toBe(expected.artifactId);
+              }
+            });
+          }
+
+          expect(content.summary).toEqual(tc.then.result.summary);
           break;
         }
       }

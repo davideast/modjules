@@ -50,7 +50,6 @@ export type {
   AutomatedSession,
   BashArtifact,
   ChangeSet,
-  ChangeSetArtifact,
   GitHubRepo,
   GitPatch,
   JulesClient,
@@ -112,3 +111,6 @@ export { WebPlatform } from './platform/web.js';
 export { NodePlatform } from './platform/node.js';
 export type { Platform } from './platform/types.js';
 export type { StorageFactory } from './types.js';
+
+// Artifact classes with helper methods
+export { ChangeSetArtifact } from './artifacts.js';
