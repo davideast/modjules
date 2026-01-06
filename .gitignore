@@ -6,4 +6,5 @@ dist/
 husky
 *.log
 .jules/cache
+.turbo/
 tests/temp
