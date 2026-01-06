@@ -664,6 +664,11 @@ export type LightweightArtifact =
  * A lightweight representation of an activity, with artifacts stripped by default.
  */
 export interface LightweightActivity extends ActivitySummary {
+  /**
+   * The full message content for activities that have one (agentMessaged, userMessaged).
+   * Unlike `summary`, this is not truncated.
+   */
+  message?: string;
   artifacts: LightweightArtifact[] | null;
   artifactCount: number;
 }

@@ -5,6 +5,6 @@ dist/
 *.tgz
 husky
 *.log
-.jules/cache
+.jules/
 .turbo/
-tests/temp
+**/tests/temp/

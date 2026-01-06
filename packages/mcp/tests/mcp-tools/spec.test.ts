@@ -44,6 +44,14 @@ interface McpSessionStateTestCase extends BaseTestCase {
   };
 }
 
+interface TimelineResultItem {
+  id?: string;
+  summary?: string;
+  hasMessage?: boolean;
+  hasArtifacts?: boolean;
+  artifactCount?: number;
+}
+
 interface McpSessionTimelineTestCase extends BaseTestCase {
   when: 'mcp_jules_session_timeline';
   given: {
@@ -60,7 +68,7 @@ interface McpSessionTimelineTestCase extends BaseTestCase {
     result: {
       activities: {
         count: number;
-        items?: Partial<Activity>[];
+        items?: TimelineResultItem[];
       };
       hasMore: boolean;
       nextCursor?: string | null;
@@ -186,9 +194,26 @@ describe('MCP Tools Spec', async () => {
           );
           if (tc.then.result.activities.items) {
             tc.then.result.activities.items.forEach((item, index) => {
-              expect(content.activities[index]).toEqual(
-                expect.objectContaining(item),
-              );
+              const activity = content.activities[index];
+              // Check static properties
+              if (item.id) {
+                expect(activity.id).toBe(item.id);
+              }
+              if (item.summary) {
+                expect(activity.summary).toBe(item.summary);
+              }
+              if (item.artifactCount !== undefined) {
+                expect(activity.artifactCount).toBe(item.artifactCount);
+              }
+              // Check boolean assertions
+              if (item.hasMessage) {
+                expect(activity).toHaveProperty('message');
+                expect(activity.message).toBeDefined();
+              }
+              if (item.hasArtifacts) {
+                expect(activity.artifacts).not.toBeNull();
+                expect(Array.isArray(activity.artifacts)).toBe(true);
+              }
             });
           }
           expect(content.hasMore).toBe(tc.then.result.hasMore);

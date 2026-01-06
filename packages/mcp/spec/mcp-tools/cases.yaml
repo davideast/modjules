@@ -227,7 +227,7 @@
       hasMore: false
       nextCursor: null
 - id: MCP-12
-  description: Timeline returns lightweight activities
+  description: Timeline returns lightweight activities with message and artifacts
   category: mcp-tools
   status: implemented
   priority: P0
@@ -249,7 +249,11 @@
         count: 1
         items:
           - id: act-1
+            # Summary remains truncated for backward compatibility
             summary: 'This is a very long message that should be truncated in the summary. This is a very long message that should be truncated in the summary. This is a very long message that should be truncated in the su...'
-            artifacts: null
+            # Full message is now included
+            hasMessage: true
+            # Artifacts are now included by default
+            hasArtifacts: true
             artifactCount: 1
       hasMore: false

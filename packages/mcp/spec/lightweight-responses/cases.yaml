@@ -90,7 +90,7 @@
 # =============================================================================
 
 - id: LIGHT-05
-  description: Artifacts stripped from activities by default
+  description: Artifacts included in activities by default
   category: artifact_stripping
   status: implemented
   priority: P0
@@ -108,7 +108,7 @@
   when: toLightweight
   then:
     result:
-      artifacts: null
+      artifactsIncluded: true
       artifactCount: 1
 
 - id: LIGHT-06
@@ -159,7 +159,7 @@
 # =============================================================================
 
 - id: LIGHT-09
-  description: jules_select returns lightweight results by default
+  description: jules_select returns lightweight results with message and artifacts
   category: mcp_defaults
   status: implemented
   priority: P0
@@ -173,7 +173,8 @@
       items:
         each:
           hasSummary: true
-          artifactsStripped: true
+          hasMessage: true
+          hasArtifacts: true
 
 - id: LIGHT-10
   description: jules_select with artifact fields returns complete activity data
@@ -210,7 +211,9 @@
   when: compare_formats
   then:
     lightweightTokens:
-      lessThan: 8300
+      # Now includes message and artifacts, so more tokens than before
+      # But still less than full format due to stripped media data
+      lessThan: 25000
     fullTokens:
       greaterThan: 15000
 
