@@ -256,7 +256,11 @@ function createTestActivityWithArtifacts(input: {
 }): Activity {
   const artifacts = input.artifacts.map((a) => {
     if (a.type === 'changeSet' && a.gitPatch) {
-      return new ChangeSetArtifact(a.source || 'agent', a.gitPatch);
+      return new ChangeSetArtifact(a.source || 'agent', {
+        baseCommitId: '',
+        suggestedCommitMessage: '',
+        ...a.gitPatch,
+      });
     }
     if (a.type === 'bashOutput') {
       return new BashArtifact({
@@ -562,11 +566,13 @@ describe('MCP Tools Spec', async () => {
           const mockSessionClient: Pick<SessionClient, 'activities'> = {
             activities: {
               hydrate: vi.fn().mockResolvedValue(0),
-              select: vi.fn().mockResolvedValue(
-                tc.given.activities.map((a) =>
-                  createTestActivityWithArtifacts(a as any),
+              select: vi
+                .fn()
+                .mockResolvedValue(
+                  tc.given.activities.map((a) =>
+                    createTestActivityWithArtifacts(a as any),
+                  ),
                 ),
-              ),
             } as any,
           };
 
@@ -588,9 +594,7 @@ describe('MCP Tools Spec', async () => {
               const actualFile = content.files[index];
               expect(actualFile.path).toBe(expectedFile.path);
               expect(actualFile.changeType).toBe(expectedFile.changeType);
-              expect(actualFile.activityIds).toEqual(
-                expectedFile.activityIds,
-              );
+              expect(actualFile.activityIds).toEqual(expectedFile.activityIds);
               if (expectedFile.additions !== undefined) {
                 expect(actualFile.additions).toBe(expectedFile.additions);
               }
