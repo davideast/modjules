@@ -56,15 +56,27 @@ if (pullRequest) {
 
 ## MCP Server
 
-Use Jules as a tool in Claude Code, Cursor, or any MCP client. Your assistant can delegate tasks to Jules, check progress, review changes, and decide when to merge.
+Use Jules as a tool in Claude Code, Gemini CLI, Cursor, or any MCP client. Your assistant can delegate tasks to Jules, check progress, review changes, and decide when to merge.
+
+```bash
+# Configure your API key (one-time setup)
+npx @modjules/mcp@next config --key "YOUR_JULES_API_KEY"
+
+# Claude Code
+claude mcp add modjules -- npx @modjules/mcp@next
+
+# Gemini CLI
+gemini mcp add modjules -- npx @modjules/mcp@next
+```
+
+Or add manually to your MCP config:
 
 ```json
 {
   "mcpServers": {
     "modjules": {
       "command": "npx",
-      "args": ["-y", "@modjules/mcp"],
-      "env": { "JULES_API_KEY": "<your-key>" }
+      "args": ["-y", "@modjules/mcp@next"]
     }
   }
 }
