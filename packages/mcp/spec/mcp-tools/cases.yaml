@@ -464,7 +464,7 @@
 - id: MCP-30
   description: Returns flat file list with activityIds for single file change
   category: mcp-tools
-  status: pending
+  status: implemented
   priority: P0
   when: mcp_jules_session_files
   given:
@@ -504,7 +504,7 @@
 - id: MCP-31
   description: Aggregates activityIds when file changed multiple times
   category: mcp-tools
-  status: pending
+  status: implemented
   priority: P0
   when: mcp_jules_session_files
   given:
@@ -559,7 +559,7 @@
 - id: MCP-32
   description: Returns multiple files from single activity
   category: mcp-tools
-  status: pending
+  status: implemented
   priority: P0
   when: mcp_jules_session_files
   given:
@@ -607,7 +607,7 @@
 - id: MCP-33
   description: Uses net change type - created then modified stays created
   category: mcp-tools
-  status: pending
+  status: implemented
   priority: P1
   when: mcp_jules_session_files
   given:
@@ -659,7 +659,7 @@
 - id: MCP-34
   description: Returns empty files for session with no changeSet artifacts
   category: mcp-tools
-  status: pending
+  status: implemented
   priority: P1
   when: mcp_jules_session_files
   given:
@@ -683,7 +683,7 @@
 - id: MCP-35
   description: Omits file when net change is created then deleted
   category: mcp-tools
-  status: pending
+  status: implemented
   priority: P1
   when: mcp_jules_session_files
   given:

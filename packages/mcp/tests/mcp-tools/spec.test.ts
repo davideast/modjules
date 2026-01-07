@@ -168,11 +168,51 @@ interface McpGetBashOutputsTestCase extends BaseTestCase {
   };
 }
 
+interface McpSessionFilesTestCase extends BaseTestCase {
+  when: 'mcp_jules_session_files';
+  given: {
+    sessionId: string;
+    activities: Array<{
+      id: string;
+      type: string;
+      artifacts: Array<{
+        type: string;
+        source?: string;
+        gitPatch?: {
+          unidiffPatch: string;
+        };
+      }>;
+    }>;
+  };
+  then: {
+    result: {
+      sessionId: string;
+      files: {
+        count: number;
+        items?: Array<{
+          path: string;
+          changeType: 'created' | 'modified' | 'deleted';
+          activityIds: string[];
+          additions?: number;
+          deletions?: number;
+        }>;
+      };
+      summary: {
+        totalFiles: number;
+        created: number;
+        modified: number;
+        deleted: number;
+      };
+    };
+  };
+}
+
 type TestCase =
   | McpSessionStateTestCase
   | McpSessionTimelineTestCase
   | McpGetCodeChangesTestCase
-  | McpGetBashOutputsTestCase;
+  | McpGetBashOutputsTestCase
+  | McpSessionFilesTestCase;
 // #endregion
 
 function createTestActivity(overrides: Partial<Activity> = {}): Activity {
@@ -516,6 +556,51 @@ describe('MCP Tools Spec', async () => {
           }
 
           expect(content.summary).toEqual(tc.then.result.summary);
+          break;
+        }
+        case 'mcp_jules_session_files': {
+          const mockSessionClient: Pick<SessionClient, 'activities'> = {
+            activities: {
+              hydrate: vi.fn().mockResolvedValue(0),
+              select: vi.fn().mockResolvedValue(
+                tc.given.activities.map((a) =>
+                  createTestActivityWithArtifacts(a as any),
+                ),
+              ),
+            } as any,
+          };
+
+          vi.spyOn(mockJules, 'session').mockReturnValue(
+            mockSessionClient as SessionClient,
+          );
+
+          const result = await (mcpServer as any).handleSessionFiles({
+            sessionId: tc.given.sessionId,
+          });
+          const content = JSON.parse(result.content[0].text);
+          const expectedResult = tc.then.result;
+
+          expect(content.sessionId).toBe(expectedResult.sessionId);
+          expect(content.files.length).toBe(expectedResult.files.count);
+
+          if (expectedResult.files.items) {
+            expectedResult.files.items.forEach((expectedFile, index) => {
+              const actualFile = content.files[index];
+              expect(actualFile.path).toBe(expectedFile.path);
+              expect(actualFile.changeType).toBe(expectedFile.changeType);
+              expect(actualFile.activityIds).toEqual(
+                expectedFile.activityIds,
+              );
+              if (expectedFile.additions !== undefined) {
+                expect(actualFile.additions).toBe(expectedFile.additions);
+              }
+              if (expectedFile.deletions !== undefined) {
+                expect(actualFile.deletions).toBe(expectedFile.deletions);
+              }
+            });
+          }
+
+          expect(content.summary).toEqual(expectedResult.summary);
           break;
         }
       }
