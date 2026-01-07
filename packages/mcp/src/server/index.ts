@@ -94,6 +94,8 @@ export class JulesMCPServer {
             return await this.handleGetCodeChanges(args);
           case 'jules_get_bash_outputs':
             return await this.handleGetBashOutputs(args);
+          case 'jules_session_files':
+            return await this.handleSessionFiles(args);
           default:
             throw new Error(`Tool not found: ${name}`);
         }
@@ -686,6 +688,23 @@ export class JulesMCPServer {
             required: ['sessionId', 'activityId'],
           },
         },
+        {
+          name: 'jules_session_files',
+          description:
+            'Returns all files changed in a Jules session with change types and activity IDs. ' +
+            'Use jules_get_code_changes with an activityId to drill into specific file diffs. ' +
+            'Response includes path, changeType (created/modified/deleted), activityIds array, additions, and deletions per file.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'The session ID to get file changes from.',
+              },
+            },
+            required: ['sessionId'],
+          },
+        },
       ],
     };
   }
@@ -1115,6 +1134,106 @@ Quick start:
         },
       ],
     };
+  }
+
+  private async handleSessionFiles(args: any) {
+    const sessionId = args?.sessionId as string;
+    if (!sessionId) {
+      throw new Error('sessionId is required');
+    }
+
+    const client = this.julesClient.session(sessionId);
+    await client.activities.hydrate();
+    const activities = await client.activities.select({ order: 'asc' });
+
+    // Map: path -> { firstChangeType, latestChangeType, activityIds, additions, deletions }
+    const fileMap = new Map<
+      string,
+      {
+        firstChangeType: 'created' | 'modified' | 'deleted';
+        latestChangeType: 'created' | 'modified' | 'deleted';
+        activityIds: string[];
+        additions: number;
+        deletions: number;
+      }
+    >();
+
+    for (const activity of activities) {
+      for (const artifact of activity.artifacts) {
+        if (artifact.type === 'changeSet') {
+          const parsed = artifact.parsed();
+          for (const file of parsed.files) {
+            const existing = fileMap.get(file.path);
+            if (existing) {
+              // Aggregate: add activityId, sum additions/deletions, update latestChangeType
+              existing.activityIds.push(activity.id);
+              existing.additions += file.additions;
+              existing.deletions += file.deletions;
+              existing.latestChangeType = file.changeType;
+            } else {
+              // First time seeing this file
+              fileMap.set(file.path, {
+                firstChangeType: file.changeType,
+                latestChangeType: file.changeType,
+                activityIds: [activity.id],
+                additions: file.additions,
+                deletions: file.deletions,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Compute net changeType and filter out created->deleted
+    const files: Array<{
+      path: string;
+      changeType: 'created' | 'modified' | 'deleted';
+      activityIds: string[];
+      additions: number;
+      deletions: number;
+    }> = [];
+    for (const [path, info] of fileMap.entries()) {
+      const netChangeType = this.computeNetChangeType(
+        info.firstChangeType,
+        info.latestChangeType,
+      );
+      if (netChangeType === null) continue; // created->deleted, omit
+
+      files.push({
+        path,
+        changeType: netChangeType,
+        activityIds: info.activityIds,
+        additions: info.additions,
+        deletions: info.deletions,
+      });
+    }
+
+    // Build summary
+    const summary = {
+      totalFiles: files.length,
+      created: files.filter((f) => f.changeType === 'created').length,
+      modified: files.filter((f) => f.changeType === 'modified').length,
+      deleted: files.filter((f) => f.changeType === 'deleted').length,
+    };
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({ sessionId, files, summary }, null, 2),
+        },
+      ],
+    };
+  }
+
+  private computeNetChangeType(
+    first: 'created' | 'modified' | 'deleted',
+    latest: 'created' | 'modified' | 'deleted',
+  ): ('created' | 'modified' | 'deleted') | null {
+    if (first === 'created' && latest === 'deleted') return null; // Omit
+    if (first === 'created') return 'created'; // created -> modified = created
+    return latest; // modified -> deleted = deleted, modified -> modified = modified
   }
 
   /**
