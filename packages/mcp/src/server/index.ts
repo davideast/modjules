@@ -693,7 +693,9 @@ export class JulesMCPServer {
           description:
             'Returns all files changed in a Jules session with change types and activity IDs. ' +
             'Use jules_get_code_changes with an activityId to drill into specific file diffs. ' +
-            'Response includes path, changeType (created/modified/deleted), activityIds array, additions, and deletions per file.',
+            'Response includes path, changeType (created/modified/deleted), activityIds array, additions, and deletions per file. ' +
+            'When presenting to users, format as grouped ASCII tree: directory/ followed by indented files showing [A]dded/[M]odified/[D]eleted, +/-lines, and (n) activity count with aligned columns. ' +
+            'Use green for additions, red for deletions, yellow/orange for modified if the output supports colors; otherwise use emoji fallback: 🟢 added, 🔴 deleted, 🟡 modified.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -1064,9 +1066,7 @@ Quick start:
       throw new Error('Activity not found');
     }
 
-    const changeSets = activity.artifacts.filter(
-      (a) => a.type === 'changeSet',
-    );
+    const changeSets = activity.artifacts.filter((a) => a.type === 'changeSet');
 
     if (changeSets.length === 0) {
       return {
