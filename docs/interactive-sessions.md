@@ -1,45 +1,66 @@
 # Interactive Sessions
 
-When you need to guide, observe, or collaborate with an agent, you need an interactive session. `jules.session()` is the tool for this. It gives you a `SessionClient` to control the conversation.
+`jules.session()` is for building conversational, human-in-the-loop systems. It gives you a `SessionClient` object to control the agent, approve its plans, and have a back-and-forth conversation. This is the tool you need for building things like chatbots, IDE extensions, or custom internal tools.
 
-## Example: A Full Conversation
+## Example: A "ChatOps" Slack Bot for Production Alerts
 
-This example shows a common interactive workflow:
-1.  Start a session.
-2.  Wait for the agent to generate a plan.
-3.  Approve the plan.
-4.  Ask a follow-up question.
-5.  Wait for the final result.
+This example shows how you could build a Slack bot that uses Jules to respond to a production alert. When an alert fires, the bot starts a Jules session to investigate the cause. It then posts the agent's plan to a Slack channel and waits for an on-call engineer to approve it before the agent attempts a fix.
+
+This demonstrates a powerful orchestration pattern: an automated system kicks off the process, but a human has the final say on the most critical step.
 
 ```typescript
+// src/slack-bot.ts
 import { jules } from 'modjules';
+import { slack, awaitSlackApproval } from './slack-api'; // Fictional Slack API library
 
-async function collaborativeRefactor() {
+// This function is triggered by a webhook from your monitoring service (e.g., DataDog)
+async function handleProductionAlert(alert) {
+  const { serviceName, errorMessage, traceId } = alert;
+
+  await slack.postMessage('#prod-alerts', `🚨 Alert on ${serviceName}: ${errorMessage}`);
+
+  // 1. Start an interactive session to investigate the alert
   const session = await jules.session({
-    prompt:
-      'Refactor the user service. First, create a plan for me to review.',
-    source: { github: 'your-org/your-repo', branch: 'feature/db-pool' },
+    prompt: `
+      We just received a production alert in the '${serviceName}' service.
+      Error message: "${errorMessage}"
+      Trace ID: ${traceId}
+
+      Your task is to investigate the root cause of this alert.
+      Start by analyzing the service logs around the time of the alert.
+      Then, formulate a plan to either fix the issue or roll back the change that caused it.
+      Do not execute the plan until it is approved.
+    `,
+    source: { github: `my-org/${serviceName}`, branch: 'main' },
   });
 
-  console.log(`[START] Session created: ${session.id}`);
+  await slack.postMessage('#prod-alerts', `Jules is investigating... (Session: ${session.id})`);
 
-  // 1. Wait for the agent to create the plan
+  // 2. Wait for the agent to generate a plan
   await session.waitFor('awaitingPlanApproval');
-  console.log('[ACTION] Plan is ready. Approving...');
+  const { plan } = await session.info();
 
-  // 2. Approve the plan
-  await session.approve();
-  console.log('[USER] Plan approved.');
-
-  // 3. Ask a follow-up question
-  const reply = await session.ask(
-    'While you work, can you tell me which files will be affected?',
+  // 3. Post the plan to Slack and wait for a human to approve it
+  const isApproved = await awaitSlackApproval(
+    '#prod-alerts',
+    `Jules has a plan to fix the alert. Please review and approve:`,
+    plan.steps,
   );
-  console.log(`[AGENT] ${reply.message}`);
 
-  // 4. Wait for the final outcome
-  const result = await session.result();
-  console.log(`[END] Session finished with state: ${result.state}`);
+  if (isApproved) {
+    // 4. If approved, tell the agent to proceed
+    await session.approve();
+    await slack.postMessage('#prod-alerts', 'Plan approved by engineer. Jules is attempting the fix.');
+
+    const result = await session.result();
+    if (result.state === 'completed' && result.pullRequest) {
+      await slack.postMessage('#prod-alerts', `✅ Fix complete! PR is ready for review: ${result.pullRequest.url}`);
+    } else {
+      await slack.postMessage('#prod-alerts', `❌ Jules failed to fix the issue. Please investigate manually.`);
+    }
+  } else {
+    await slack.postMessage('#prod-alerts', 'Plan rejected. Aborting session.');
+  }
 }
 ```
 
