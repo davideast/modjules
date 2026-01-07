@@ -1,23 +1,24 @@
-# modjules - the agent-ready SDK for Jules
+# modjules
 
 > Status: Useful tool but still experimental. Supported and moving fast to improve.
 
-## Making Jules Agent-Ready
+## A programmable SDK and MCP server to pair with IDEs/CLIs
 
-Agents thrive on simple actions, persistent memory, and reactive updates. `modjules` provides an tool and memory agent toolkit on top of the Jules REST API.
+Agents thrive on simple actions, persistent memory, and reactive updates. `modjules` provides a tool and memory agent toolkit on top of the Jules REST API.
 
-- **Tool Oriented:** Abstracts multi-step API choreographies into single, awaitable tool calls that an agent can easily execute. (e.g., `create session → poll for status → fetch result`)
-- **Persistent State:** Provides external memory, retaining conversational context across turns without burdening your agent's context window.
-- **Reactive Streams:** Converts passive REST polling into push-style Async Iterators, allowing your agent to efficiently _observe_ progress in real-time without managing complex polling logic.
+- **MCP Server:** Delegate tasks from Antigravity, Claude Code, Cursor, or any MCP client to Jules - hand off a refactor, check on progress, review the diff, decide when to merge.
+- **Tool Oriented:** Abstracts multi-step API choreographies into single, awaitable tool calls. (e.g., `create session → poll for status → fetch result`)
+- **Persistent State:** Retains conversational context across turns without burdening your agent's context window.
+- **Reactive Streams:** Converts REST polling into push-style Async Iterators for real-time progress.
 
-## Core Usage
+## SDK
 
 ```ts
 import { jules } from 'modjules';
 
-const session = jules.run({
-  prompt: `Fix visibility issues in the examples/nextjs app. 
-  
+const session = await jules.session({
+  prompt: `Fix visibility issues in the examples/nextjs app.
+
   **Visibility issues**
   - White text on white backgrounds
   - Low contrast on button hover
@@ -26,6 +27,7 @@ const session = jules.run({
   - Update the global styles and page components to a dark theme with the shadcn zinc palette.
 `,
   source: { github: 'davideast/modjules', branch: 'main' },
+  autoPr: true,
 });
 
 for await (const activity of session.stream()) {
@@ -52,160 +54,103 @@ if (pullRequest) {
 }
 ```
 
-## Batch Processing
+## MCP Server
 
-Process multiple items in parallel with `jules.all()`. This method is designed to feel like `Promise.all()` but with built-in concurrency control.
+Use Jules as a tool in Claude Code, Cursor, or any MCP client. Your assistant can delegate tasks to Jules, check progress, review changes, and decide when to merge.
+
+```json
+{
+  "mcpServers": {
+    "modjules": {
+      "command": "npx",
+      "args": ["-y", "@modjules/mcp"],
+      "env": { "JULES_API_KEY": "<your-key>" }
+    }
+  }
+}
+```
+
+Now you can ask your assistant things like:
+
+- _"Create a Jules session to fix the auth bug in my-org/my-repo"_
+- _"What files did Jules change? Show me the diffs before I merge."_
+- _"Check if the tests passed in that Jules session"_
+
+## Installation (SDK)
+
+```bash
+npm i modjules
+export JULES_API_KEY=<api-key>
+```
+
+---
+
+## Deep Dive
+
+### Batch Processing
+
+Process multiple items in parallel with `jules.all()`. Feels like `Promise.all()` but with built-in concurrency control.
 
 ```javascript
 const todos = ['Fix login bug', 'Update README', 'Refactor tests'];
 
-// Processes items concurrently (default: 3 at a time)
 const sessions = await jules.all(todos, (task) => ({
   prompt: task,
   source: { github: 'user/repo', branch: 'main' },
 }));
 
-// The results array preserves the order of the input array
 console.log(`Created ${sessions.length} sessions.`);
 ```
 
-For more control, you can pass an options object:
+For more control:
 
 ```javascript
 const sessions = await jules.all(largeList, mapFn, {
-  concurrency: 10, // Run 10 at a time
-  stopOnError: false, // Don't stop if one fails
-  delayMs: 500, // Wait 500ms between starting each item
+  concurrency: 10,
+  stopOnError: false,
+  delayMs: 500,
 });
 ```
 
-### Rich Local Querying
+### Interactive Sessions
 
-The local cache can be queried instantly without network latency using the `.select()` method.
+Use `jules.session()` for workflows where you observe, provide feedback, and guide the process.
 
 ```typescript
-// Query your local cache instantly without network latency.
-const errors = await session.select({
-  type: 'sessionFailed',
-  limit: 10,
-});
-```
-
-## Installation
-
-```bash
-npm i modjules
-# OR
-bun add modjules
-```
-
-## Cross-Platform Usage
-
-The `modjules` SDK is designed to work seamlessly in both Node.js and browser environments. It uses conditional exports in its `package.json` to automatically provide the correct implementation for your platform.
-
-### Node.js (Default)
-
-In a Node.js environment, the SDK defaults to using the local filesystem for caching session activities in a `.jules/cache` directory. This provides a persistent, restart-safe experience.
-
-```typescript
-// Imports the Node.js version by default
-import { jules } from 'modjules';
-
-const session = await jules.session({
-  prompt: 'Refactor the user authentication module.',
-  source: { github: 'your-org/your-repo', branch: 'develop' },
-});
-```
-
-### Browser
-
-When used in a browser environment (e.g., in a web application bundled with Vite, Webpack, or Rollup), the SDK automatically uses a browser-specific implementation that leverages IndexedDB for storage. This allows your web application to maintain session state locally.
-
-> **TEST ONLY DO NOT USE IN PRODUCTION:** The browser module is designed for testing and prototyping only. Never expose your `JULES_API_KEY` in a production application.
-
-To use the browser version, you can explicitly import it and must configure it with the test-only API key option:
-
-```typescript
-// Explicitly import the browser-optimized version
-import { jules } from 'modjules/browser';
-
-// Initialize with the test-only option
-const testJules = jules.with({
-  apiKey_TEST_ONLY_DO_NOT_USE_IN_PRODUCTION: '...',
-});
-
-const session = await testJules.session({
-  prompt: 'Refactor the user authentication module.',
-  source: { github: 'your-org/your-repo', branch: 'develop' },
-});
-```
-
-### Bundler Resolution vs. Explicit Imports
-
-There are two primary strategies for handling platform-specific code, and `modjules` is designed to support both.
-
-1.  **Automatic Resolution (Recommended for most cases):** Modern bundlers that support the `exports` field in `package.json` can automatically select the correct file based on the environment. For example, Vite, when building for the browser, will see the `browser` condition in the `exports` map and use the `dist/browser.es.js` file. This is the ideal scenario, as it requires no changes to your import statements.
-
-    ```typescript
-    // In a browser environment, the bundler will automatically
-    // resolve this to the browser-specific build.
-    import { jules } from 'modjules';
-    ```
-
-2.  **Explicit Imports:** In some cases, you may want to be explicit about which version you are using, or your tooling may not fully support conditional exports. In these situations, you can use a direct import path.
-
-    ```typescript
-    // Always imports the browser version, regardless of bundler configuration
-    import { jules } from 'modjules/browser';
-    ```
-
-**When to choose which?**
-
-- Use the **default import (`modjules`)** whenever possible. It's cleaner and relies on the standard module resolution features of the JavaScript ecosystem.
-- Use the **explicit import (`modjules/browser`)** if you need to override the bundler's resolution, if you are working in an environment that doesn't support conditional exports, or if you want to be very clear in your code that you are using the browser-specific version.
-
-## Authentication / API Key
-
-```bash
-export JULES_API_KEY=<api-key>
-```
-
-## Interactive Usage
-
-Use `jules.session()` for interactive workflows to observe, provide feedback, and guide the process. The `SessionClient` object maintains state across multiple interactions.
-
-```typescript
-import { jules } from 'modjules';
-
 const session = await jules.session({
   prompt: 'Refactor the user authentication module.',
   source: { github: 'your-org/your-repo', branch: 'develop' },
 });
 
 console.log(`Session created: ${session.id}`);
-console.log('Waiting for the agent to generate a plan...');
 
-// Wait for the specific state where the plan is ready for review
 await session.waitFor('awaitingPlanApproval');
 console.log('Plan is ready. Approving it now.');
 await session.approve();
 
-// Ask a follow-up question
 const reply = await session.ask(
   'Start with the first step and let me know when it is done.',
 );
 console.log(`[AGENT] ${reply.message}`);
 
-// Wait for the final result of the session
 const outcome = await session.result();
-console.log(`✅ Session finished with state: ${outcome.state}`);
+console.log(`Session finished with state: ${outcome.state}`);
 ```
 
-## Deep Dive
+### Local Querying
+
+The local cache can be queried instantly without network latency.
+
+```typescript
+const errors = await session.select({
+  type: 'sessionFailed',
+  limit: 10,
+});
+```
 
 ### Reactive Streams
 
-Sessions progress is observed through the `.stream()` method that is available on both the `AutomatedSession` and `SessionClient` objects. An `AutomatedSession` is created via `jules.run()` and a `SessionClient` is create via `jules.session()`. The `.stream()` method returns an `AsyncIterator` to observe the agent's progress.
+The `.stream()` method returns an `AsyncIterator` to observe the agent's progress.
 
 ```typescript
 for await (const activity of session.stream()) {
@@ -226,62 +171,58 @@ for await (const activity of session.stream()) {
 }
 ```
 
-### Artifacts (change sets, bash outputs, images)
+### Artifacts
 
-Session progress is represented through an `Activity` object. Activities can contain artifacts, such as code changes (`changeSet`), shell output (`bashOutput`), or images (`media`). The SDK provides rich objects with helper methods for interacting with them.
+Activities can contain artifacts: code changes (`changeSet`), shell output (`bashOutput`), or images (`media`).
 
 ```typescript
-// (Inside a stream loop)
 for (const artifact of activity.artifacts) {
   if (artifact.type === 'bashOutput') {
-    // The .toString() helper formats the command, output, and exit code
     console.log(artifact.toString());
   }
+  if (artifact.type === 'changeSet') {
+    const parsed = artifact.parsed();
+    for (const file of parsed.files) {
+      console.log(`${file.path}: +${file.additions} -${file.deletions}`);
+    }
+  }
   if (artifact.type === 'media' && artifact.format === 'image/png') {
-    // The .save() helper works in both Node.js and browser environments
     await artifact.save(`./screenshots/${activity.id}.png`);
-
-    // Get a URL for display or download (works cross-platform)
-    const url = artifact.toUrl();
-    console.log('Screenshot URL:', url);
   }
 }
 ```
 
-### Configuration
+### Cross-Platform
 
-You can configure timeouts and polling intervals by creating a configured client.
-
-#### Multiple API Keys
+Works in Node.js (filesystem caching) and browser (IndexedDB).
 
 ```typescript
+// Node.js - default
 import { jules } from 'modjules';
 
-// The default jules client initialized with process.env.JULES_API_KEY
-const session = jules.session('<session-id-here>');
-
-// Initializes a jules client with another API key
-const customJules = jules.with({ apiKey: 'other-api-key' });
-const session = customJules.session('<session-id-here>');
+// Browser - test only, never expose API keys in production
+import { jules } from 'modjules/browser';
+const testJules = jules.with({
+  apiKey_TEST_ONLY_DO_NOT_USE_IN_PRODUCTION: '...',
+});
 ```
 
-#### Polling & Timeouts
+For production browser apps, use [`@modjules/server`](./packages/server) to proxy requests.
+
+### Configuration
 
 ```typescript
-import { jules } from 'modjules';
+// Multiple API keys
+const customJules = jules.with({ apiKey: 'other-api-key' });
 
+// Polling & timeouts
 const customJules = jules.with({
-  pollingIntervalMs: 2000, // Poll every 2 seconds
-  requestTimeoutMs: 60000, // 1 minute request timeout
+  pollingIntervalMs: 2000,
+  requestTimeoutMs: 60000,
 });
-
-// Use the jules client the same as the default
-const session = jules.session('<session-id-here>');
 ```
 
 ### Error Handling
-
-The SDK throws custom errors that extend a base `JulesError`. This makes it easy to catch all SDK-related exceptions.
 
 ```typescript
 import { jules, JulesError } from 'modjules';
@@ -290,34 +231,88 @@ try {
   const session = await jules.session({ ... });
 } catch (error) {
   if (error instanceof JulesError) {
-    console.error(`An SDK error occurred: ${error.message}`);
-  } else {
-    console.error(`An unexpected error occurred: ${error}`);
+    console.error(`SDK error: ${error.message}`);
   }
 }
 ```
 
-## API Overview
+### Autonomous CI
 
-This is a high-level overview of the main SDK components.
+Report CI results back to Jules. When Jules creates a PR, your CI can send test failures or build errors back so Jules can iterate.
+
+```typescript
+// scripts/ci-report.ts
+import { jules } from 'modjules';
+
+const prBody = process.env.PR_BODY;
+const testOutput = process.env.TEST_OUTPUT;
+
+// Parse session ID from Jules PR body
+const sessionId = prBody.match(/session[\/:](\d+)/i)?.[1];
+if (!sessionId) process.exit(0);
+
+const session = await jules.session(sessionId);
+await session.send(`CI failed. Here's the output:\n\n${testOutput}`);
+```
+
+```yaml
+# .github/workflows/ci.yml
+- name: Report to Jules
+  if: failure() && github.event.pull_request.user.login == 'google-labs-jules[bot]'
+  env:
+    JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+    PR_BODY: ${{ github.event.pull_request.body }}
+    TEST_OUTPUT: ${{ steps.test.outputs.log }}
+  run: npx tsx scripts/ci-report.ts
+```
+
+### MCP Tools Reference
+
+| Tool                     | Description                  |
+| ------------------------ | ---------------------------- |
+| `jules_create_session`   | Start a new Jules task       |
+| `jules_session_state`    | Check status, get PR links   |
+| `jules_session_files`    | See what files changed       |
+| `jules_get_code_changes` | Review code diffs            |
+| `jules_get_bash_outputs` | See test results, build logs |
+| `jules_interact`         | Approve plans, ask questions |
+| `jules_sync`             | Pull latest into cache       |
+| `jules_select`           | Query cached data            |
+
+### API Overview
 
 - **Core:**
   - `jules`: The pre-initialized client.
   - `jules.with(options)`: Creates a new client with custom configuration.
-  - `jules.session()`: Creates or rehydrates a session. Returns a `SessionClient`.
+  - `jules.run(options)`: Creates an automated session.
+  - `jules.session(options)`: Creates or rehydrates an interactive session.
+  - `jules.all(items, mapFn, options)`: Batch processing.
 - **Session Control:**
   - `session.ask()`: Sends a message and awaits the agent's reply.
   - `session.send()`: Sends a fire-and-forget message.
   - `session.approve()`: Approves a pending plan.
   - `session.waitFor()`: Pauses until the session reaches a specific state.
-  - `session.waitForCompletion()`: Awaits the final outcome of the session.
+  - `session.result()`: Awaits the final outcome.
 - **Observation:**
-  - `session.stream()`: Returns an async iterator of all activities (history + live).
-  - `session.history()`: Returns a stream of locally cached activities.
-  - `session.updates()`: Returns a stream of live activities from the network.
-  - `session.select(query)`: Queries the local activity cache.
-  - `session.info()`: Fetches the latest session state.
-- **Artifact Management:**
-  - `artifact.save()`: Decodes the base64 `data` and saves it. In Node.js, it writes to the filesystem. In the browser, it saves to IndexedDB.
-  - `artifact.toUrl()`: Returns a `data:` URI for the artifact data, usable in both Node.js and browser.
-  - `artifact.toString()`: Returns a formatted string that combines the command, exit code, `stdout`, and `stderr`, to simplify log display.
+  - `session.stream()`: Async iterator of all activities.
+  - `session.history()`: Stream of cached activities.
+  - `session.updates()`: Stream of live activities.
+  - `session.select(query)`: Query local cache.
+  - `session.info()`: Fetch latest session state.
+- **Artifacts:**
+  - `artifact.save()`: Save to filesystem or IndexedDB.
+  - `artifact.toUrl()`: Get data URI.
+  - `artifact.toString()`: Formatted output for bash artifacts.
+  - `artifact.parsed()`: Structured diff parsing for changesets.
+
+### Packages
+
+| Package                                 | Description |
+| --------------------------------------- | ----------- |
+| [`modjules`](./packages/core)           | Core SDK    |
+| [`@modjules/mcp`](./packages/mcp)       | MCP server  |
+| [`@modjules/server`](./packages/server) | Auth proxy  |
+
+## License
+
+ISC
