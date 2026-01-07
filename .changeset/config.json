@@ -18,6 +18,7 @@
     "nextjs",
     "modjules-example-proxy-firebase",
     "example-proxy-hono",
-    "modjules-example"
+    "modjules-example",
+    "example-*"
   ]
 }
