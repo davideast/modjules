@@ -5,17 +5,19 @@
     { "repo": "davideast/modjules" }
   ],
   "commit": false,
-  "fixed": [
-    "modjules",
-    "@modjules/server",
-    "@modjules/firebase",
-    "@modjules/mcp",
-    "@modjules/llm",
-    "@modjules/github"
-  ],
+  "fixed": [["modjules", "@modjules/server", "@modjules/mcp"]],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": []
+  "ignore": [
+    "proxy-gas",
+    "simple-express-rbac",
+    "activities-visualized",
+    "jules-agent",
+    "nextjs",
+    "modjules-example-proxy-firebase",
+    "example-proxy-hono",
+    "modjules-example"
+  ]
 }

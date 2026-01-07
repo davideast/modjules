@@ -1,6 +1,6 @@
 {
   "name": "modjules",
-  "version": "0.1.1",
+  "version": "0.2.0-beta.0",
   "type": "module",
   "description": "The agent-ready SDK for Jules.",
   "repository": "davideast/modjules",
