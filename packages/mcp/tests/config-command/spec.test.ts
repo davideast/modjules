@@ -10,7 +10,10 @@ import * as inquirer from '@inquirer/prompts';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SPEC_FILE = path.resolve(__dirname, '../../spec/config-command/cases.yaml');
+const SPEC_FILE = path.resolve(
+  __dirname,
+  '../../spec/config-command/cases.yaml',
+);
 
 // Mock dependencies that cause side effects
 vi.mock('../../src/config.js', () => ({
@@ -59,13 +62,18 @@ describe('MCP Config Command Spec', async () => {
 
   let mockConsoleLog: ReturnType<typeof vi.spyOn>;
   let mockConsoleError: ReturnType<typeof vi.spyOn>;
-  let mockProcessExit: ReturnType<typeof vi.spyOn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockProcessExit: any;
 
   beforeEach(() => {
     // Spy on console and process.exit to capture output and prevent test termination
     mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
     mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    mockProcessExit = vi.spyOn(process, 'exit').mockImplementation((() => {}) as (code?: number) => never);
+    mockProcessExit = vi
+      .spyOn(process, 'exit')
+      .mockImplementation((() => {}) as (
+        code?: string | number | null | undefined,
+      ) => never);
     vi.clearAllMocks();
   });
 
