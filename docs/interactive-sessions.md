@@ -1,11 +1,10 @@
 # Interactive Sessions
 
-When you need to guide, observe, or collaborate with an agent, you need an interactive session. This is for building chatbots, IDE extensions, or any workflow where a human is in the loop. `jules.session()` is the tool for this. It gives you a `SessionClient` to control the conversation.
+When you need to guide, observe, or collaborate with an agent, you need an interactive session. `jules.session()` is the tool for this. It gives you a `SessionClient` to control the conversation.
 
 ## Example: A Full Conversation
 
 This example shows a common interactive workflow:
-
 1.  Start a session.
 2.  Wait for the agent to generate a plan.
 3.  Approve the plan.
@@ -18,30 +17,19 @@ import { jules } from 'modjules';
 async function collaborativeRefactor() {
   const session = await jules.session({
     prompt:
-      'Refactor the user service to use the new database connection pool. First, create a plan for me to review.',
+      'Refactor the user service. First, create a plan for me to review.',
     source: { github: 'your-org/your-repo', branch: 'feature/db-pool' },
   });
 
   console.log(`[START] Session created: ${session.id}`);
 
-  // It's often useful to stream all events in the background
-  // so you can see what's happening.
-  const streamEvents = async () => {
-    for await (const activity of session.stream()) {
-      if (activity.type === 'progressUpdated') {
-        console.log(`[PROGRESS] ${activity.title}`);
-      }
-    }
-  };
-  streamEvents(); // Run in the background, don't await
-
   // 1. Wait for the agent to create the plan
   await session.waitFor('awaitingPlanApproval');
-  console.log('[ACTION] Plan is ready for review.');
+  console.log('[ACTION] Plan is ready. Approving...');
 
   // 2. Approve the plan
   await session.approve();
-  console.log('[USER] Plan approved. Proceeding with execution.');
+  console.log('[USER] Plan approved.');
 
   // 3. Ask a follow-up question
   const reply = await session.ask(
@@ -49,44 +37,89 @@ async function collaborativeRefactor() {
   );
   console.log(`[AGENT] ${reply.message}`);
 
-  // 4. Wait for the final outcome of the session
+  // 4. Wait for the final outcome
   const result = await session.result();
   console.log(`[END] Session finished with state: ${result.state}`);
-
-  if (result.pullRequest) {
-    console.log(`PR is available at: ${result.pullRequest.url}`);
-  }
 }
-
-collaborativeRefactor();
 ```
 
-## The `SessionClient`
+---
 
-The `jules.session()` method returns a `SessionClient`. This is your main tool for interacting with the agent. Here are the key methods:
+## Reference: `SessionClient` API
 
-### Controlling the Flow
+The `jules.session()` method returns a `SessionClient` object. This is your main tool for interacting with the agent.
 
-- `session.approve()`: Approves a pending plan and allows the agent to start working.
-- `session.waitFor(state)`: Pauses your script until the session reaches a specific state, like `'awaitingPlanApproval'` or `'completed'`.
+### `session.id`
+- **Type**: `string`
+- The unique identifier for the session.
 
-### Communicating with the Agent
+---
+### `session.approve()`
+- **Signature**: `approve(): Promise<void>`
+- **Description**: Approves a pending plan and allows the agent to begin executing it. This is only needed if the session was created with `requirePlanApproval: true` (the default for `jules.session()`).
 
-- `session.ask(message)`: Sends a message and waits for the agent's next message in response. Use this for question/answer flows.
-- `session.send(message)`: Sends a "fire-and-forget" message. Your script won't wait for a reply. Use this to provide instructions or information.
+---
+### `session.ask()`
+- **Signature**: `ask(message: string): Promise<ActivityAgentMessaged>`
+- **Description**: Sends a message to the session and waits for the agent to send a message back. It returns a promise that resolves with the agent's reply.
+- **Returns**: An `Activity` object of type `agentMessaged`.
+  ```json
+  {
+    "type": "agentMessaged",
+    "message": "The files affected will be user-service.ts and user-controller.ts."
+  }
+  ```
 
-### Observing the Session
+---
+### `session.send()`
+- **Signature**: `send(message: string): Promise<void>`
+- **Description**: Sends a "fire-and-forget" message to the session. Your script will not wait for a reply. This is useful for providing instructions or information without needing a direct response.
 
-- `session.stream()`: Returns an `AsyncIterator` of all activities in the session. This is the best way to get a real-time view of everything the agent is doing.
-- `session.info()`: Fetches the latest snapshot of the session's state and metadata.
+---
+### `session.stream()`
+- **Signature**: `stream(): AsyncIterable<Activity>`
+- **Description**: Returns an `AsyncIterator` that yields all activities in the session. It first streams all historical activities from the local cache and then stays open to stream live updates from the network.
 
-### Getting the Final Outcome
+---
+### `session.waitFor()`
+- **Signature**: `waitFor(targetState: SessionState): Promise<void>`
+- **Description**: Polls the session until it reaches a specific `SessionState`.
+- **`SessionState` values**: `'unspecified'`, `'creating'`, `'inProgress'`, `'awaitingPlanApproval'`, `'completed'`, `'failed'`.
 
-- `session.result()`: A promise that resolves with the final outcome of the session once it has completed or failed.
+---
+### `session.info()`
+- **Signature**: `info(): Promise<SessionResource>`
+- **Description**: Fetches the latest snapshot of the session's state, metadata, and outputs from the network.
+- **Returns**: A `SessionResource` object.
+  ```json
+  {
+    "id": "12345",
+    "state": "inProgress",
+    "prompt": "Refactor the user service...",
+    "pullRequest": null
+  }
+  ```
 
-## Resuming an Existing Session
+---
+### `session.result()`
+- **Signature**: `result(): Promise<SessionResource>`
+- **Description**: Waits for the session to reach a terminal state (`completed` or `failed`) and returns the final outcome.
+- **Returns**: A `SessionResource` object containing the final state and any outputs, such as a pull request.
+  ```json
+  {
+    "id": "12345",
+    "state": "completed",
+    "prompt": "Refactor the user service...",
+    "pullRequest": {
+      "url": "https://github.com/your-org/your-repo/pull/123",
+      "number": 123
+    }
+  }
+  ```
 
-If you have a session ID, you can reconnect to it from anywhere. This is useful for building applications where the user might close a window and come back later.
+---
+## Resuming a Session
+If you have a session ID, you can get a client to reconnect to it.
 
 ```typescript
 const sessionId = 'some-existing-session-id';
@@ -95,7 +128,6 @@ const sessionId = 'some-existing-session-id';
 // to control the existing one.
 const session = jules.session(sessionId);
 
-// Now you can interact with it
 const info = await session.info();
-console.log(`Reconnected to session. Current state: ${info.state}`);
+console.log(`Reconnected. Current state: ${info.state}`);
 ```
