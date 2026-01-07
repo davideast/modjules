@@ -33,6 +33,7 @@
     "prepare": "husky",
     "changeset": "changeset",
     "release": "changeset publish",
+    "release:next": "npm run build -- --force && changeset publish --tag next",
     "mcp-server": "bun packages/core/src/mcp/cli.ts",
     "monitor": "bun scripts/monitor.ts",
     "spec:pending": "grep -B2 'status: pending' spec/sync/cases.yaml | grep -E '^- id:|description:'",
