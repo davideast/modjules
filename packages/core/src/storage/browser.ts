@@ -29,10 +29,7 @@ export class BrowserStorage implements ActivityStorage {
                 keyPath: 'id',
               });
               // Index to efficiently find the latest activity for a session
-              store.createIndex('sessionTimestamp', [
-                'sessionId',
-                'createTime',
-              ]);
+              store.createIndex('sessionTimestamp', 'sessionTimestamp');
             }
           }
           // Ensure artifacts store exists if we are upgrading to v2 or from scratch
@@ -83,8 +80,12 @@ export class BrowserStorage implements ActivityStorage {
     const db = await this.getDb();
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-    // Add sessionId to the object for indexing
-    const storableActivity = { ...activity, sessionId: this.sessionId };
+    // Add a compound key for indexing
+    const storableActivity = {
+      ...activity,
+      sessionId: this.sessionId,
+      sessionTimestamp: `${this.sessionId}-${activity.createTime}`,
+    };
     await store.put(storableActivity);
     await tx.done;
   }
@@ -95,9 +96,10 @@ export class BrowserStorage implements ActivityStorage {
   async get(activityId: string): Promise<Activity | undefined> {
     const db = await this.getDb();
     const activity = await db.get(STORE_NAME, activityId);
-    // Strip sessionId before returning
+    // Strip internal properties before returning
     if (activity) {
       delete (activity as any).sessionId;
+      delete (activity as any).sessionTimestamp;
     }
     return activity as Activity | undefined;
   }
@@ -117,8 +119,8 @@ export class BrowserStorage implements ActivityStorage {
 
     // Create a key range for just this session
     const range = IDBKeyRange.bound(
-      [this.sessionId, ''],
-      [this.sessionId, new Date(8640000000000000).toISOString()],
+      `${this.sessionId}-`,
+      `${this.sessionId}-\uffff`,
     );
 
     const cursor = await index.openCursor(range, 'prev');
@@ -126,9 +128,10 @@ export class BrowserStorage implements ActivityStorage {
       return undefined;
     }
     const activity = cursor.value;
-    // Strip sessionId before returning
+    // Strip internal properties before returning
     if (activity) {
       delete (activity as any).sessionId;
+      delete (activity as any).sessionTimestamp;
     }
     return activity as Activity | undefined;
   }
@@ -143,8 +146,8 @@ export class BrowserStorage implements ActivityStorage {
     const index = store.index('sessionTimestamp');
 
     const range = IDBKeyRange.bound(
-      [this.sessionId, ''],
-      [this.sessionId, new Date(8640000000000000).toISOString()],
+      `${this.sessionId}-`,
+      `${this.sessionId}-\uffff`,
     );
 
     let cursor = await index.openCursor(range, 'next');
@@ -153,6 +156,7 @@ export class BrowserStorage implements ActivityStorage {
       const activity = cursor.value;
       if (activity) {
         delete (activity as any).sessionId;
+        delete (activity as any).sessionTimestamp;
       }
       yield activity as Activity;
       cursor = await cursor.continue();
