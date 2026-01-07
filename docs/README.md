@@ -1,23 +1,41 @@
-# Jules SDK Documentation
+# modjules Docs
 
-Welcome to the documentation for the Jules SDK. These guides provide a practical overview of how to use the SDK to build powerful applications with Jules.
+A programmable SDK and MCP server for agents, IDEs, and CLIs.
+
+```typescript
+import { jules } from 'modjules';
+
+const session = await jules.session({
+  prompt: `Fix visibility issues in the examples/nextjs app.`,
+  source: { github: 'davideast/modjules', branch: 'main' },
+  autoPr: true,
+});
+
+for await (const activity of session.stream()) {
+  if (activity.type === 'progressUpdated') {
+    console.log(`[BUSY] ${activity.title}`);
+  }
+}
+```
 
 ## Table of Contents
 
-- **[Getting Started](./getting-started.md)**
-  - Learn how to install and initialize the SDK, and understand the core concepts of automated runs and interactive sessions.
-
-- **[Local-first Synchronization](./local-first.md)**
-  - An explanation of the local-first synchronization engine and its benefits.
-
-- **[Automated Runs](./automated-runs.md)**
-  - A detailed guide to using `jules.run()` for "fire-and-forget" tasks and handling the `AutomatedSession` object.
-
-- **[Interactive Sessions](./interactive-sessions.md)**
-  - Learn how to create, resume, and interact with conversational sessions using the `SessionClient`.
-
-- **[Understanding Activities](./activity.md)**
-  - An overview of the different types of `Activity` objects you'll encounter when streaming a session.
-
-- **[Working with Artifacts](./artifacts.md)**
-  - A guide to the rich artifact types, `MediaArtifact` and `BashArtifact`, and how to use their special helper methods.
+- **SDK: Core Concepts**
+  - [Getting Started](./getting-started.md)
+  - [Sessions](./sessions.md)
+  - [Activities](./activity.md)
+  - [Artifacts](./artifacts.md)
+- **SDK: Usage Patterns**
+  - [Automated Runs](./automated-runs.md)
+  - [Interactive Sessions](./interactive-sessions.md)
+  - [Batch Processing](./batch-processing.md)
+- **MCP Server**
+  - [Configuration](./mcp-configuration.md)
+  - [Practical Use Cases](./mcp-use-cases.md)
+  - [Client Integrations](./mcp-integrations.md)
+  - [Composing Servers](./mcp-composing-servers.md)
+  - [Tool Reference](./mcp-tool-reference.md)
+- **Advanced**
+  - [Local-First Cache](./local-first.md)
+  - [Browser Usage](./browser.md)
+  - [Secure Proxy Server](./PROXY.md)
