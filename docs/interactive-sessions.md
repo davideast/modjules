@@ -1,152 +1,101 @@
-# Jules SDK: Interactive Sessions
+# Interactive Sessions
 
-The interactive session mode is designed for conversational workflows where you need to collaborate with the Jules agent. This mode provides you with a `SessionClient` object, which is your primary tool for sending messages, approving plans, and streaming real-time updates from the agent.
+When you need to guide, observe, or collaborate with an agent, you need an interactive session. This is for building chatbots, IDE extensions, or any workflow where a human is in the loop. `jules.session()` is the tool for this. It gives you a `SessionClient` to control the conversation.
 
-## Creating or Resuming a Session
+## Example: A Full Conversation
 
-You can start a new interactive session or get a client for an existing one using the `jules.session()` method.
+This example shows a common interactive workflow:
 
-### Starting a New Session
-
-To start a new session, provide a `SessionConfig` object. By default, new interactive sessions will require you to approve the agent's plan before it begins work.
+1.  Start a session.
+2.  Wait for the agent to generate a plan.
+3.  Approve the plan.
+4.  Ask a follow-up question.
+5.  Wait for the final result.
 
 ```typescript
 import { jules } from 'modjules';
 
-async function createNewSession() {
+async function collaborativeRefactor() {
   const session = await jules.session({
-    prompt: "Let's refactor the user authentication flow.",
-    source: {
-      github: 'my-org/my-repo',
-      branch: 'develop',
-    },
+    prompt:
+      'Refactor the user service to use the new database connection pool. First, create a plan for me to review.',
+    source: { github: 'your-org/your-repo', branch: 'feature/db-pool' },
   });
 
-  console.log(`New session created with ID: ${session.id}`);
-  // Now you can use the 'session' object to interact with the agent
-}
-```
+  console.log(`[START] Session created: ${session.id}`);
 
-### Resuming an Existing Session
+  // It's often useful to stream all events in the background
+  // so you can see what's happening.
+  const streamEvents = async () => {
+    for await (const activity of session.stream()) {
+      if (activity.type === 'progressUpdated') {
+        console.log(`[PROGRESS] ${activity.title}`);
+      }
+    }
+  };
+  streamEvents(); // Run in the background, don't await
 
-If you already have a session ID, you can get a `SessionClient` for it directly. This is useful for reconnecting to a session in a different part of your application or after a restart.
+  // 1. Wait for the agent to create the plan
+  await session.waitFor('awaitingPlanApproval');
+  console.log('[ACTION] Plan is ready for review.');
 
-```typescript
-const existingSessionId = 'YOUR_EXISTING_SESSION_ID';
-const session = jules.session(existingSessionId);
-
-console.log(`Resumed session with ID: ${session.id}`);
-// The 'session' object is ready to be used
-```
-
-## Interacting with the SessionClient
-
-Once you have a `SessionClient` instance, you can use its methods to interact with the session.
-
-## Methods
-
-### `stream(options?: StreamActivitiesOptions)`
-
-Returns an `AsyncIterable<Activity>` that allows you to stream all activities in a session as they happen. This is the primary way to get real-time updates from a session.
-
-**Example:**
-
-```typescript
-for await (const activity of session.stream()) {
-  console.log(activity);
-}
-```
-
-You can also filter the stream. For example, to only receive messages from the agent:
-
-```typescript
-for await (const activity of session.stream({
-  exclude: { originator: 'user' },
-})) {
-  if (activity.type === 'agentMessaged') {
-    console.log('Agent message:', activity.message);
-  }
-}
-```
-
-### `approve()`
-
-Approves a plan that is in the `awaitingPlanApproval` state. This is only necessary if the session was created with `requirePlanApproval: true`.
-
-**Example:**
-
-```typescript
-const sessionInfo = await session.info();
-if (sessionInfo.state === 'awaitingPlanApproval') {
+  // 2. Approve the plan
   await session.approve();
-}
-```
+  console.log('[USER] Plan approved. Proceeding with execution.');
 
-### `send(prompt: string)`
+  // 3. Ask a follow-up question
+  const reply = await session.ask(
+    'While you work, can you tell me which files will be affected?',
+  );
+  console.log(`[AGENT] ${reply.message}`);
 
-Sends a message to the session and does not wait for a reply. This is useful for fire-and-forget interactions where you don't need an immediate response from the agent.
+  // 4. Wait for the final outcome of the session
+  const result = await session.result();
+  console.log(`[END] Session finished with state: ${result.state}`);
 
-**Example:**
-
-```typescript
-await session.send('Please continue.');
-```
-
-### `ask(prompt: string)`
-
-Sends a message to the session and waits for the next message from the agent. It returns a promise that resolves with the agent's message (`ActivityAgentMessaged`). This is the most common way to have a back-and-forth conversation with the agent.
-
-**Example:**
-
-```typescript
-const agentResponse = await session.ask('What is the next step?');
-console.log('Agent response:', agentResponse.message);
-```
-
-### `send()` vs. `ask()`
-
-- `send()` is asynchronous. It sends a message and immediately returns, without waiting for the agent to process or respond. You would typically use `stream()` to see the agent's response and other activities.
-- `ask()` is synchronous in nature. It sends a message and blocks until the agent sends a message back, which it then returns. It's a simpler way to interact with the agent when you expect a direct reply.
-
-Choose `send()` when you want to provide information or commands without needing an immediate answer. Choose `ask()` when you are having a conversational exchange with the agent.
-
-### `result()`
-
-Waits for the session to complete (either successfully or with a failure) and returns the final outcome. The `Outcome` will contain information about the final state and any artifacts produced, such as pull requests.
-
-**Example:**
-
-```typescript
-const outcome = await session.result();
-if (outcome.state === 'completed') {
-  console.log('Session completed successfully.');
-  if (outcome.pullRequest) {
-    console.log('Pull request created:', outcome.pullRequest.url);
+  if (result.pullRequest) {
+    console.log(`PR is available at: ${result.pullRequest.url}`);
   }
-} else {
-  console.error('Session failed:', outcome.error);
 }
+
+collaborativeRefactor();
 ```
 
-### `waitFor(targetState: SessionState)`
+## The `SessionClient`
 
-Polls the session until it reaches a specific `SessionState` (e.g., `'inProgress'`, `'completed'`). This is useful when you need to wait for the session to reach a certain point in its lifecycle before proceeding.
+The `jules.session()` method returns a `SessionClient`. This is your main tool for interacting with the agent. Here are the key methods:
 
-**Example:**
+### Controlling the Flow
+
+- `session.approve()`: Approves a pending plan and allows the agent to start working.
+- `session.waitFor(state)`: Pauses your script until the session reaches a specific state, like `'awaitingPlanApproval'` or `'completed'`.
+
+### Communicating with the Agent
+
+- `session.ask(message)`: Sends a message and waits for the agent's next message in response. Use this for question/answer flows.
+- `session.send(message)`: Sends a "fire-and-forget" message. Your script won't wait for a reply. Use this to provide instructions or information.
+
+### Observing the Session
+
+- `session.stream()`: Returns an `AsyncIterator` of all activities in the session. This is the best way to get a real-time view of everything the agent is doing.
+- `session.info()`: Fetches the latest snapshot of the session's state and metadata.
+
+### Getting the Final Outcome
+
+- `session.result()`: A promise that resolves with the final outcome of the session once it has completed or failed.
+
+## Resuming an Existing Session
+
+If you have a session ID, you can reconnect to it from anywhere. This is useful for building applications where the user might close a window and come back later.
 
 ```typescript
-// Wait for the agent to start working
-await session.waitFor('inProgress');
-console.log('Session is now in progress.');
-```
+const sessionId = 'some-existing-session-id';
 
-### `info()`
+// This doesn't create a new session, it just gives you a client
+// to control the existing one.
+const session = jules.session(sessionId);
 
-Retrieves the latest information about the session, including its current state, metadata, and any outputs.
-
-**Example:**
-
-```typescript
-const sessionInfo = await session.info();
-console.log('Current session state:', sessionInfo.state);
+// Now you can interact with it
+const info = await session.info();
+console.log(`Reconnected to session. Current state: ${info.state}`);
 ```

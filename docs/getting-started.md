@@ -1,69 +1,93 @@
 # Getting Started
 
-## Installation
+This guide will get you from zero to your first running `modjules` session in a few minutes.
+
+First, install the SDK and set your API key.
 
 ```bash
 npm install modjules
-# OR
-bun add modjules
+export JULES_API_KEY=<your-api-key>
 ```
 
-## Initialization
-
-The library provides a default `JulesClient` that initializes with the `process.env.JULES_API_KEY` environment variable. If you need to use multiple keys you can customize the client through the `.with()` method.
+Now, create a file named `index.ts` and add the following code. This example starts a new session to refactor some code in a GitHub repository and streams the progress to your console.
 
 ```typescript
+// index.ts
 import { jules } from 'modjules';
 
-console.log(jules); // default client automatically initializes with `process.env.JULES_API_KEY`
-const custom = jules.with({ apiKey: '<other-api-key>' }); // create a custom client
-```
+async function main() {
+  const session = await jules.session({
+    prompt: 'Refactor the main entry point to be more modular.',
+    source: { github: 'your-org/your-repo', branch: 'main' },
+  });
 
-## Core Concepts: Two Ways to Use Jules
+  console.log(`[START] Session ${session.id} started.`);
 
-The Jules SDK is designed to support two primary modes of operation:
-
-1.  **Automated Mode (`jules.run()`):** Ideal for "fire-and-forget" tasks. You provide a prompt and context, and Jules works autonomously to complete the task and deliver a final result. This is perfect for CI/CD pipelines or other automated workflows.
-    - **Learn more:** [Automated Runs Guide](./automated-runs.md)
-
-2.  **Interactive Mode (`jules.session()`):** Designed for conversational workflows where you need to guide, approve, or interact with the agent. This mode gives you a `SessionClient` that you can use to have a back-and-forth conversation, approve plans, and stream real-time updates.
-    - **Learn more:** [Interactive Sessions Guide](./interactive-sessions.md)
-
-## Finding Your Sources
-
-Before you can start a session or a run, you need to know which source repositories are available to you. The `jules.sources` manager makes this easy.
-
-You can list all your connected sources like this:
-
-```typescript
-async function listSources() {
-  for await (const source of jules.sources()) {
-    if (source.type === 'githubRepo') {
-      console.log(
-        `Found GitHub repo: ${source.githubRepo.owner}/${source.githubRepo.repo}`,
-      );
+  for await (const activity of session.stream()) {
+    if (activity.type === 'progressUpdated') {
+      console.log(`[BUSY] ${activity.title}`);
+    }
+    if (activity.type === 'sessionCompleted') {
+      console.log('[DONE] Session finished.');
     }
   }
-}
 
-listSources();
-```
-
-Or, you can find a specific source by its GitHub identifier:
-
-```typescript
-async function findSpecificSource() {
-  const sourceIdentifier = 'your-org/your-repo';
-  const myRepo = await jules.sources.get({ github: sourceIdentifier });
-
-  if (myRepo) {
-    console.log(`Successfully found source: ${myRepo.name}`);
-  } else {
-    console.log(`Could not find source for ${sourceIdentifier}`);
+  const { pullRequest } = await session;
+  if (pullRequest) {
+    console.log(`PR available at ${pullRequest.url}`);
   }
 }
 
-findSpecificSource();
+main();
 ```
 
-With a source in hand, you are now ready to start either an automated run or an interactive session.
+Run the script from your terminal:
+
+```bash
+npx tsx index.ts
+```
+
+You should see progress updates logged to your console as Jules works on the task.
+
+## Two Ways to Use modjules
+
+The SDK is designed for two main workflows: automated tasks and interactive sessions.
+
+### Automated Runs
+
+Use `jules.run()` for "fire-and-forget" tasks where you don't need to provide feedback. It's perfect for CI scripts, batch jobs, or other automated processes. It returns a promise that resolves with the final result.
+
+```typescript
+const result = await jules.run({
+  prompt: 'Update all dependencies to their latest versions.',
+  source: { github: 'your-org/your-repo', branch: 'develop' },
+  autoPr: true,
+});
+
+console.log(`Run complete. PR: ${result.pullRequest?.url}`);
+```
+
+**[Dive deeper into Automated Runs &raquo;](./automated-runs.md)**
+
+### Interactive Sessions
+
+Use `jules.session()` when you want to observe, guide, or interact with the agent. It returns a `SessionClient` that lets you have a conversation, approve plans, and handle complex, multi-step tasks.
+
+```typescript
+const session = await jules.session({
+  prompt: 'First, show me a plan for the refactor.',
+  source: { github: 'your-org/your-repo', branch: 'feature-branch' },
+});
+
+// Wait for the plan...
+await session.waitFor('awaitingPlanApproval');
+
+// ...then approve it
+await session.approve();
+
+// Now, wait for the final result
+const result = await session.result();
+console.log(`Session complete with state: ${result.state}`);
+```
+
+**[Dive deeper into Interactive Sessions &raquo;](./interactive-sessions.md)**

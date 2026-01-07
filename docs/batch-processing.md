@@ -1,86 +1,62 @@
-# Batch Processing with `jules.all()`
+# Batch Processing
 
-The `jules.all()` method allows you to process a batch of data items by mapping them to session configurations and executing them concurrently. It is designed to be a familiar, "JavaScript-native" experience, similar to `Promise.all()` or `Array.map()`.
+Got a list of 50 bugs to fix, 100 files to refactor, or a spreadsheet of prompts to run? `jules.all()` is the tool for running the same task across a large list of items.
 
-## Why `jules.all`?
+It works like a `Promise.all()` combined with `Array.map()`, running a Jules session for each item in an array, with built-in concurrency control.
 
-When building automation workflows, you often start with a list of items—GitHub issues, database rows, or TODO comments—that you want to process with Jules.
+## Example: Fixing a List of Bugs
 
-Instead of manually managing a loop, concurrency limits, and result mapping, `jules.all` handles the orchestration for you.
-
-### Key Features
-
-1.  **Order Preservation**: The returned array of results matches the order of the input array, regardless of which session finishes first.
-2.  **Concurrency Control**: Limits the number of parallel sessions to avoid hitting rate limits.
-3.  **Promise Semantics**: Returns a standard Promise, compatible with `await`, `Promise.all`, and `Promise.allSettled`.
-
-## Basic Usage
-
-The simplest usage takes an array of data and a mapper function.
+Imagine you have a list of tracked bugs you want Jules to fix. `jules.all()` can create a session for each one.
 
 ```javascript
 import { jules } from 'modjules';
 
-const issues = [
-  { id: 1, title: 'Fix login page' },
-  { id: 2, title: 'Update documentation' },
-  { id: 3, title: 'Optimize database queries' },
+const bugs = [
+  { id: 123, title: 'Login button unresponsive on mobile' },
+  { id: 124, title: 'User profile pictures are not loading' },
+  { id: 125, title: 'API returns 500 error on password reset' },
 ];
 
-const sessions = await jules.all(issues, (issue) => ({
-  prompt: `Fix issue #${issue.id}: ${issue.title}`,
-  source: { github: 'my-org/my-repo', branch: 'main' },
-}));
+async function fixAllBugs() {
+  console.log(`Starting a batch job to fix ${bugs.length} bugs.`);
 
-console.log(`Started ${sessions.length} sessions.`);
+  // jules.all takes the array and a "mapper" function
+  // that returns a session configuration for each item.
+  const results = await jules.all(bugs, (bug) => ({
+    prompt: `Fix issue #${bug.id}: ${bug.title}`,
+    source: { github: 'my-org/my-repo', branch: 'main' },
+    autoPr: true,
+  }));
+
+  console.log('Batch job complete.');
+  results.forEach((result, index) => {
+    if (result.pullRequest) {
+      console.log(`- Bug #${bugs[index].id}: ${result.pullRequest.url}`);
+    } else {
+      console.log(`- Bug #${bugs[index].id}: Failed to generate a PR.`);
+    }
+  });
+}
+
+fixAllBugs();
 ```
 
-## Advanced Configuration
+## Why Use `jules.all()`?
 
-You can control the execution behavior with the optional third argument.
+Instead of writing a manual `for` loop, `jules.all()` handles the tricky parts of batch processing for you:
+
+-   **Concurrency:** It runs jobs in parallel but limits how many are active at once to avoid rate limiting.
+-   **Order:** The final array of results is in the same order as your input array, even if the jobs finish out of order.
+-   **Simplicity:** It returns a single promise that resolves when all the work is done.
+
+## Configuration
+
+You can control how the batch is executed by passing a configuration object as the third argument.
 
 ```javascript
-const sessions = await jules.all(items, mapper, {
-  concurrency: 10, // Default is 4
-  stopOnError: false, // Default is true
-  delayMs: 1000, // Default is 0
+const results = await jules.all(items, mapper, {
+  concurrency: 10, // Run up to 10 sessions at once (default is 3)
+  stopOnError: false, // If one session fails, continue with the rest (default is true)
+  delayMs: 500, // Wait 500ms before starting each session
 });
-```
-
-### Options
-
-| Option        | Type      | Default | Description                                                                                                          |
-| :------------ | :-------- | :------ | :------------------------------------------------------------------------------------------------------------------- |
-| `concurrency` | `number`  | `4`     | The maximum number of sessions to start concurrently.                                                                |
-| `stopOnError` | `boolean` | `true`  | If `true`, the batch operation stops immediately if any item fails. If `false`, it continues processing other items. |
-| `delayMs`     | `number`  | `0`     | A delay in milliseconds to wait before starting each item. Useful for rate limiting.                                 |
-
-## Error Handling
-
-### Fail Fast (Default)
-
-By default (`stopOnError: true`), if any session fails to start (e.g., due to an API error or invalid config), the entire `jules.all()` promise rejects immediately.
-
-```javascript
-try {
-  await jules.all(items, mapper);
-} catch (error) {
-  console.error('Batch processing failed:', error);
-}
-```
-
-### Best Effort
-
-If you want to process as many items as possible, set `stopOnError: false`. If errors occur, `jules.all()` will wait for all items to finish and then throw an `AggregateError` containing all the errors encountered.
-
-```javascript
-try {
-  await jules.all(items, mapper, { stopOnError: false });
-} catch (error) {
-  if (error instanceof AggregateError) {
-    console.log(`Finished with ${error.errors.length} errors.`);
-    // You might want to inspect successful results, but jules.all returns strict array.
-    // In this mode, it is recommended to handle errors INSIDE your mapper if you need partial results.
-  }
-}
 ```
