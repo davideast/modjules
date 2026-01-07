@@ -5,14 +5,19 @@ import * as fs from 'node:fs';
  * Parses the PR body to find a human user mention.
  * Ignores the bot user 'google-labs-jules'.
  */
-function findHumanUser(body: string): string | null {
-  // Regex to find @username
-  // Matches @ followed by alphanumerics/hyphens
+export function findHumanUser(body: string): string | null {
   const regex = /@([a-zA-Z0-9-]+)/g;
   let match;
 
   while ((match = regex.exec(body)) !== null) {
     const username = match[1];
+    const nextChar = body[match.index + match[0].length];
+
+    // Skip npm scopes (@scope/package)
+    if (nextChar === '/') {
+      continue;
+    }
+
     if (username !== 'google-labs-jules' && !username.endsWith('[bot]')) {
       return username;
     }
@@ -140,7 +145,10 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Ensure the script is being run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
