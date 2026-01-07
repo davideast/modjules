@@ -1,9 +1,10 @@
+export type { GitPatch, ParsedChangeSet } from './types.js';
 import type {
   RestMediaArtifact,
   RestBashOutputArtifact,
+  ParsedFile,
   GitPatch,
   ParsedChangeSet,
-  ParsedFile,
 } from './types.js';
 import { Platform } from './platform/types.js';
 
@@ -198,7 +199,8 @@ export class ChangeSetArtifact {
    * @returns Parsed diff with file paths, change types, and line counts.
    */
   parsed(): ParsedChangeSet {
-    const files = parseUnidiff(this.gitPatch.unidiffPatch);
+    const patch = this.gitPatch.unidiffPatch ?? '';
+    const files = parseUnidiff(patch);
 
     const summary = {
       totalFiles: files.length,
