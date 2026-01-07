@@ -1,108 +1,72 @@
-# Jules SDK: Rich Artifact Types
+# Working with Artifacts
 
-When you stream activities from a Jules session, some activities will contain `Artifact` objects. While some artifacts are simple data structures (like `changeSet`), the Jules SDK provides enhanced functionality for others, specifically `MediaArtifact` and `BashArtifact`. This guide explains how to work with these rich artifact types.
+As an agent works, it produces artifacts: code changes, shell command outputs, test results, and even screenshots. These are attached to the `Activity` objects you get from `session.stream()`.
 
-## MediaArtifact
+Here’s how you can inspect the artifacts from a session to see what the agent is doing.
 
-A `MediaArtifact` represents a media file, such as a PNG image generated during frontend verification. The SDK provides a convenient helper method to save this media directly to your filesystem.
+## Example: Inspecting Session Artifacts
 
-### Properties
-
-- `type`: Always `'media'`.
-- `data`: A base64-encoded string of the media file's content.
-- `format`: The MIME type of the media (e.g., `'image/png'`).
-
-### Methods
-
-#### `save(filepath: string): Promise<void>`
-
-This method decodes the base64 `data` and saves it.
-
-- **Node.js:** Saves the artifact as a file at the specified `filepath` on the local filesystem.
-- **Browser:** Saves the artifact to the `artifacts` object store in IndexedDB, using `filepath` as the key. This acts as a virtual filesystem within the browser's sandbox.
-
-#### `toUrl(): string`
-
-Returns a URL string that can be used to display or download the media.
-
-- **Browser:** Returns a `data:` URI.
-- **Node.js:** Returns a `data:` URI.
-
-### Example
-
-Here is how you can work with `MediaArtifact` in both Node.js and browser environments.
+This example loops through the activity stream and checks for different types of artifacts.
 
 ```typescript
+import { jules } from 'modjules';
+
+const session = jules.session('some-session-id');
+
 for await (const activity of session.stream()) {
   for (const artifact of activity.artifacts) {
-    if (artifact.type === 'media' && artifact.format === 'image/png') {
-      // 1. Save the artifact (works in both Node.js and Browser)
-      // Node.js: writes to ./screenshots/image.png
-      // Browser: writes to IndexedDB with key './screenshots/image.png'
-      await artifact.save('./screenshots/image.png');
-
-      // 2. Get a displayable URL (works in both Node.js and Browser)
-      const url = artifact.toUrl();
-      console.log('Image URL:', url);
-      // Browser: can be used in <img src={url} />
-    }
-  }
-}
-```
-
-## BashArtifact
-
-A `BashArtifact` represents the output of a shell command executed by the agent. It captures the standard output, standard error, and exit code, and provides a helper method to get a nicely formatted summary.
-
-### Properties
-
-- `type`: Always `'bashOutput'`.
-- `command`: The command that was executed.
-- `stdout`: The content written to standard output.
-- `stderr`: The content written to standard error.
-- `exitCode`: The exit code of the command (or `null` if it could not be determined).
-
-### Methods
-
-#### `toString(): string`
-
-This method returns a formatted string that combines the command, exit code, `stdout`, and `stderr`, making it easy to log or display.
-
-### Example
-
-Here is how you can inspect a `BashArtifact` and print its formatted output.
-
-```typescript
-for await (const activity of session.stream()) {
-  if (activity.type === 'progressUpdated') {
-    for (const artifact of activity.artifacts) {
-      // Check if the artifact is a bash artifact
-      if (artifact.type === 'bashOutput') {
-        console.log('Agent ran a bash command. Here is the summary:');
-
-        // Use the toString() helper for a clean, readable output
-        console.log(artifact.toString());
-
-        // You can also access individual properties
-        if (artifact.exitCode !== 0) {
-          console.error(`Command failed with exit code ${artifact.exitCode}`);
-          console.error('Stderr:', artifact.stderr);
-        }
+    // Handle code changes
+    if (artifact.type === 'changeSet') {
+      const parsed = artifact.parsed();
+      console.log(`[CODE] ${parsed.files.length} files changed.`);
+      for (const file of parsed.files) {
+        console.log(`  - ${file.path} (+${file.additions} -${file.deletions})`);
       }
     }
+
+    // Handle shell command output (e.g., test results)
+    if (artifact.type === 'bashOutput') {
+      if (artifact.exitCode === 0) {
+        console.log('[TESTS] A command ran successfully.');
+      } else {
+        console.error('[TESTS] A command failed!');
+      }
+      // Log a clean summary of the command's output
+      console.log(artifact.toString());
+    }
+
+    // Handle images or other media
+    if (artifact.type === 'media' && artifact.format.startsWith('image/')) {
+      const filepath = `./screenshots/${activity.id}.png`;
+      await artifact.save(filepath);
+      console.log(`[MEDIA] Saved screenshot to ${filepath}`);
+    }
   }
 }
 ```
 
-**Sample `toString()` Output:**
+## Artifact Types
 
+### Change Sets (`changeSet`)
+
+This artifact is a Git patch. The `.parsed()` method is the easiest way to work with it. It returns a structured object with the files, additions, and deletions.
+
+```typescript
+const parsed = artifact.parsed();
+// parsed.summary -> "1 file changed, 10 insertions(+), 5 deletions(-)"
+// parsed.files -> [{ path: 'src/index.ts', additions: 10, deletions: 5 }]
 ```
-$ npm install
-Exit Code: 0
 
-[stdout]
-added 12 packages, and audited 13 packages in 1s
+### Bash Output (`bashOutput`)
 
-[stderr]
-(empty)
-```
+This artifact contains the result of a shell command.
+
+-   Use the `.toString()` method to get a nicely formatted summary for logging.
+-   Check the `.exitCode` property to see if the command succeeded (`0`) or failed (non-zero).
+
+### Media (`media`)
+
+This artifact represents a file, like a screenshot (`image/png`).
+
+-   Use the `.save(filepath)` method to save the file to the filesystem (or IndexedDB in the browser).
+-   Use `.toUrl()` to get a `data:` URI for displaying the media in a browser.

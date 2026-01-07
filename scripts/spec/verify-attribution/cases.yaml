@@ -1,0 +1,54 @@
+- id: ATTR-01
+  description: Skips npm scope mentions
+  category: verify-attribution
+  status: pending
+  priority: P0
+  when: findHumanUser
+  given:
+    body: "Update @modjules/mcp package. Started by @davideast"
+  then:
+    username: "davideast"
+
+- id: ATTR-02
+  description: Handles multiple scopes before real username
+  category: verify-attribution
+  status: pending
+  priority: P0
+  when: findHumanUser
+  given:
+    body: "Fix @modjules/core and @modjules/mcp. CC @davideast @otheruser"
+  then:
+    username: "davideast"
+
+- id: ATTR-03
+  description: Ignores bot users
+  category: verify-attribution
+  status: pending
+  priority: P0
+  when: findHumanUser
+  given:
+    body: "PR by @google-labs-jules for @davideast"
+  then:
+    username: "davideast"
+
+- id: ATTR-04
+  description: Returns null when only scopes present
+  category: verify-attribution
+  status: pending
+  priority: P1
+  when: findHumanUser
+  given:
+    body: "Update @modjules/mcp and @modjules/core packages"
+  then:
+    username: null
+
+- id: ATTR-05
+  description: Handles scope at end of string
+  category: verify-attribution
+  status: pending
+  priority: P1
+  when: findHumanUser
+  given:
+    body: "Started by @davideast for @modjules/mcp"
+  then:
+    username: "davideast"

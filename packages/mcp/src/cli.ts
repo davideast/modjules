@@ -40,6 +40,7 @@ program
 program
   .command('config')
   .description('Configure the Jules API Key')
+  .option('-k, --key <api-key>', 'API key to save (skips interactive prompt)')
   .action(configAction);
 
 program.parse(process.argv);

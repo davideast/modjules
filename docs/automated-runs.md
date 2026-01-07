@@ -1,88 +1,156 @@
-# Jules SDK: Automated Runs
+# Automated Runs
 
-The automated run mode is designed for tasks that can be completed by Jules without the need for intermediate human intervention. It's a "fire-and-forget" approach: you provide the instructions, and Jules works autonomously until it produces a final result.
+`jules.run()` is a "fire-and-forget" tool for your scripts and CI/CD pipelines. It's designed for autonomous tasks where you provide a prompt, and Jules works independently to produce a final result, like a pull request.
 
-This is the perfect mode for integrations into CI/CD pipelines, automated bug-fixing scripts, or any workflow where you want a deterministic outcome.
+## Example: Automated Bug Reproduction via GitHub Actions
 
-## Starting an Automated Run
+A powerful use case for `jules.run()` is building autonomous systems. This example shows a GitHub Action that triggers whenever an issue is labeled "bug". It uses Jules to write a failing test that reproduces the bug and then creates a pull request with the new test.
 
-You can start an automated run using the `jules.run()` method. It takes a `SessionConfig` object that defines the task.
+This frees up developer time from writing boilerplate reproduction tests and lets them focus on the fix.
+
+**1. The GitHub Action Workflow**
+
+Save this file at `.github/workflows/reproduce-bug.yml`. It runs a script whenever an issue is labeled.
+
+```yaml
+name: 'Reproduce Bug'
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  reproduce:
+    if: github.event.label.name == 'bug'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install
+      - name: Run Jules to reproduce bug
+        run: npx tsx ./.github/scripts/reproduce-bug.ts
+        env:
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          REPO_NWO: ${{ github.repository }}
+```
+
+**2. The Orchestration Script**
+
+Save this file at `.github/scripts/reproduce-bug.ts`. This script formats the issue content into a prompt and calls `jules.run()`.
 
 ```typescript
 import { jules } from 'modjules';
 
-async function runMyTask() {
-  const automatedSession = jules.run({
-    prompt: 'Fix the off-by-one error in the pagination logic.',
-    source: {
-      github: 'my-org/my-repo',
-      branch: 'main',
-    },
-    // By default, autoPr is true, which will create a PR on completion
-  });
+const { ISSUE_TITLE, ISSUE_BODY, REPO_NWO } = process.env;
 
-  // ... now you can either wait for the result or stream the progress ...
+console.log(`Attempting to reproduce bug: "${ISSUE_TITLE}"`);
+
+const result = await jules.run({
+  prompt: `
+    Read the following bug report. Your goal is to write a single, new failing test case that reproduces the described bug. Do not try to fix the bug itself.
+
+    **Bug Report Title:**
+    ${ISSUE_TITLE}
+
+    **Bug Report Body:**
+    ${ISSUE_BODY}
+  `,
+  source: {
+    github: REPO_NWO, // e.g., 'my-org/my-repo'
+    branch: 'main',
+  },
+  autoPr: true, // Creates a PR with the new test
+});
+
+if (result.state === 'completed' && result.pullRequest) {
+  console.log(
+    `✅ Success! PR with failing test created: ${result.pullRequest.url}`,
+  );
+} else {
+  console.error(`❌ Run failed. Check session ${result.id} for details.`);
 }
 ```
 
-## Getting the Final Result
+## How It Works
 
-The `AutomatedSession` object returned by `jules.run()` is an enhanced `Promise`. You can `await` it directly to get the final `Outcome` of the session, which will contain the session's final state (`completed` or `failed`) and any outputs, like a pull request.
+`jules.run()` is perfect for this kind of automation because it's a simple, promise-based way to execute a task.
 
-```typescript
-// ... continuing from the previous example
+1.  **Fire-and-Forget:** You give Jules a prompt and a source.
+2.  **Promise-based:** You can `await` the final outcome. The SDK handles all the polling and state management.
+3.  **Automation Defaults:** It assumes you want a pull request (`autoPr: true`) and that the agent should proceed without asking for plan approval.
 
-async function waitForResult() {
-  try {
-    const outcome = await automatedSession;
+---
 
-    console.log(`Run finished with state: ${outcome.state}`);
+## Reference: The `AutomatedSession` Object
 
-    if (outcome.state === 'completed' && outcome.pullRequest) {
-      console.log(
-        `Success! A pull request was created: ${outcome.pullRequest.url}`,
-      );
-    } else if (outcome.state === 'failed') {
-      console.error(`The run failed. Session ID: ${outcome.sessionId}`);
-    }
-  } catch (error) {
-    console.error('An unexpected error occurred:', error);
+The `jules.run()` method returns an `AutomatedSession` object, which is an enhanced `Promise`.
+
+### Promise Behavior
+
+You can `await` the object directly to get the final result of the run.
+
+`const result = await jules.run(...)`
+
+The `result` is a `SessionResource` object with the final state of the session.
+
+**On Success:**
+```json
+{
+  "id": "12345",
+  "state": "completed",
+  "prompt": "Update all npm dependencies...",
+  "pullRequest": {
+    "url": "https://github.com/your-org/your-repo/pull/123",
+    "number": 123,
+    "branch": "jules-patch-12345"
   }
 }
-
-waitForResult();
 ```
 
-## Streaming Progress
+**On Failure:**
+```json
+{
+  "id": "67890",
+  "state": "failed",
+  "prompt": "Update all npm dependencies...",
+  "pullRequest": null,
+  "error": "Failed to apply patch due to merge conflicts."
+}
+```
 
-Even though the run is automated, you might still want to see what the agent is doing in real time. The `AutomatedSession` object has a `stream()` method that returns an async iterable of all the activities in the session.
+### Additional Methods
 
-This allows you to observe the progress without interfering.
+The `AutomatedSession` object also has methods for observing the run before it completes.
+
+- **`result()`**: `() => Promise<SessionResource>`
+  - This is the method that the `await` keyword calls. You can also call it directly.
+
+- **`stream()`**: `() => AsyncIterable<Activity>`
+  - Returns an async iterator to stream the session's activities in real-time. This is useful for logging progress in a CI environment.
+
+- **`id`**: `string`
+  - The session ID, which is available immediately after calling `jules.run()`.
 
 ```typescript
-// ... continuing from the first example
+const automatedRun = jules.run({ prompt: '...' });
 
-async function streamProgress() {
-  console.log('Streaming progress for the automated run...');
+// Get the ID right away
+console.log(`Run started with session ID: ${automatedRun.id}`);
 
-  for await (const activity of automatedSession.stream()) {
-    console.log(`[${activity.createTime}] - ${activity.type}`);
-
-    if (activity.type === 'planGenerated') {
-      console.log('Agent has generated a plan:');
-      for (const step of activity.plan.steps) {
-        console.log(`  - ${step.title}`);
+// Stream progress while also waiting for the final result
+const [_, result] = await Promise.all([
+  (async () => {
+    for await (const activity of automatedRun.stream()) {
+      if (activity.type === 'progressUpdated') {
+        console.log(`[LOG] ${activity.title}`);
       }
-    } else if (activity.type === 'progressUpdated') {
-      console.log(`Progress: ${activity.title}`);
     }
-  }
-
-  console.log('Stream finished.');
-}
-
-// You can stream progress and wait for the result simultaneously
-Promise.all([waitForResult(), streamProgress()]);
+  })(),
+  automatedRun.result(),
+]);
 ```
-
-By combining the promise-like nature of `AutomatedSession` with its `stream()` method, you get the best of both worlds: a simple way to get the final outcome and a powerful way to observe the real-time progress of the agent.

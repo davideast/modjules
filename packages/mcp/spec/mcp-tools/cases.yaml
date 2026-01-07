@@ -847,3 +847,87 @@
         totalCommands: 2
         succeeded: 1
         failed: 1
+
+- id: BASH-OUT-01
+  description: Counts command as succeeded when exitCode is 0
+  category: bash-outputs
+  status: implemented
+  priority: P0
+  when: jules_get_bash_outputs
+  given:
+    activities:
+      - id: "activity-1"
+        artifacts:
+          - type: bashOutput
+            command: "npm test"
+            exitCode: 0
+  then:
+    summary:
+      totalCommands: 1
+      succeeded: 1
+      failed: 0
+
+- id: BASH-OUT-02
+  description: Counts command as succeeded when exitCode is undefined (omitted)
+  category: bash-outputs
+  status: implemented
+  priority: P0
+  when: jules_get_bash_outputs
+  given:
+    activities:
+      - id: "activity-1"
+        artifacts:
+          - type: bashOutput
+            command: "npm install"
+  then:
+    summary:
+      totalCommands: 1
+      succeeded: 1
+      failed: 0
+
+- id: BASH-OUT-03
+  description: Counts command as failed when exitCode is non-zero
+  category: bash-outputs
+  status: implemented
+  priority: P0
+  when: jules_get_bash_outputs
+  given:
+    activities:
+      - id: "activity-1"
+        artifacts:
+          - type: bashOutput
+            command: "npm test"
+            exitCode: 1
+  then:
+    summary:
+      totalCommands: 1
+      succeeded: 0
+      failed: 1
+
+- id: BASH-OUT-04
+  description: Correctly summarizes mixed success/failure commands
+  category: bash-outputs
+  status: implemented
+  priority: P1
+  when: jules_get_bash_outputs
+  given:
+    activities:
+      - id: "activity-1"
+        artifacts:
+          - type: bashOutput
+            command: "npm install"
+      - id: "activity-2"
+        artifacts:
+          - type: bashOutput
+            command: "npm test"
+            exitCode: 1
+      - id: "activity-3"
+        artifacts:
+          - type: bashOutput
+            command: "npm run build"
+            exitCode: 0
+  then:
+    summary:
+      totalCommands: 3
+      succeeded: 2
+      failed: 1

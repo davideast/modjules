@@ -1,152 +1,154 @@
-# Jules SDK: Interactive Sessions
+# Interactive Sessions
 
-The interactive session mode is designed for conversational workflows where you need to collaborate with the Jules agent. This mode provides you with a `SessionClient` object, which is your primary tool for sending messages, approving plans, and streaming real-time updates from the agent.
+`jules.session()` is for building conversational, human-in-the-loop systems. It gives you a `SessionClient` object to control the agent, approve its plans, and have a back-and-forth conversation. This is the tool you need for building things like chatbots, IDE extensions, or custom internal tools.
 
-## Creating or Resuming a Session
+## Example: A "ChatOps" Slack Bot for Production Alerts
 
-You can start a new interactive session or get a client for an existing one using the `jules.session()` method.
+This example shows how you could build a Slack bot that uses Jules to respond to a production alert. When an alert fires, the bot starts a Jules session to investigate the cause. It then posts the agent's plan to a Slack channel and waits for an on-call engineer to approve it before the agent attempts a fix.
 
-### Starting a New Session
-
-To start a new session, provide a `SessionConfig` object. By default, new interactive sessions will require you to approve the agent's plan before it begins work.
+This demonstrates a powerful orchestration pattern: an automated system kicks off the process, but a human has the final say on the most critical step.
 
 ```typescript
+// src/slack-bot.ts
 import { jules } from 'modjules';
+import { slack, awaitSlackApproval } from './slack-api'; // Fictional Slack API library
 
-async function createNewSession() {
+// This function is triggered by a webhook from your monitoring service (e.g., DataDog)
+async function handleProductionAlert(alert) {
+  const { serviceName, errorMessage, traceId } = alert;
+
+  await slack.postMessage('#prod-alerts', `🚨 Alert on ${serviceName}: ${errorMessage}`);
+
+  // 1. Start an interactive session to investigate the alert
   const session = await jules.session({
-    prompt: "Let's refactor the user authentication flow.",
-    source: {
-      github: 'my-org/my-repo',
-      branch: 'develop',
-    },
+    prompt: `
+      We just received a production alert in the '${serviceName}' service.
+      Error message: "${errorMessage}"
+      Trace ID: ${traceId}
+
+      Your task is to investigate the root cause of this alert.
+      Start by analyzing the service logs around the time of the alert.
+      Then, formulate a plan to either fix the issue or roll back the change that caused it.
+      Do not execute the plan until it is approved.
+    `,
+    source: { github: `my-org/${serviceName}`, branch: 'main' },
   });
 
-  console.log(`New session created with ID: ${session.id}`);
-  // Now you can use the 'session' object to interact with the agent
-}
-```
+  await slack.postMessage('#prod-alerts', `Jules is investigating... (Session: ${session.id})`);
 
-### Resuming an Existing Session
+  // 2. Wait for the agent to generate a plan
+  await session.waitFor('awaitingPlanApproval');
+  const { plan } = await session.info();
 
-If you already have a session ID, you can get a `SessionClient` for it directly. This is useful for reconnecting to a session in a different part of your application or after a restart.
+  // 3. Post the plan to Slack and wait for a human to approve it
+  const isApproved = await awaitSlackApproval(
+    '#prod-alerts',
+    `Jules has a plan to fix the alert. Please review and approve:`,
+    plan.steps,
+  );
 
-```typescript
-const existingSessionId = 'YOUR_EXISTING_SESSION_ID';
-const session = jules.session(existingSessionId);
+  if (isApproved) {
+    // 4. If approved, tell the agent to proceed
+    await session.approve();
+    await slack.postMessage('#prod-alerts', 'Plan approved by engineer. Jules is attempting the fix.');
 
-console.log(`Resumed session with ID: ${session.id}`);
-// The 'session' object is ready to be used
-```
-
-## Interacting with the SessionClient
-
-Once you have a `SessionClient` instance, you can use its methods to interact with the session.
-
-## Methods
-
-### `stream(options?: StreamActivitiesOptions)`
-
-Returns an `AsyncIterable<Activity>` that allows you to stream all activities in a session as they happen. This is the primary way to get real-time updates from a session.
-
-**Example:**
-
-```typescript
-for await (const activity of session.stream()) {
-  console.log(activity);
-}
-```
-
-You can also filter the stream. For example, to only receive messages from the agent:
-
-```typescript
-for await (const activity of session.stream({
-  exclude: { originator: 'user' },
-})) {
-  if (activity.type === 'agentMessaged') {
-    console.log('Agent message:', activity.message);
+    const result = await session.result();
+    if (result.state === 'completed' && result.pullRequest) {
+      await slack.postMessage('#prod-alerts', `✅ Fix complete! PR is ready for review: ${result.pullRequest.url}`);
+    } else {
+      await slack.postMessage('#prod-alerts', `❌ Jules failed to fix the issue. Please investigate manually.`);
+    }
+  } else {
+    await slack.postMessage('#prod-alerts', 'Plan rejected. Aborting session.');
   }
 }
 ```
 
-### `approve()`
+---
 
-Approves a plan that is in the `awaitingPlanApproval` state. This is only necessary if the session was created with `requirePlanApproval: true`.
+## Reference: `SessionClient` API
 
-**Example:**
+The `jules.session()` method returns a `SessionClient` object. This is your main tool for interacting with the agent.
 
-```typescript
-const sessionInfo = await session.info();
-if (sessionInfo.state === 'awaitingPlanApproval') {
-  await session.approve();
-}
-```
+### `session.id`
+- **Type**: `string`
+- The unique identifier for the session.
 
-### `send(prompt: string)`
+---
+### `session.approve()`
+- **Signature**: `approve(): Promise<void>`
+- **Description**: Approves a pending plan and allows the agent to begin executing it. This is only needed if the session was created with `requirePlanApproval: true` (the default for `jules.session()`).
 
-Sends a message to the session and does not wait for a reply. This is useful for fire-and-forget interactions where you don't need an immediate response from the agent.
-
-**Example:**
-
-```typescript
-await session.send('Please continue.');
-```
-
-### `ask(prompt: string)`
-
-Sends a message to the session and waits for the next message from the agent. It returns a promise that resolves with the agent's message (`ActivityAgentMessaged`). This is the most common way to have a back-and-forth conversation with the agent.
-
-**Example:**
-
-```typescript
-const agentResponse = await session.ask('What is the next step?');
-console.log('Agent response:', agentResponse.message);
-```
-
-### `send()` vs. `ask()`
-
-- `send()` is asynchronous. It sends a message and immediately returns, without waiting for the agent to process or respond. You would typically use `stream()` to see the agent's response and other activities.
-- `ask()` is synchronous in nature. It sends a message and blocks until the agent sends a message back, which it then returns. It's a simpler way to interact with the agent when you expect a direct reply.
-
-Choose `send()` when you want to provide information or commands without needing an immediate answer. Choose `ask()` when you are having a conversational exchange with the agent.
-
-### `result()`
-
-Waits for the session to complete (either successfully or with a failure) and returns the final outcome. The `Outcome` will contain information about the final state and any artifacts produced, such as pull requests.
-
-**Example:**
-
-```typescript
-const outcome = await session.result();
-if (outcome.state === 'completed') {
-  console.log('Session completed successfully.');
-  if (outcome.pullRequest) {
-    console.log('Pull request created:', outcome.pullRequest.url);
+---
+### `session.ask()`
+- **Signature**: `ask(message: string): Promise<ActivityAgentMessaged>`
+- **Description**: Sends a message to the session and waits for the agent to send a message back. It returns a promise that resolves with the agent's reply.
+- **Returns**: An `Activity` object of type `agentMessaged`.
+  ```json
+  {
+    "type": "agentMessaged",
+    "message": "The files affected will be user-service.ts and user-controller.ts."
   }
-} else {
-  console.error('Session failed:', outcome.error);
-}
-```
+  ```
 
-### `waitFor(targetState: SessionState)`
+---
+### `session.send()`
+- **Signature**: `send(message: string): Promise<void>`
+- **Description**: Sends a "fire-and-forget" message to the session. Your script will not wait for a reply. This is useful for providing instructions or information without needing a direct response.
 
-Polls the session until it reaches a specific `SessionState` (e.g., `'inProgress'`, `'completed'`). This is useful when you need to wait for the session to reach a certain point in its lifecycle before proceeding.
+---
+### `session.stream()`
+- **Signature**: `stream(): AsyncIterable<Activity>`
+- **Description**: Returns an `AsyncIterator` that yields all activities in the session. It first streams all historical activities from the local cache and then stays open to stream live updates from the network.
 
-**Example:**
+---
+### `session.waitFor()`
+- **Signature**: `waitFor(targetState: SessionState): Promise<void>`
+- **Description**: Polls the session until it reaches a specific `SessionState`.
+- **`SessionState` values**: `'unspecified'`, `'creating'`, `'inProgress'`, `'awaitingPlanApproval'`, `'completed'`, `'failed'`.
+
+---
+### `session.info()`
+- **Signature**: `info(): Promise<SessionResource>`
+- **Description**: Fetches the latest snapshot of the session's state, metadata, and outputs from the network.
+- **Returns**: A `SessionResource` object.
+  ```json
+  {
+    "id": "12345",
+    "state": "inProgress",
+    "prompt": "Refactor the user service...",
+    "pullRequest": null
+  }
+  ```
+
+---
+### `session.result()`
+- **Signature**: `result(): Promise<SessionResource>`
+- **Description**: Waits for the session to reach a terminal state (`completed` or `failed`) and returns the final outcome.
+- **Returns**: A `SessionResource` object containing the final state and any outputs, such as a pull request.
+  ```json
+  {
+    "id": "12345",
+    "state": "completed",
+    "prompt": "Refactor the user service...",
+    "pullRequest": {
+      "url": "https://github.com/your-org/your-repo/pull/123",
+      "number": 123
+    }
+  }
+  ```
+
+---
+## Resuming a Session
+If you have a session ID, you can get a client to reconnect to it.
 
 ```typescript
-// Wait for the agent to start working
-await session.waitFor('inProgress');
-console.log('Session is now in progress.');
-```
+const sessionId = 'some-existing-session-id';
 
-### `info()`
+// This doesn't create a new session, it just gives you a client
+// to control the existing one.
+const session = jules.session(sessionId);
 
-Retrieves the latest information about the session, including its current state, metadata, and any outputs.
-
-**Example:**
-
-```typescript
-const sessionInfo = await session.info();
-console.log('Current session state:', sessionInfo.state);
+const info = await session.info();
+console.log(`Reconnected. Current state: ${info.state}`);
 ```
