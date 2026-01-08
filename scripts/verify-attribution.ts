@@ -1,31 +1,43 @@
 import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 
+interface GitHubUser {
+  id: number;
+  login: string;
+  name: string | null;
+  type: 'User' | 'Organization' | 'Bot';
+}
+
 /**
- * Parses the PR body to find a human user mention.
- * Ignores the bot user 'google-labs-jules'.
+ * Extracts all potential @username mentions from the PR body.
+ * Filters out known bot patterns but does NOT validate against GitHub API yet.
  */
-export function findHumanUser(body: string): string | null {
+function findUserCandidates(body: string): string[] {
   const regex = /@([a-zA-Z0-9-]+)/g;
+  const candidates: string[] = [];
+  const seen = new Set<string>();
   let match;
 
   while ((match = regex.exec(body)) !== null) {
-    const username = match[1];
-    const nextChar = body[match.index + match[0].length];
-
-    // Skip npm scopes (@scope/package)
-    if (nextChar === '/') {
+    const username = match[1].toLowerCase();
+    // Skip known bots and duplicates
+    if (
+      username === 'google-labs-jules' ||
+      username.endsWith('[bot]') ||
+      seen.has(username)
+    ) {
       continue;
     }
-
-    if (username !== 'google-labs-jules' && !username.endsWith('[bot]')) {
-      return username;
-    }
+    seen.add(username);
+    candidates.push(match[1]); // Preserve original case
   }
-  return null;
+  return candidates;
 }
 
-async function getGitHubUser(username: string, token: string) {
+async function getGitHubUser(
+  username: string,
+  token: string,
+): Promise<GitHubUser> {
   const res = await fetch(`https://api.github.com/users/${username}`, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -40,6 +52,28 @@ async function getGitHubUser(username: string, token: string) {
   }
 
   return res.json();
+}
+
+/**
+ * Validates candidates against the GitHub API and returns the first actual User.
+ * Skips Organizations, Bots, and non-existent usernames.
+ */
+async function findValidHumanUser(
+  candidates: string[],
+  token: string,
+): Promise<GitHubUser | null> {
+  for (const candidate of candidates) {
+    try {
+      const user = await getGitHubUser(candidate, token);
+      if (user.type === 'User') {
+        return user;
+      }
+      console.log(`  ⏭️  Skipping @${candidate} (type: ${user.type})`);
+    } catch {
+      console.log(`  ⏭️  Skipping @${candidate} (not found or API error)`);
+    }
+  }
+  return null;
 }
 
 async function main() {
@@ -67,37 +101,37 @@ async function main() {
   }
 
   console.log('🔍 Analyzing PR body for attribution...');
-  let targetUser = findHumanUser(prBody);
+
+  // Extract all @username candidates from PR body
+  const candidates = findUserCandidates(prBody);
+  console.log(
+    `  Found ${candidates.length} candidate(s): ${candidates.map((c) => `@${c}`).join(', ') || '(none)'}`,
+  );
+
+  // Validate each candidate against GitHub API to find first actual User
+  const validUser = await findValidHumanUser(candidates, token);
+
   let targetUserId = '';
   let targetUserLogin = '';
-  let targetUserName = ''; // Display name for the trailer
+  let targetUserName = '';
 
-  if (targetUser) {
-    console.log(`✅ Found mention: @${targetUser}`);
-    try {
-      const user = await getGitHubUser(targetUser, token);
-      targetUserId = String(user.id);
-      targetUserLogin = user.login; // Use canonical case
-      targetUserName = user.name || user.login; // Display name, fallback to login
-    } catch (e) {
-      console.warn(
-        `⚠️ Could not resolve user @${targetUser}. Falling back to PR creator.`,
-      );
-      console.error(e);
-      targetUser = null;
-    }
-  }
-
-  if (!targetUser) {
-    // Fallback - need to fetch display name for PR creator
-    console.log(`ℹ️ No valid mention found. Using PR creator: ${prUserLogin}`);
+  if (validUser) {
+    console.log(`✅ Found valid human user: @${validUser.login}`);
+    targetUserId = String(validUser.id);
+    targetUserLogin = validUser.login;
+    targetUserName = validUser.name || validUser.login;
+  } else {
+    // Fallback to PR creator (for bot PRs without valid mentions)
+    console.log(
+      `ℹ️ No valid human user found in mentions. Using PR creator: ${prUserLogin}`,
+    );
     targetUserLogin = prUserLogin;
     targetUserId = prUserId;
     try {
       const user = await getGitHubUser(prUserLogin, token);
       targetUserName = user.name || user.login;
     } catch {
-      targetUserName = prUserLogin; // Fallback to login if API fails
+      targetUserName = prUserLogin;
     }
   }
 
@@ -145,10 +179,7 @@ async function main() {
   }
 }
 
-// Ensure the script is being run directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
-}
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
