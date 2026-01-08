@@ -5,7 +5,6 @@ import { z } from 'zod';
 import type { SessionClient as Session } from 'modjules';
 import { webcrypto } from 'node:crypto';
 
-// Polyfill for randomUUID in environments where global crypto might be missing or limited
 const uuid = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : webcrypto.randomUUID());
 
 export type McpToolHandler = (args: any) => Promise<any>;
