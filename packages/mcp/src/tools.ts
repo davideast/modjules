@@ -131,8 +131,21 @@ export const tools: JulesTool[] = [
   },
   {
     name: 'jules_session_state',
-    description:
-      'Returns lightweight session metadata (state, URL, PR info). Use jules_session_timeline for activities.',
+    description: `Get the current status of a Jules session.
+
+RETURNS: id, state, url, title, pr (if created)
+
+STATES:
+- queued/planning/inProgress: Jules is working
+- awaitingPlanApproval: Jules needs approval (unless auto-approve was set)
+- awaitingUserFeedback: Jules explicitly asked for input
+- completed: Task finished, but Jules may still have a question (see below)
+- failed: Session errored out
+
+IMPORTANT:
+- "completed" does NOT mean the session is closed. Jules may have finished work but asked a follow-up question. Always check jules_session_timeline for the latest agentMessaged.
+- "awaitingPlanApproval" requires action ONLY if the session was created with interactive: true. Auto-runs skip this state.
+- You can send messages to ANY session regardless of state.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -1095,6 +1108,202 @@ Quick start:
           {
             type: 'text',
             text: JSON.stringify({ sessionId, files, summary }, null, 2),
+          },
+        ],
+      };
+    },
+  },
+  {
+    name: 'jules_replay_session',
+    description:
+      'Step through a Jules session one activity at a time with full artifact content. ' +
+      'Returns step (command+output for bash, full diff for code), nextCursor/prevCursor for navigation, ' +
+      'progress { current, total }, and context (session info on first step only). ' +
+      'Use for reproducing failures locally, analyzing sessions for improvements, or AI-to-AI handoff.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sessionId: {
+          type: 'string',
+          description: 'The session ID to replay.',
+        },
+        cursor: {
+          type: 'string',
+          description: 'The cursor for the step to retrieve.',
+        },
+        filter: {
+          type: 'string',
+          enum: ['bash', 'code', 'message'],
+          description: 'Filter step types.',
+        },
+      },
+      required: ['sessionId'],
+    },
+    handler: async (client, args) => {
+      const sessionId = args?.sessionId as string;
+      const cursor = args?.cursor as string | undefined;
+      const filter = args?.filter as string | undefined;
+
+      if (!sessionId) {
+        throw new Error('sessionId is required');
+      }
+      if (filter && !['bash', 'code', 'message'].includes(filter)) {
+        throw new Error('Invalid filter. Must be one of: bash, code, message');
+      }
+
+      const session = client.session(sessionId);
+      await session.activities.hydrate();
+      const activities = await session.activities.select({ order: 'asc' });
+
+      // Build step list from activities, where each artifact is a step
+      let stepList: any[] = [];
+      for (const activity of activities) {
+        if (
+          activity.type === 'agentMessaged' ||
+          activity.type === 'userMessaged'
+        ) {
+          stepList.push({ type: 'message', activity });
+        } else if (activity.type === 'planGenerated') {
+          stepList.push({ type: 'plan', activity });
+        } else if (activity.type === 'progressUpdated') {
+          for (const artifact of activity.artifacts) {
+            if (artifact.type === 'bashOutput') {
+              stepList.push({ type: 'bash', artifact });
+            } else if (artifact.type === 'changeSet') {
+              stepList.push({ type: 'code', artifact });
+            }
+          }
+        }
+      }
+
+      // Post-process stepList to add retry detection for bash commands
+      for (let i = 0; i < stepList.length; i++) {
+        const currentStep = stepList[i];
+        if (currentStep.type === 'bash') {
+          // Look ahead for consecutive identical commands
+          const retryChain = [currentStep];
+          let j = i + 1;
+          while (
+            j < stepList.length &&
+            stepList[j].type === 'bash' &&
+            stepList[j].artifact.command === currentStep.artifact.command &&
+            stepList[j].artifact.stderr === currentStep.artifact.stderr
+          ) {
+            retryChain.push(stepList[j]);
+            j++;
+          }
+
+          if (retryChain.length > 1) {
+            for (let k = 0; k < retryChain.length; k++) {
+              retryChain[k].attempt = k + 1;
+              retryChain[k].totalAttempts = retryChain.length;
+            }
+            // Skip the rest of the chain
+            i = j - 1;
+          }
+        }
+      }
+
+      // Filter step list if a filter is provided
+      if (filter) {
+        stepList = stepList.filter((step) => step.type === filter);
+      }
+
+      if (stepList.length === 0) {
+        throw new Error('No replayable steps found in session');
+      }
+
+      // Parse cursor to get the index of the step to retrieve
+      let requestedIndex = 0;
+      if (cursor) {
+        const match = cursor.match(/^step_(\d+)$/);
+        if (match) {
+          requestedIndex = parseInt(match[1], 10);
+        } else {
+          throw new Error('Invalid cursor format');
+        }
+      }
+
+      // Check bounds
+      if (requestedIndex < 0 || requestedIndex >= stepList.length) {
+        throw new Error('Invalid cursor');
+      }
+
+      const currentStepData = stepList[requestedIndex];
+      let step: any;
+
+      // Format the step based on its type
+      switch (currentStepData.type) {
+        case 'message':
+          step = {
+            type: 'message',
+            content: currentStepData.activity.message,
+            originator: currentStepData.activity.originator,
+          };
+          break;
+        case 'plan':
+          step = {
+            type: 'plan',
+            content: currentStepData.activity.plan.steps,
+          };
+          break;
+        case 'bash':
+          step = {
+            type: 'bash',
+            command: currentStepData.artifact.command,
+            stdout: currentStepData.artifact.stdout,
+            stderr: currentStepData.artifact.stderr,
+            exitCode: currentStepData.artifact.exitCode,
+            ...(currentStepData.attempt && {
+              attempt: currentStepData.attempt,
+            }),
+            ...(currentStepData.totalAttempts && {
+              totalAttempts: currentStepData.totalAttempts,
+            }),
+          };
+          break;
+        case 'code':
+          step = {
+            type: 'code',
+            unidiffPatch: currentStepData.artifact.gitPatch.unidiffPatch,
+          };
+          break;
+      }
+
+      // Calculate progress and cursors
+      const total = stepList.length;
+      const current = requestedIndex + 1;
+      const pad = (n: number) => String(n).padStart(3, '0');
+
+      const nextCursor =
+        requestedIndex < total - 1 ? `step_${pad(requestedIndex + 1)}` : null;
+      const prevCursor =
+        requestedIndex > 0 ? `step_${pad(requestedIndex - 1)}` : null;
+
+      // Include context only on the first request
+      let context = null;
+      if (!cursor) {
+        const info = await session.info();
+        context = {
+          sessionId: info.id,
+          title: info.title,
+          source: info.source,
+        };
+      }
+
+      const response = {
+        step,
+        progress: { current, total },
+        nextCursor,
+        prevCursor,
+        context,
+      };
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(response, null, 2),
           },
         ],
       };

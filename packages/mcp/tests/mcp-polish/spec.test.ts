@@ -147,7 +147,21 @@ describe('MCP Polish Specs', () => {
     it('POLISH-10: jules_session_state description is updated', () => {
       const tool = getTool('jules_session_state');
       expect(tool.description).toBe(
-        'Returns lightweight session metadata (state, URL, PR info). Use jules_session_timeline for activities.',
+        `Get the current status of a Jules session.
+
+RETURNS: id, state, url, title, pr (if created)
+
+STATES:
+- queued/planning/inProgress: Jules is working
+- awaitingPlanApproval: Jules needs approval (unless auto-approve was set)
+- awaitingUserFeedback: Jules explicitly asked for input
+- completed: Task finished, but Jules may still have a question (see below)
+- failed: Session errored out
+
+IMPORTANT:
+- "completed" does NOT mean the session is closed. Jules may have finished work but asked a follow-up question. Always check jules_session_timeline for the latest agentMessaged.
+- "awaitingPlanApproval" requires action ONLY if the session was created with interactive: true. Auto-runs skip this state.
+- You can send messages to ANY session regardless of state.`,
       );
     });
 

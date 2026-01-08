@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
-import { createGateway } from 'modjules/server';
-import { verifyFirebaseAdmin } from 'modjules/server/auth/firebase';
+import { createGateway } from '@modjules/server';
+import { verifyFirebaseAdmin } from '@modjules/firebase';
 import { adminAuth } from '@/lib/firebase-admin';
 
 const apiKey = import.meta.env.JULES_API_KEY;

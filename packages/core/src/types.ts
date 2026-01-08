@@ -326,6 +326,7 @@ export interface SessionResource {
   id: string;
   prompt: string;
   sourceContext: SourceContext;
+  source: Source;
   title: string;
   /**
    * The time the session was created (RFC 3339 timestamp).

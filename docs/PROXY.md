@@ -1,139 +1,90 @@
-# Jules Proxy Server
+# Secure Proxy Server
 
-The Jules Proxy Server is a critical component for production-grade applications. It acts as a secure gateway between your client-side application (Browser, Mobile) and the Jules API.
+For any production browser application, you must use a secure proxy server to protect your `JULES_API_KEY` and manage user sessions. The `@modjules/server` package provides a handler to make this easy.
 
-## Core Concepts
+The proxy is a backend service you run that sits between your frontend application and the Jules API. It solves three key problems:
 
-### Purpose
+1.  **Security**: It keeps your API key safe on the server, never exposing it to the browser.
+2.  **Authentication**: It connects with your existing authentication system (e.g., Firebase Auth, Auth0) to identify users.
+3.  **Authorization**: It ensures users can only access their own sessions.
 
-The Proxy Server solves three main problems:
+## Example: An Express.js Proxy
 
-1.  **Security**: It hides your `JULES_API_KEY` from the client.
-2.  **Identity**: It translates your application's authentication (e.g., Firebase, Auth0) into Jules sessions.
-3.  **Authorization**: It enforces granular access control, ensuring User A cannot access User B's session.
-
-### Ownership Model
-
-Jules uses a unique "API Key is Identity" model.
-
-- **The API Key**: Represents the "Creator" or "Root Account". It has full access to everything created under it.
-- **The User**: In a multi-tenant app, your users are not IAM users in Jules. They are "Virtual Owners" managed by your proxy.
-
-The Proxy bridges this gap. It holds the API Key (Root) but stamps every session with an `ownerId` corresponding to your user's ID.
-
-### Security Model
-
-The security architecture is built on three pillars:
-
-1.  **Identity (Who are you?)**:
-    The `verify` strategy authenticates the incoming request (e.g., validating a Firebase ID Token) and resolves it to a standardized `Identity` object (`{ uid, email }`).
-
-2.  **Policy (Can you access this?)**:
-    The `authorize` strategy checks if the resolved Identity has permission to access the requested Session. The default policy is "Strict Ownership" (only the owner can access), but this can be customized (e.g., for Teams or Admins).
-
-3.  **Capabilities (The Ticket)**:
-    Once verified and authorized, the Proxy mints a **Capability Token** (a signed JWT). This token is returned to the client and grants temporary, scoped access to _only_ that specific session. Subsequent requests use this token, bypassing the expensive database checks.
-
-### Isolation
-
-The Proxy enforces strict multi-tenancy. Even though all sessions technically belong to the same API Key, the Proxy ensures isolation logic is applied before any request reaches the Jules API.
-
----
-
-## API Reference
-
-### `createNodeHandler(config)`
-
-Creates a generic Request/Response handler compatible with standard Web APIs (Request/Response). This works in Node.js, Next.js (App Router), Hono, Remix, and Cloudflare Workers.
+This example shows how to create a secure proxy using Express.js and Firebase Authentication.
 
 ```typescript
-import { createNodeHandler } from 'modjules/proxy';
+// server.ts
+import express from 'express';
+import { createNodeHandler } from '@modjules/server';
+import { verifyFirebaseAdmin } from '@modjules/server/auth/firebase-admin';
+import { createFirestorePolicy } from '@modjules/server/auth/firestore';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
-const handler = createNodeHandler({
+// Initialize Firebase Admin SDK
+initializeApp({
+  credential: cert(require('./service-account.json')),
+});
+
+const app = express();
+
+// Create the Jules proxy handler
+const julesProxy = createNodeHandler({
+  // Core Jules API credentials
   apiKey: process.env.JULES_API_KEY,
-  clientSecret: process.env.JULES_CLIENT_SECRET, // Used to sign Capability Tokens
+  clientSecret: process.env.JULES_CLIENT_SECRET, // A secret for signing user tokens
+
+  // Your app's authentication strategy
   verify: verifyFirebaseAdmin(),
-  authorize: createFirebasePolicy({ ... }),
+
+  // Your app's authorization strategy
+  authorize: createFirestorePolicy({
+    db: getFirestore(),
+    collection: 'sessions', // The Firestore collection where you store session ownership
+    ownerField: 'userId', // The field on the document that stores the user's ID
+  }),
+});
+
+// All requests to `/jules` will be handled by the proxy
+app.all('/jules/*', julesProxy);
+
+app.listen(3001, () => {
+  console.log('Proxy server listening on port 3001');
 });
 ```
 
-### Authentication Strategies (`verify`)
-
-#### `verifySharedSecret(config)`
-
-A simple strategy that checks for a static secret string. Useful for testing or server-to-server communication.
+On the client, you configure the SDK to use the proxy URL. It will automatically handle authentication and token management.
 
 ```typescript
-import { verifySharedSecret } from 'modjules/auth/strategies/portable';
+// client.ts
+import { jules } from 'modjules/browser';
+import { getAuth, signInWithCustomToken, getIdToken } from 'firebase/auth';
 
-verify: verifySharedSecret({ secret: 'my-super-secret' });
-```
+const auth = getAuth();
+// ... sign in the user ...
 
-#### `verifyFirebaseAdmin(config)`
-
-**Recommended for Node.js.** Uses the official `firebase-admin` SDK to verify ID Tokens. This is the most secure and performant option for Node environments.
-
-```typescript
-import { verifyFirebaseAdmin } from 'modjules/auth/strategies/node';
-
-verify: verifyFirebaseAdmin();
-// Or with a specific app instance
-// verify: verifyFirebaseAdmin({ app: myFirebaseApp })
-```
-
-#### `verifyFirebaseRest(config)`
-
-**Portable (Edge/GAS).** Verifies ID Tokens using the Google Identity Toolkit REST API. Use this in environments where `firebase-admin` cannot run (e.g., Cloudflare Workers, Google Apps Script).
-
-```typescript
-import { verifyFirebaseRest } from 'modjules/auth/strategies/portable';
-
-verify: verifyFirebaseRest({ apiKey: 'FIREBASE_WEB_API_KEY' });
-```
-
-### Authorization Strategies (`authorize`)
-
-#### `createMemoryPolicy(config)`
-
-Stores session ownership in memory. Useful for testing or ephemeral instances.
-
-```typescript
-import { createMemoryPolicy } from 'modjules/auth/strategies/memory';
-
-const db = {}; // Shared memory object
-authorize: createMemoryPolicy({
-  data: db,
-  // Optional: Grant 'admin-uid' access to everything
-  admins: ['admin-uid'],
+// Configure the SDK to talk to your proxy
+const userJules = jules.with({
+  proxy: {
+    url: 'http://localhost:3001/jules',
+    // The SDK will call this function to get the user's auth token
+    getAuthToken: () => getIdToken(auth.currentUser),
+  },
 });
+
+// Now you can use the SDK as normal, and all requests will be
+// securely routed through your proxy.
+const session = await userJules.session({ prompt: 'Hello!' });
 ```
 
-#### `createFirebasePolicy(config)`
+## Security Model
 
-Authorizes based on ownership data stored in Firebase Realtime Database.
+The proxy uses a three-step process to secure every request:
 
-```typescript
-import { createFirebasePolicy } from 'modjules/auth/strategies/rtdb';
-import { database } from 'firebase-admin';
+1.  **Verify (Authentication)**: The `verify` function checks the user's identity. In the example above, `verifyFirebaseAdmin` validates the Firebase ID token sent from the client.
 
-authorize: createFirebasePolicy({
-  db: database(),
-  rootPath: 'sessions', // Data at /sessions/{sessionId}
-  ownerField: 'ownerId', // Field containing the UID
-});
-```
+2.  **Authorize (Authorization)**: The `authorize` function checks if the identified user has permission to access the requested session. `createFirestorePolicy` does this by looking up the session ID in your Firestore database and ensuring the `userId` field matches the user's ID.
 
-#### `createFirestorePolicy(config)`
+3.  **Mint Capability Token**: If both checks pass, the proxy mints a short-lived **Capability Token** (a JWT). This token grants the user temporary, specific access to a single session. This token is sent back to the client, which then uses it to make direct, authorized requests for that session.
 
-Authorizes based on ownership data stored in Cloud Firestore.
-
-```typescript
-import { createFirestorePolicy } from 'modjules/auth/strategies/firestore';
-import { firestore } from 'firebase-admin';
-
-authorize: createFirestorePolicy({
-  db: firestore(),
-  collection: 'sessions', // Collection name
-  ownerField: 'author_uid', // Example of custom field name
-});
-```
+This ensures that even if a user managed to get another user's session ID, the proxy would deny them access.

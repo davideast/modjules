@@ -10,4 +10,11 @@ export default defineConfig({
   server: {
     port: 3001,
   },
+  vite: {
+    resolve: {
+      alias: {
+        modjules: 'modjules',
+      },
+    },
+  },
 });

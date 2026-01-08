@@ -172,6 +172,16 @@ export class JulesMCPServer {
     return tool.handler(this.julesClient, args);
   }
 
+  async handleReplaySession(args: {
+    sessionId: string;
+    cursor?: string;
+    filter?: string;
+  }) {
+    const tool = tools.find((t) => t.name === 'jules_replay_session');
+    if (!tool) throw new Error('Tool not found: jules_replay_session');
+    return tool.handler(this.julesClient, args);
+  }
+
   // For testing - returns list of tools
   _listTools() {
     return {

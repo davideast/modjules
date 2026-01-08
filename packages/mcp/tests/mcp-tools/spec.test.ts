@@ -99,6 +99,8 @@ interface McpGetCodeChangesTestCase extends BaseTestCase {
         source?: string;
         gitPatch?: {
           unidiffPatch: string;
+          baseCommitId: string;
+          suggestedCommitMessage: string;
         };
       }>;
     }>;
@@ -180,6 +182,8 @@ interface McpSessionFilesTestCase extends BaseTestCase {
         source?: string;
         gitPatch?: {
           unidiffPatch: string;
+          baseCommitId: string;
+          suggestedCommitMessage: string;
         };
       }>;
     }>;
@@ -247,6 +251,8 @@ function createTestActivityWithArtifacts(input: {
     source?: string;
     gitPatch?: {
       unidiffPatch: string;
+      baseCommitId?: string;
+      suggestedCommitMessage?: string;
     };
     command?: string;
     stdout?: string;
@@ -256,13 +262,12 @@ function createTestActivityWithArtifacts(input: {
 }): Activity {
   const artifacts = input.artifacts.map((a) => {
     if (a.type === 'changeSet' && a.gitPatch) {
-      // Provide default values for required GitPatch fields
-      const fullGitPatch = {
+      return new ChangeSetArtifact(a.source || 'agent', {
         unidiffPatch: a.gitPatch.unidiffPatch,
-        baseCommitId: 'test-base-commit',
-        suggestedCommitMessage: 'test commit message',
-      };
-      return new ChangeSetArtifact(a.source || 'agent', fullGitPatch);
+        baseCommitId: a.gitPatch.baseCommitId || 'test-commit',
+        suggestedCommitMessage:
+          a.gitPatch.suggestedCommitMessage || 'Test commit message',
+      });
     }
     if (a.type === 'bashOutput') {
       return new BashArtifact({

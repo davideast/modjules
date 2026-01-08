@@ -1,6 +1,6 @@
 import express from 'express';
-import { createNodeHandler } from 'modjules/server';
-import { createRBACPolicy } from 'modjules/server/auth/rbac';
+import { createNodeHandler } from '@modjules/server/node';
+import { createRBACPolicy } from '@modjules/server/auth/rbac';
 
 // ----------------------------------------------------------------------
 // 1. Mock Data & Database
