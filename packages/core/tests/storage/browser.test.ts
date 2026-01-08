@@ -1,24 +1,24 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { BrowserStorage } from '../../src/storage/browser.js';
 import { Activity } from '../../src/types.js';
-import { IDBFactory } from 'fake-indexeddb';
-
-// Use a fake IndexedDB for testing in a Node environment
-global.indexedDB = new IDBFactory();
+import 'fake-indexeddb/auto';
+import { deleteDB } from 'idb';
 
 describe('BrowserStorage', () => {
   let storage: BrowserStorage;
   const sessionId = 'test-session-456';
 
   beforeEach(async () => {
+    // This is the most reliable way to reset state with fake-indexeddb
+    await deleteDB('jules-activities');
     storage = new BrowserStorage(sessionId);
     await storage.init();
   });
 
   afterEach(async () => {
-    await storage.close();
-    // Clear the fake IndexedDB between tests
-    indexedDB.deleteDatabase('jules-activities');
+    if (storage) {
+      await storage.close();
+    }
   });
 
   it('initializes successfully', async () => {
