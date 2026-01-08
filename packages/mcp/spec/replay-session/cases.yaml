@@ -1,0 +1,242 @@
+# Basic Navigation
+- id: REPLAY-01
+  description: Returns the first step when no cursor is provided
+  category: replay-session
+  status: implemented
+  priority: P0
+  when: mcp_jules_replay_session
+  given:
+    sessionId: session-nav
+    args: {}
+    activities:
+      - id: act-1
+        type: agentMessaged
+        message: First message
+  then:
+    result:
+      step:
+        type: message
+        content: First message
+      progress: { current: 1, total: 1 }
+      nextCursor: null
+      prevCursor: null
+      context:
+        sessionId: session-nav
+        title: Test Session
+
+- id: REPLAY-02
+  description: Returns the next step when a cursor is provided
+  category: replay-session
+  status: implemented
+  priority: P0
+  when: mcp_jules_replay_session
+  given:
+    sessionId: session-nav
+    args:
+      cursor: step_001
+    activities:
+      - id: act-1
+        type: agentMessaged
+        message: First message
+      - id: act-2
+        type: agentMessaged
+        message: Second message
+  then:
+    result:
+      step:
+        type: message
+        content: Second message
+      progress: { current: 2, total: 2 }
+      nextCursor: null
+      prevCursor: step_000
+      context: null
+
+- id: REPLAY-04
+  description: Last step should have no next cursor
+  category: replay-session
+  status: implemented
+  priority: P1
+  when: mcp_jules_replay_session
+  given:
+    sessionId: session-nav
+    args:
+      cursor: step_001
+    activities:
+      - id: act-1
+        type: agentMessaged
+        message: First
+      - id: act-2
+        type: agentMessaged
+        message: Second
+  then:
+    result:
+      step:
+        type: message
+        content: Second
+      progress: { current: 2, total: 2 }
+      nextCursor: null
+      prevCursor: step_000
+
+- id: REPLAY-05
+  description: Returns error for out-of-bounds cursor (forward)
+  category: replay-session
+  status: implemented
+  priority: P1
+  when: mcp_jules_replay_session
+  given:
+    sessionId: session-nav
+    args:
+      cursor: step_999
+    activities:
+      - id: act-1
+        type: agentMessaged
+        message: Only one step
+  then:
+    error: Invalid cursor
+
+# Step Types
+- id: REPLAY-10
+  description: Returns a 'message' step for agentMessaged
+  category: replay-session
+  status: implemented
+  priority: P0
+  when: mcp_jules_replay_session
+  given:
+    sessionId: session-types
+    args: {}
+    activities:
+      - id: act-1
+        type: agentMessaged
+        message: This is a message.
+  then:
+    result:
+      step:
+        type: message
+        content: This is a message.
+        originator: agent
+      progress: { current: 1, total: 1 }
+      nextCursor: null
+      prevCursor: null
+
+- id: REPLAY-11
+  description: Returns a 'plan' step for planGenerated
+  category: replay-session
+  status: implemented
+  priority: P0
+  when: mcp_jules_replay_session
+  given:
+    sessionId: session-types
+    args: {}
+    activities:
+      - id: act-1
+        type: planGenerated
+        plan:
+          steps:
+            - description: Step 1
+            - description: Step 2
+  then:
+    result:
+      step:
+        type: plan
+        content:
+          - description: Step 1
+          - description: Step 2
+      progress: { current: 1, total: 1 }
+      nextCursor: null
+      prevCursor: null
+
+- id: REPLAY-12
+  description: Returns a 'bash' step with full content
+  category: replay-session
+  status: implemented
+  priority: P0
+  when: mcp_jules_replay_session
+  given:
+    sessionId: session-types
+    args: {}
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: bashOutput
+            command: npm test
+            stdout: "PASS"
+            stderr: ""
+            exitCode: 0
+  then:
+    result:
+      step:
+        type: bash
+        command: npm test
+        stdout: "PASS"
+        stderr: ""
+        exitCode: 0
+      progress: { current: 1, total: 1 }
+      nextCursor: null
+      prevCursor: null
+
+- id: REPLAY-13
+  description: Returns a 'code' step with full diff
+  category: replay-session
+  status: implemented
+  priority: P0
+  when: mcp_jules_replay_session
+  given:
+    sessionId: session-types
+    args: {}
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: "diff --git a/file.txt b/file.txt"
+  then:
+    result:
+      step:
+        type: code
+        unidiffPatch: "diff --git a/file.txt b/file.txt"
+      progress: { current: 1, total: 1 }
+      nextCursor: null
+      prevCursor: null
+
+# Retry Detection (Pending)
+- id: REPLAY-20
+  status: pending
+- id: REPLAY-21
+  status: pending
+- id: REPLAY-22
+  status: pending
+- id: REPLAY-23
+  status: pending
+- id: REPLAY-24
+  status: pending
+
+# Filtering (Pending)
+- id: REPLAY-30
+  status: pending
+- id: REPLAY-31
+  status: pending
+- id: REPLAY-32
+  status: pending
+- id: REPLAY-33
+  status: pending
+
+# Context Handling (Pending)
+- id: REPLAY-40
+  status: pending
+- id: REPLAY-41
+  status: pending
+
+# Complex Scenarios (Pending)
+- id: REPLAY-50
+  status: pending
+- id: REPLAY-51
+  status: pending
+
+# Edge Cases (Pending)
+- id: REPLAY-60
+  status: pending
+- id: REPLAY-61
+  status: pending
