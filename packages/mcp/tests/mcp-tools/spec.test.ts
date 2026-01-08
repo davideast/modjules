@@ -99,6 +99,8 @@ interface McpGetCodeChangesTestCase extends BaseTestCase {
         source?: string;
         gitPatch?: {
           unidiffPatch: string;
+          baseCommitId: string;
+          suggestedCommitMessage: string;
         };
       }>;
     }>;
@@ -180,6 +182,8 @@ interface McpSessionFilesTestCase extends BaseTestCase {
         source?: string;
         gitPatch?: {
           unidiffPatch: string;
+          baseCommitId: string;
+          suggestedCommitMessage: string;
         };
       }>;
     }>;
@@ -256,11 +260,7 @@ function createTestActivityWithArtifacts(input: {
 }): Activity {
   const artifacts = input.artifacts.map((a) => {
     if (a.type === 'changeSet' && a.gitPatch) {
-      return new ChangeSetArtifact(a.source || 'agent', {
-        baseCommitId: '',
-        suggestedCommitMessage: '',
-        ...a.gitPatch,
-      });
+      return new ChangeSetArtifact(a.source || 'agent', a.gitPatch);
     }
     if (a.type === 'bashOutput') {
       return new BashArtifact({

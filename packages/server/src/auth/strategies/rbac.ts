@@ -1,4 +1,4 @@
-import { AuthorizationStrategy, Scope, Identity } from '../../server/types.js';
+import { AuthorizationStrategy, Scope, Identity } from '@modjules/auth';
 
 export interface RBACConfig<T> {
   /** Fetch the resource (session) itself */

@@ -169,8 +169,7 @@ export class JulesMCPServer {
             activityId: activity.id,
           });
           summary.totalCommands++;
-          if (artifact.exitCode === 0 || artifact.exitCode == null)
-            summary.succeeded++;
+          if (artifact.exitCode === 0) summary.succeeded++;
           else summary.failed++;
         }
       }

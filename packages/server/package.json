@@ -1,6 +1,6 @@
 {
   "name": "@modjules/server",
-  "version": "0.2.0-beta.1",
+  "version": "0.2.0-beta.0",
   "type": "module",
   "description": "Server-side authentication and proxy for modjules",
   "repository": "davideast/modjules",
@@ -51,13 +51,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "modjules": "0.2.0-beta.1"
+    "modjules": "0.2.0-beta.0",
+    "@modjules/auth": "*"
   },
   "peerDependencies": {
-    "firebase-admin": ">=12.0.0"
+    "@modjules/firebase": "*"
+  },
+  "devDependencies": {
+    "@modjules/firebase": "*"
   },
   "peerDependenciesMeta": {
-    "firebase-admin": {
+    "@modjules/firebase": {
       "optional": true
     }
   }

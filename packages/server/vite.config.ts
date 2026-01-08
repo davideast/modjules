@@ -8,7 +8,6 @@ export default defineConfig({
     lib: {
       entry: {
         index: 'src/index.ts',
-        'auth-firebase': 'src/auth/strategies/firebase.ts',
         'auth-memory': 'src/auth/strategies/memory.ts',
         'auth-rbac': 'src/auth/strategies/rbac.ts',
         node: 'src/node/proxy.ts',
@@ -24,8 +23,7 @@ export default defineConfig({
         'modjules',
 
         // Peer dependencies
-        'firebase-admin',
-        /firebase-admin\/.*/,
+        '@modjules/firebase',
 
         // Node.js Built-ins
         'node:buffer',

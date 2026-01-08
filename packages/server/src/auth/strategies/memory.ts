@@ -1,7 +1,10 @@
-import type { VerifyCallback } from '../../server/types.js';
-import { createPolicy, type PolicyConfig } from '../policy.js';
-import type { ProtectedResource } from '../../server/types.js';
-import type { Identity } from '../types.js';
+import {
+  createPolicy,
+  type PolicyConfig,
+  type ProtectedResource,
+  type VerifyCallback,
+  type Identity,
+} from '@modjules/auth';
 
 type MemoryPolicyConfig<T extends ProtectedResource> = Omit<
   PolicyConfig<T>,

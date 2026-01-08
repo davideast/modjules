@@ -6,8 +6,7 @@ import {
   HandshakeResponse,
   TokenScope,
 } from '../auth/protocol.js';
-import { ServerConfig, ServerRequest, Scope } from './types.js';
-import { Identity } from '../auth/types.js';
+import { ServerConfig, ServerRequest, Scope, Identity } from './types.js';
 
 // --- 1. The Forwarder (Dumb Proxy) ---
 // Responsible ONLY for URL rewriting, API Key injection, and Fetching.
