@@ -124,4 +124,62 @@ export class JulesMCPServer {
     await this.server.connect(transport);
     console.error('Jules MCP Server running on stdio');
   }
+
+  // Public handler methods for testing - delegate to tool handlers
+  async handleSessionState(args: { sessionId: string }) {
+    const tool = tools.find((t) => t.name === 'jules_session_state');
+    if (!tool) throw new Error('Tool not found: jules_session_state');
+    return tool.handler(this.julesClient, args);
+  }
+
+  async handleSessionTimeline(args: {
+    sessionId: string;
+    limit?: number;
+    startAfter?: string;
+    order?: 'asc' | 'desc';
+    type?: string;
+  }) {
+    const tool = tools.find((t) => t.name === 'jules_session_timeline');
+    if (!tool) throw new Error('Tool not found: jules_session_timeline');
+    return tool.handler(this.julesClient, args);
+  }
+
+  async handleGetCodeChanges(args: {
+    sessionId: string;
+    activityId?: string;
+    filePath?: string;
+  }) {
+    const tool = tools.find((t) => t.name === 'jules_get_code_changes');
+    if (!tool) throw new Error('Tool not found: jules_get_code_changes');
+    return tool.handler(this.julesClient, args);
+  }
+
+  async handleGetBashOutputs(args: { sessionId: string }) {
+    const tool = tools.find((t) => t.name === 'jules_get_bash_outputs');
+    if (!tool) throw new Error('Tool not found: jules_get_bash_outputs');
+    return tool.handler(this.julesClient, args);
+  }
+
+  async handleSessionFiles(args: { sessionId: string }) {
+    const tool = tools.find((t) => t.name === 'jules_session_files');
+    if (!tool) throw new Error('Tool not found: jules_session_files');
+    return tool.handler(this.julesClient, args);
+  }
+
+  async handleSelect(args: { query: unknown }) {
+    const tool = tools.find((t) => t.name === 'jules_select');
+    if (!tool) throw new Error('Tool not found: jules_select');
+    return tool.handler(this.julesClient, args);
+  }
+
+  // For testing - returns list of tools
+  _listTools() {
+    return {
+      tools: tools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema,
+      })),
+    };
+  }
 }
