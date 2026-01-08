@@ -96,6 +96,8 @@ export class JulesMCPServer {
             return await this.handleGetBashOutputs(args);
           case 'jules_session_files':
             return await this.handleSessionFiles(args);
+          case 'jules_replay_session':
+            return await this.handleReplaySession(args);
           default:
             throw new Error(`Tool not found: ${name}`);
         }
@@ -773,6 +775,40 @@ WORKFLOW:
             required: ['sessionId'],
           },
         },
+        {
+          name: 'jules_replay_session',
+          description: `Step through a Jules session one activity at a time with full artifact content.
+
+ARGS:
+- sessionId (required): The session to replay
+- cursor (optional): Continue from this step (omit for first step)
+- filter (optional): "bash", "code", or "message" to filter step types
+
+RETURNS:
+- step: Full step content (command+output for bash, full diff for code)
+- nextCursor/prevCursor: Navigation cursors
+- progress: { current, total }
+- context: Session info (on first step only)
+
+USE FOR:
+- Reproducing failures locally
+- Analyzing sessions for improvements
+- AI-to-AI handoff`,
+          inputSchema: {
+            type: 'object',
+            properties: {
+              sessionId: {
+                type: 'string',
+                description: 'The session ID to replay.',
+              },
+              cursor: {
+                type: 'string',
+                description: 'The cursor for the step to retrieve.',
+              },
+            },
+            required: ['sessionId'],
+          },
+        },
       ],
     };
   }
@@ -1190,6 +1226,129 @@ Quick start:
         deletions: f.deletions,
       })),
       summary,
+    };
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(response, null, 2),
+        },
+      ],
+    };
+  }
+
+  private async handleReplaySession(args: any) {
+    const sessionId = args?.sessionId as string;
+    const cursor = args?.cursor as string | undefined;
+
+    if (!sessionId) {
+      throw new Error('sessionId is required');
+    }
+
+    const client = this.julesClient.session(sessionId);
+    const activities = await client.activities.select({ order: 'asc' });
+
+    // Build step list from activities, where each artifact is a step
+    const stepList: any[] = [];
+    for (const activity of activities) {
+      if (
+        activity.type === 'agentMessaged' ||
+        activity.type === 'userMessaged'
+      ) {
+        stepList.push({ type: 'message', activity });
+      } else if (activity.type === 'planGenerated') {
+        stepList.push({ type: 'plan', activity });
+      } else if (activity.type === 'progressUpdated') {
+        for (const artifact of activity.artifacts) {
+          if (artifact.type === 'bashOutput') {
+            stepList.push({ type: 'bash', artifact });
+          } else if (artifact.type === 'changeSet') {
+            stepList.push({ type: 'code', artifact });
+          }
+        }
+      }
+    }
+
+    // Parse cursor to get the index of the step to retrieve
+    let requestedIndex = 0;
+    if (cursor) {
+      const match = cursor.match(/^step_(\d+)$/);
+      if (match) {
+        requestedIndex = parseInt(match[1], 10);
+      } else {
+        throw new Error('Invalid cursor format');
+      }
+    }
+
+    // Check bounds
+    if (requestedIndex < 0 || requestedIndex >= stepList.length) {
+      throw new Error('Invalid cursor');
+    }
+
+    const currentStepData = stepList[requestedIndex];
+    let step: any;
+
+    // Format the step based on its type
+    switch (currentStepData.type) {
+      case 'message':
+        step = {
+          type: 'message',
+          content: currentStepData.activity.message,
+          originator: currentStepData.activity.originator,
+        };
+        break;
+      case 'plan':
+        step = {
+          type: 'plan',
+          content: currentStepData.activity.plan.steps,
+        };
+        break;
+      case 'bash':
+        step = {
+          type: 'bash',
+          command: currentStepData.artifact.command,
+          stdout: currentStepData.artifact.stdout,
+          stderr: currentStepData.artifact.stderr,
+          exitCode: currentStepData.artifact.exitCode,
+        };
+        break;
+      case 'code':
+        step = {
+          type: 'code',
+          unidiffPatch: currentStepData.artifact.gitPatch.unidiffPatch,
+        };
+        break;
+    }
+
+    // Calculate progress and cursors
+    const total = stepList.length;
+    const current = requestedIndex + 1;
+    const pad = (n: number) => String(n).padStart(3, '0');
+
+    const nextCursor =
+      requestedIndex < total - 1
+        ? `step_${pad(requestedIndex + 1)}`
+        : null;
+    const prevCursor =
+      requestedIndex > 0 ? `step_${pad(requestedIndex - 1)}` : null;
+
+    // Include context only on the first request
+    let context = null;
+    if (!cursor) {
+      const info = await client.info();
+      context = {
+        sessionId: info.id,
+        title: info.title,
+      };
+    }
+
+    const response = {
+      step,
+      progress: { current, total },
+      nextCursor,
+      prevCursor,
+      context,
     };
 
     return {
