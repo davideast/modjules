@@ -9,6 +9,7 @@ export default defineConfig({
       entry: {
         index: 'src/index.ts',
         cli: 'src/cli.ts',
+        tools: 'src/tools.ts',
       },
       name: 'modjules-mcp',
       formats: ['es'],
