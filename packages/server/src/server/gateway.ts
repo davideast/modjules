@@ -7,8 +7,8 @@ import {
   ServerResponse,
   SessionGatewayConfig,
   Scope,
+  Identity,
 } from './types.js';
-import { Identity } from '../auth/types.js';
 
 // --- 1. The Forwarder (Dumb Proxy) ---
 

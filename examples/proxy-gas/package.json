@@ -5,7 +5,8 @@
   "description": "A Serverless Jules Proxy running on Google Apps Script",
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "esbuild src/main.ts --bundle --outfile=dist/Code.js --format=iife --target=es2020",
+    "build:deps": "npm run build --workspace=@modjules/server",
+    "build": "npm run build:deps && esbuild src/main.ts --bundle --outfile=dist/Code.js --format=iife --target=es2020",
     "deploy": "npm run build && clasp push",
     "open": "clasp open"
   },

@@ -1,9 +1,13 @@
-import { createPolicy, type PolicyConfig } from '../policy.js';
-import type { ProtectedResource, Identity } from '../../server/types.js';
+import {
+  createPolicy,
+  type PolicyConfig,
+  type ProtectedResource,
+} from '@modjules/auth';
+import type { Identity } from './types.js';
 import { type Database } from 'firebase-admin/database';
 import { normalizeEmailKey } from './utils.js';
 
-type FirebasePolicyConfig = Omit<PolicyConfig<any>, 'getResource'> & {
+type RTDBPolicyConfig = Omit<PolicyConfig<any>, 'getResource'> & {
   db: Database;
   rootPath: string;
   /**
@@ -13,14 +17,15 @@ type FirebasePolicyConfig = Omit<PolicyConfig<any>, 'getResource'> & {
   ownerField?: string;
 };
 
-export function createFirebasePolicy<T extends ProtectedResource>(
-  config: FirebasePolicyConfig,
+export function createRTDBPolicy<T extends ProtectedResource>(
+  config: RTDBPolicyConfig,
 ) {
   const { db, rootPath, ownerField = 'ownerId', ...rules } = config;
 
   return createPolicy<T>({
     ...rules,
     getResource: async (sessionId: string) => {
+      if (!rootPath) return null;
       const cleanRoot = rootPath.replace(/\/$/, '');
       const ref = db.ref(`${cleanRoot}/${sessionId}`);
       const snapshot = await ref.get();

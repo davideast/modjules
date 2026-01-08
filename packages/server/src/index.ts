@@ -23,8 +23,6 @@ export {
 
 // Auth exports
 export { TokenManager } from './auth/tokenizer.js';
-export { createPolicy } from './auth/policy.js';
-export type { Identity } from './auth/types.js';
 export type {
   HandshakeRequest,
   HandshakeResponse,

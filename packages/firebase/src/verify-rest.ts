@@ -1,5 +1,4 @@
-import type { VerifyCallback } from '../../server/types.js';
-import type { Identity } from '../types.js';
+import type { VerifyCallback, Identity } from './types.js';
 
 export interface FirebaseRestConfig {
   apiKey: string; // Firebase Web API Key
@@ -10,7 +9,7 @@ export interface FirebaseRestConfig {
  * Uses the Google Identity Toolkit API via platform.fetch().
  */
 export function verifyFirebaseRest(config: FirebaseRestConfig): VerifyCallback {
-  return async (token: string, platform) => {
+  return async (token, platform) => {
     if (!config.apiKey)
       throw new Error("Strategy Config Error: 'apiKey' is missing");
     if (!token) throw new Error('Unauthorized: Auth token is missing');

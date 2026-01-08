@@ -1,0 +1,301 @@
+# Firebase Admin SDK Verification
+- id: FB-ADMIN-01
+  description: Successfully verifies a valid Firebase ID token
+  category: firebase-admin
+  status: pending
+  priority: P0
+  when: verifyFirebaseAdmin
+  given:
+    config:
+      auth: mockAuth
+    token: 'valid_jwt_token'
+    mockVerifyIdToken:
+      resolves:
+        uid: 'user_123'
+        email: 'user@example.com'
+  then:
+    result:
+      uid: 'user_123'
+      email: 'user@example.com'
+
+- id: FB-ADMIN-02
+  description: Throws error for expired Firebase ID token
+  category: firebase-admin
+  status: pending
+  priority: P0
+  when: verifyFirebaseAdmin
+  given:
+    config:
+      auth: mockAuth
+    token: 'expired_jwt_token'
+    mockVerifyIdToken:
+      rejects:
+        message: 'Firebase ID token has expired.'
+  then:
+    error: 'Firebase ID token has expired'
+
+- id: FB-ADMIN-03
+  description: Throws error when token is missing or empty
+  category: firebase-admin
+  status: pending
+  priority: P0
+  when: verifyFirebaseAdmin
+  given:
+    config:
+      auth: mockAuth
+    token: ''
+  then:
+    error: 'token is missing'
+
+# Firebase REST Verification (Portable)
+- id: FB-REST-01
+  description: Successfully verifies token via Google Identity Toolkit REST API
+  category: firebase-rest
+  status: pending
+  priority: P0
+  when: verifyFirebaseRest
+  given:
+    config:
+      apiKey: 'AIzaSyXXX'
+    token: 'valid_id_token'
+    mockFetch:
+      url: 'https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=AIzaSyXXX'
+      response:
+        ok: true
+        json:
+          users:
+            - localId: 'uid_123'
+              email: 'test@example.com'
+  then:
+    result:
+      uid: 'uid_123'
+      email: 'test@example.com'
+
+- id: FB-REST-02
+  description: Throws error on invalid API key
+  category: firebase-rest
+  status: pending
+  priority: P0
+  when: verifyFirebaseRest
+  given:
+    config:
+      apiKey: 'invalid_key'
+    token: 'any_token'
+    mockFetch:
+      response:
+        ok: false
+        status: 400
+  then:
+    error: 'Firebase Auth Failed'
+
+- id: FB-REST-03
+  description: Throws error when API key is missing
+  category: firebase-rest
+  status: pending
+  priority: P0
+  when: verifyFirebaseRest
+  given:
+    config:
+      apiKey: ''
+    token: 'any_token'
+  then:
+    error: "apiKey' is missing"
+
+# Firestore Policy
+- id: FB-FIRESTORE-POLICY-01
+  description: Fetches resource from Firestore and checks ownership
+  category: firestore-policy
+  status: pending
+  priority: P0
+  when: createFirestorePolicy
+  given:
+    config:
+      collection: mockCollection
+      ownerField: 'ownerId'
+    sessionId: 'session-123'
+    mockDocGet:
+      exists: true
+      data:
+        ownerId: 'user_123'
+  then:
+    resource:
+      ownerId: 'user_123'
+
+- id: FB-FIRESTORE-POLICY-02
+  description: Returns null when document does not exist
+  category: firestore-policy
+  status: pending
+  priority: P0
+  when: createFirestorePolicy.getResource
+  given:
+    sessionId: 'nonexistent'
+    mockDocGet:
+      exists: false
+  then:
+    result: null
+
+# Firestore Allow List
+- id: FB-FIRESTORE-ALLOW-01
+  description: Returns true when email in allowlist with allowed=true
+  category: firestore-allowlist
+  status: pending
+  priority: P0
+  when: createFirestoreAllowList
+  given:
+    identity:
+      email: 'allowed@example.com'
+    mockDocGet:
+      docId: 'allowed@example.com'
+      exists: true
+      data:
+        allowed: true
+  then:
+    result: true
+
+- id: FB-FIRESTORE-ALLOW-02
+  description: Returns false when email not in allowlist
+  category: firestore-allowlist
+  status: pending
+  priority: P0
+  when: createFirestoreAllowList
+  given:
+    identity:
+      email: 'notallowed@example.com'
+    mockDocGet:
+      exists: false
+  then:
+    result: false
+
+# RTDB Policy
+- id: FB-RTDB-POLICY-01
+  description: Fetches resource from RTDB and normalizes ownerId
+  category: rtdb-policy
+  status: pending
+  priority: P0
+  when: createRTDBPolicy
+  given:
+    config:
+      db: mockDatabase
+      rootPath: '/sessions'
+    sessionId: 'session-abc'
+    mockSnapshotGet:
+      exists: true
+      val:
+        ownerId: 'user_rtdb'
+  then:
+    resource:
+      ownerId: 'user_rtdb'
+
+- id: FB-RTDB-POLICY-02
+  description: Returns null when RTDB node does not exist
+  category: rtdb-policy
+  status: pending
+  priority: P0
+  when: createRTDBPolicy.getResource
+  given:
+    sessionId: 'nonexistent'
+    mockSnapshotGet:
+      exists: false
+  then:
+    result: null
+
+# RTDB Allow List
+- id: FB-RTDB-ALLOW-01
+  description: Returns true when email in RTDB allowlist
+  category: rtdb-allowlist
+  status: pending
+  priority: P0
+  when: createRTDBAllowList
+  given:
+    identity:
+      email: 'allowed@example.com'
+    mockSnapshotGet:
+      refPath: 'allowlist/allowed@example,com'
+      exists: true
+      val: true
+  then:
+    result: true
+
+- id: FB-RTDB-ALLOW-02
+  description: Returns false when email not in allowlist
+  category: rtdb-allowlist
+  status: pending
+  priority: P0
+  when: createRTDBAllowList
+  given:
+    identity:
+      email: 'notallowed@example.com'
+    mockSnapshotGet:
+      exists: false
+  then:
+    result: false
+
+# withAllowList Decorator
+- id: FB-ALLOWLIST-01
+  description: Allows access when email is in static array
+  category: with-allowlist
+  status: pending
+  priority: P0
+  when: withAllowList
+  given:
+    allowed:
+      - 'admin@company.com'
+      - 'user@company.com'
+    mockStrategyReturns:
+      uid: 'user_123'
+      email: 'user@company.com'
+  then:
+    result:
+      uid: 'user_123'
+      email: 'user@company.com'
+
+- id: FB-ALLOWLIST-02
+  description: Denies access when email not in static array
+  category: with-allowlist
+  status: pending
+  priority: P0
+  when: withAllowList
+  given:
+    allowed:
+      - 'admin@company.com'
+    mockStrategyReturns:
+      email: 'notadmin@company.com'
+  then:
+    error: 'not on the allow list'
+
+# normalizeEmailKey Utility
+- id: FB-NORMALIZE-01
+  description: RTDB normalization replaces dots with commas
+  category: normalize-email
+  status: pending
+  priority: P0
+  when: normalizeEmailKey
+  given:
+    email: 'user@example.com'
+    platform: 'rtdb'
+  then:
+    result: 'user@example,com'
+
+- id: FB-NORMALIZE-02
+  description: Firestore returns email as-is
+  category: normalize-email
+  status: pending
+  priority: P0
+  when: normalizeEmailKey
+  given:
+    email: 'user@example.com'
+    platform: 'firestore'
+  then:
+    result: 'user@example.com'
+
+- id: FB-NORMALIZE-03
+  description: Throws error when email is empty
+  category: normalize-email
+  status: pending
+  priority: P1
+  when: normalizeEmailKey
+  given:
+    email: ''
+    platform: 'rtdb'
+  then:
+    error: 'Email is required'

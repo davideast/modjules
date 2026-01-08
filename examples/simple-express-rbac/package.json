@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "modjules": "file:../.."
+    "modjules": "file:../..",
+    "@modjules/server": "*"
   },
   "devDependencies": {
     "@types/bun": "latest",

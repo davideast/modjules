@@ -1,5 +1,6 @@
-import type { VerifyCallback } from '../../server/types.js';
+import type { VerifyCallback } from './types.js';
 import type { Auth } from 'firebase-admin/auth';
+
 export interface VerifyFirebaseAdminConfig {
   auth: Auth;
 }
@@ -14,7 +15,7 @@ export function verifyFirebaseAdmin({
   return async (authToken: string) => {
     if (!authToken) throw new Error('Unauthorized: Auth token is missing');
     try {
-      return auth.verifyIdToken(authToken);
+      return await auth.verifyIdToken(authToken);
     } catch (error) {
       throw new Error(
         `Unauthorized: Invalid Firebase ID Token: ${error instanceof Error ? error.message : String(error)}`,

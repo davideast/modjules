@@ -1,5 +1,9 @@
-import { createPolicy, PolicyConfig } from '../policy.js';
-import type { ProtectedResource, Identity } from '../../server/types.js';
+import {
+  createPolicy,
+  type PolicyConfig,
+  type ProtectedResource,
+} from '@modjules/auth';
+import type { Identity } from './types.js';
 import type { CollectionReference } from 'firebase-admin/firestore';
 import { normalizeEmailKey } from './utils.js';
 
@@ -29,10 +33,7 @@ export function createFirestorePolicy<T extends ProtectedResource>(
   });
 }
 
-export function createFirestoreAllowList(
-  collection: CollectionReference,
-  // We don't necessarily need a path argument since we have the collection reference
-) {
+export function createFirestoreAllowList(collection: CollectionReference) {
   return async (identity: Identity): Promise<boolean> => {
     const email = identity.email;
     if (!email) return false;

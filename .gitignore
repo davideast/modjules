@@ -9,4 +9,3 @@ husky
 .turbo/
 **/tests/temp/
 gen/
-test-results/
