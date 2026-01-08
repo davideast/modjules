@@ -99,6 +99,7 @@ You can `await` the object directly to get the final result of the run.
 The `result` is a `SessionResource` object with the final state of the session.
 
 **On Success:**
+
 ```json
 {
   "id": "12345",
@@ -113,6 +114,7 @@ The `result` is a `SessionResource` object with the final state of the session.
 ```
 
 **On Failure:**
+
 ```json
 {
   "id": "67890",

@@ -26,13 +26,13 @@ for await (const activity of session.stream()) {
 
 ## Key Activity Types
 
-| Activity Type        | When It Happens                                            | What It Contains                                     |
-| :------------------- | :--------------------------------------------------------- | :--------------------------------------------------- |
-| `planGenerated`      | The agent has created a step-by-step plan.                 | `plan`: An object with the list of steps.            |
-| `progressUpdated`    | The agent is working on a step.                            | `title`, `description`, and often `artifacts`.       |
-| `agentMessaged`      | The agent sent a chat message.                             | `message`: The content of the message.               |
-| `sessionCompleted`   | The task is finished successfully.                         | Often contains a `changeSet` artifact.               |
-| `sessionFailed`      | The task could not be completed.                           | `reason`: An explanation of what went wrong.         |
+| Activity Type      | When It Happens                            | What It Contains                               |
+| :----------------- | :----------------------------------------- | :--------------------------------------------- |
+| `planGenerated`    | The agent has created a step-by-step plan. | `plan`: An object with the list of steps.      |
+| `progressUpdated`  | The agent is working on a step.            | `title`, `description`, and often `artifacts`. |
+| `agentMessaged`    | The agent sent a chat message.             | `message`: The content of the message.         |
+| `sessionCompleted` | The task is finished successfully.         | Often contains a `changeSet` artifact.         |
+| `sessionFailed`    | The task could not be completed.           | `reason`: An explanation of what went wrong.   |
 
 ---
 

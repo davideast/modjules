@@ -17,7 +17,7 @@ Create a file at `.claude/commands/jules-refactor.md` in your project's root dir
 ```markdown
 ---
 name: jules-refactor
-description: "Starts a Jules session to refactor the specified part of the codebase."
+description: 'Starts a Jules session to refactor the specified part of the codebase.'
 arguments:
   - The refactoring prompt (e.g., "Refactor the auth service to use the new DI pattern")
 ---
@@ -50,12 +50,13 @@ Create a file at `.claude/agents/jules-reviewer.md`.
 ```markdown
 ---
 name: jules-reviewer
-description: "An expert at reviewing the code changes in a Jules session. Give it a session ID."
+description: 'An expert at reviewing the code changes in a Jules session. Give it a session ID.'
 ---
 
 You are a senior code reviewer. Your only goal is to review the code changes in the provided Jules session.
 
 **Your workflow:**
+
 1.  Use the `jules_session_files` tool to see a list of all files that were changed in the session.
 2.  For each modified file, use the `jules_get_code_changes` tool to get the detailed diff.
 3.  Analyze all the diffs for potential bugs, style issues, or security vulnerabilities.
@@ -82,6 +83,7 @@ You can instruct Antigravity to use Jules for its bug reproduction workflow by c
 You are an expert at bug reproduction. When a user gives you a bug report, your goal is to create a pull request with a failing test.
 
 **Your workflow:**
+
 1.  Read the user's bug report carefully.
 2.  Use the `jules_create_session` tool to start a new Jules run. The prompt should instruct Jules to write a single failing test that reproduces the bug.
 3.  After creating the session, use the `jules_session_state` tool periodically to check on the status.

@@ -63,9 +63,9 @@ Save this as an HTML file and open it in your browser.
 
 The `modjules/browser` entry point is a version of the SDK compiled for browser environments.
 
--   **Import:** You can import it from a CDN like JSDelivr or bundle it with your application using tools like Vite or Webpack.
--   **Local Cache:** It uses `IndexedDB` to store session and activity data, so `jules.select()` and `session.history()` are just as fast as they are in Node.js.
--   **Artifacts:** The `artifact.toUrl()` method is especially useful in the browser, as it provides a `data:` URL that can be used to display media directly. `artifact.save()` will save the artifact's data into `IndexedDB`.
+- **Import:** You can import it from a CDN like JSDelivr or bundle it with your application using tools like Vite or Webpack.
+- **Local Cache:** It uses `IndexedDB` to store session and activity data, so `jules.select()` and `session.history()` are just as fast as they are in Node.js.
+- **Artifacts:** The `artifact.toUrl()` method is especially useful in the browser, as it provides a `data:` URL that can be used to display media directly. `artifact.save()` will save the artifact's data into `IndexedDB`.
 
 ## Cancelling Requests
 

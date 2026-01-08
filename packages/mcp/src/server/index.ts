@@ -1241,16 +1241,21 @@ Quick start:
   private async handleReplaySession(args: any) {
     const sessionId = args?.sessionId as string;
     const cursor = args?.cursor as string | undefined;
+    const filter = args?.filter as string | undefined;
 
     if (!sessionId) {
       throw new Error('sessionId is required');
     }
+    if (filter && !['bash', 'code', 'message'].includes(filter)) {
+      throw new Error('Invalid filter. Must be one of: bash, code, message');
+    }
 
     const client = this.julesClient.session(sessionId);
+    await client.activities.hydrate();
     const activities = await client.activities.select({ order: 'asc' });
 
     // Build step list from activities, where each artifact is a step
-    const stepList: any[] = [];
+    let stepList: any[] = [];
     for (const activity of activities) {
       if (
         activity.type === 'agentMessaged' ||
@@ -1268,6 +1273,43 @@ Quick start:
           }
         }
       }
+    }
+
+    // Post-process stepList to add retry detection for bash commands
+    for (let i = 0; i < stepList.length; i++) {
+      const currentStep = stepList[i];
+      if (currentStep.type === 'bash') {
+        // Look ahead for consecutive identical commands
+        const retryChain = [currentStep];
+        let j = i + 1;
+        while (
+          j < stepList.length &&
+          stepList[j].type === 'bash' &&
+          stepList[j].artifact.command === currentStep.artifact.command &&
+          stepList[j].artifact.stderr === currentStep.artifact.stderr
+        ) {
+          retryChain.push(stepList[j]);
+          j++;
+        }
+
+        if (retryChain.length > 1) {
+          for (let k = 0; k < retryChain.length; k++) {
+            retryChain[k].attempt = k + 1;
+            retryChain[k].totalAttempts = retryChain.length;
+          }
+          // Skip the rest of the chain
+          i = j - 1;
+        }
+      }
+    }
+
+    // Filter step list if a filter is provided
+    if (filter) {
+      stepList = stepList.filter((step) => step.type === filter);
+    }
+
+    if (stepList.length === 0) {
+      throw new Error('No replayable steps found in session');
     }
 
     // Parse cursor to get the index of the step to retrieve
@@ -1311,6 +1353,12 @@ Quick start:
           stdout: currentStepData.artifact.stdout,
           stderr: currentStepData.artifact.stderr,
           exitCode: currentStepData.artifact.exitCode,
+          ...(currentStepData.attempt && {
+            attempt: currentStepData.attempt,
+          }),
+          ...(currentStepData.totalAttempts && {
+            totalAttempts: currentStepData.totalAttempts,
+          }),
         };
         break;
       case 'code':
@@ -1327,9 +1375,7 @@ Quick start:
     const pad = (n: number) => String(n).padStart(3, '0');
 
     const nextCursor =
-      requestedIndex < total - 1
-        ? `step_${pad(requestedIndex + 1)}`
-        : null;
+      requestedIndex < total - 1 ? `step_${pad(requestedIndex + 1)}` : null;
     const prevCursor =
       requestedIndex > 0 ? `step_${pad(requestedIndex - 1)}` : null;
 
@@ -1340,6 +1386,7 @@ Quick start:
       context = {
         sessionId: info.id,
         title: info.title,
+        source: info.source,
       };
     }
 

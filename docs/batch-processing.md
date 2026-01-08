@@ -34,6 +34,7 @@ import * as fs from 'fs/promises';
 When you run this script (`npx tsx migrate.ts`), it will kick off multiple concurrent jobs, creating pull requests as they complete, until all repositories have been updated.
 
 ---
+
 ## Reference: Configuration and Error Handling
 
 You can control the execution behavior by passing a configuration object as the third argument to `jules.all()`.
@@ -45,13 +46,14 @@ const results = await jules.all(items, mapper, {
   delayMs: 500,
 });
 ```
+
 ### Configuration Options
 
-| Option        | Type      | Default | Description                                                                                                          |
-| :------------ | :-------- | :------ | :------------------------------------------------------------------------------------------------------------------- |
-| `concurrency` | `number`  | `3`     | The maximum number of sessions to start concurrently.                                                                |
+| Option        | Type      | Default | Description                                                                                                                      |
+| :------------ | :-------- | :------ | :------------------------------------------------------------------------------------------------------------------------------- |
+| `concurrency` | `number`  | `3`     | The maximum number of sessions to start concurrently.                                                                            |
 | `stopOnError` | `boolean` | `true`  | If `true`, the batch operation stops immediately and rejects if any item fails. If `false`, it continues processing other items. |
-| `delayMs`     | `number`  | `0`     | A delay in milliseconds to wait before starting each item. Useful for avoiding rate limits on external APIs.          |
+| `delayMs`     | `number`  | `0`     | A delay in milliseconds to wait before starting each item. Useful for avoiding rate limits on external APIs.                     |
 
 ### Error Handling
 
