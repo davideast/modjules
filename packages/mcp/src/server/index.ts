@@ -372,8 +372,20 @@ export class JulesMCPServer {
       tools: [
         {
           name: 'jules_create_session',
-          description:
-            'Creates a new Jules session or automated run to perform code tasks.',
+          description: `Start a new Jules task.
+
+ARGS:
+- prompt (required): What you want Jules to do
+- repo (required): GitHub repo as "owner/repo"
+- branch (required): Target branch
+- interactive (optional): If true, waits for plan approval. Default: false
+- autoPr (optional): Auto-create PR on completion. Default: true
+
+MODES:
+- Automated (default): Jules runs to completion, creates PR
+- Interactive (interactive: true): Jules pauses for plan approval, allows back-and-forth conversation
+
+TIP: Use automated mode for well-defined tasks. Use interactive mode when you want to guide Jules or review the plan first.`,
           inputSchema: {
             type: 'object',
             properties: {
@@ -405,8 +417,21 @@ export class JulesMCPServer {
         },
         {
           name: 'jules_session_state',
-          description:
-            'Returns lightweight session metadata (state, URL, PR info). Use jules_session_timeline for activities.',
+          description: `Get the current status of a Jules session.
+
+RETURNS: id, state, url, title, pr (if created)
+
+STATES:
+- queued/planning/inProgress: Jules is working
+- awaitingPlanApproval: Jules needs approval (unless auto-approve was set)
+- awaitingUserFeedback: Jules explicitly asked for input
+- completed: Task finished, but Jules may still have a question (see below)
+- failed: Session errored out
+
+IMPORTANT:
+- "completed" does NOT mean the session is closed. Jules may have finished work but asked a follow-up question. Always check jules_session_timeline for the latest agentMessaged.
+- "awaitingPlanApproval" requires action ONLY if the session was created with interactive: true. Auto-runs skip this state.
+- You can send messages to ANY session regardless of state.`,
           inputSchema: {
             type: 'object',
             properties: {
@@ -420,8 +445,14 @@ export class JulesMCPServer {
         },
         {
           name: 'jules_get_bash_outputs',
-          description:
-            'Get all bash command outputs from a Jules session. Returns commands executed, their stdout/stderr, and exit codes. Use to understand what shell commands were run.',
+          description: `Get all shell commands Jules ran and their results.
+
+RETURNS: Array of { command, stdout, stderr, exitCode, activityId }
+
+USE FOR:
+- Debugging why something failed (check exitCode != 0)
+- Seeing test output
+- Understanding what Jules tried`,
           inputSchema: {
             type: 'object',
             properties: {
@@ -435,8 +466,20 @@ export class JulesMCPServer {
         },
         {
           name: 'jules_session_timeline',
-          description:
-            'Returns paginated lightweight activities for a session.',
+          description: `Get the activity history for a session.
+
+ARGS:
+- sessionId (required)
+- type: filter by activity type (agentMessaged, userMessaged, planGenerated, progressUpdated, sessionCompleted, sessionFailed)
+- order: "desc" (newest first, default) or "asc" (oldest first)
+- limit: max activities to return (default 10)
+
+COMMON PATTERNS:
+- Check for pending question: { type: "agentMessaged", order: "desc", limit: 1 }
+- See what user said last: { type: "userMessaged", order: "desc", limit: 1 }
+- Get full conversation: { order: "asc" } (chronological)
+
+TIP: After checking jules_session_state shows "completed", use this tool to see if the latest agentMessaged contains a question.`,
           inputSchema: {
             type: 'object',
             properties: {
@@ -479,8 +522,20 @@ export class JulesMCPServer {
         },
         {
           name: 'jules_interact',
-          description:
-            'Interacts with an active session (approving plans or sending messages).',
+          description: `Send a message to Jules or approve a plan.
+
+ACTIONS:
+- "approve": Approve a pending plan (when state is awaitingPlanApproval)
+- "send": Send a message (fire-and-forget, no wait for reply)
+- "ask": Send a message and wait for Jules' reply
+
+WHEN TO USE:
+- Jules asked a question → use "send" or "ask" with your response
+- Jules is awaiting plan approval → use "approve"
+- You want to give Jules new instructions → use "send"
+- You want a conversational exchange → use "ask"
+
+NOTE: You can message Jules in ANY state, including "completed". Sessions remain interactive.`,
           inputSchema: {
             type: 'object',
             properties: {
@@ -666,8 +721,16 @@ export class JulesMCPServer {
         },
         {
           name: 'jules_get_code_changes',
-          description:
-            'Get all file changes from a Jules session with parsed diffs. Returns file paths, change types (created/modified/deleted), and line counts. Use for code review or understanding what files were modified.',
+          description: `Get the actual diff for code changes.
+
+ARGS:
+- sessionId (required)
+- activityId (required): Get this from jules_session_files
+- filePath (optional): Filter to a specific file
+
+RETURNS: unidiffPatch, files array with parsed changes
+
+PREREQUISITE: Call jules_session_files first to discover activityIds.`,
           inputSchema: {
             type: 'object',
             properties: {
@@ -690,12 +753,15 @@ export class JulesMCPServer {
         },
         {
           name: 'jules_session_files',
-          description:
-            'Returns all files changed in a Jules session with change types and activity IDs. ' +
-            'Use jules_get_code_changes with an activityId to drill into specific file diffs. ' +
-            'Response includes path, changeType (created/modified/deleted), activityIds array, additions, and deletions per file. ' +
-            'When presenting to users, format as grouped ASCII tree: directory/ followed by indented files showing [A]dded/[M]odified/[D]eleted, +/-lines, and (n) activity count with aligned columns. ' +
-            'Use green for additions, red for deletions, yellow/orange for modified if the output supports colors; otherwise use emoji fallback: 🟢 added, 🔴 deleted, 🟡 modified.',
+          description: `List all files changed in a session.
+
+RETURNS: Array of { path, changeType, activityIds, additions, deletions }
+
+USE THIS FIRST when reviewing code changes. It shows WHICH files changed and gives you the activityIds needed for jules_get_code_changes.
+
+WORKFLOW:
+1. Call jules_session_files to see changed files
+2. Call jules_get_code_changes with activityId to see specific diffs`,
           inputSchema: {
             type: 'object',
             properties: {
