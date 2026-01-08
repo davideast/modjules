@@ -10,18 +10,23 @@ interface GitHubUser {
 
 /**
  * Extracts all potential @username mentions from the PR body.
- * Filters out known bot patterns but does NOT validate against GitHub API yet.
+ * Filters out known bot patterns, npm scopes, and duplicates.
+ * Does NOT validate against GitHub API yet.
  */
 function findUserCandidates(body: string): string[] {
-  const regex = /@([a-zA-Z0-9-]+)/g;
+  // Match @username but capture what comes after to check for npm scopes
+  const regex = /@([a-zA-Z0-9-]+)(\/)?/g;
   const candidates: string[] = [];
   const seen = new Set<string>();
   let match;
 
   while ((match = regex.exec(body)) !== null) {
     const username = match[1].toLowerCase();
-    // Skip known bots and duplicates
+    const isNpmScope = match[2] === '/'; // If followed by /, it's an npm scope like @modjules/pkg
+
+    // Skip npm scopes, known bots, and duplicates
     if (
+      isNpmScope ||
       username === 'google-labs-jules' ||
       username.endsWith('[bot]') ||
       seen.has(username)
