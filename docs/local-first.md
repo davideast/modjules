@@ -48,11 +48,11 @@ This means that the next time you need that data, it's already there, ready to b
 
 The local cache also powers the different streaming methods:
 
--   `session.stream()`: **The default and recommended stream.** It gives you the best of both worlds: it first yields all the activities from the local cache (instantly), and then stays connected to the network to stream any live, real-time updates as they happen.
+- `session.stream()`: **The default and recommended stream.** It gives you the best of both worlds: it first yields all the activities from the local cache (instantly), and then stays connected to the network to stream any live, real-time updates as they happen.
 
--   `session.history()`: **Local cache only.** This stream reads all the activities from the cache and then closes. It's perfect for when you need to quickly "replay" a session's history for analysis and don't care about live updates. It works offline.
+- `session.history()`: **Local cache only.** This stream reads all the activities from the cache and then closes. It's perfect for when you need to quickly "replay" a session's history for analysis and don't care about live updates. It works offline.
 
--   `session.updates()`: **Network only.** This stream ignores the local cache and only shows you live events from the network from the moment you connect.
+- `session.updates()`: **Network only.** This stream ignores the local cache and only shows you live events from the network from the moment you connect.
 
 ## Manual Synchronization
 

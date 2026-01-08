@@ -22,7 +22,10 @@ import { mockPlatform } from '../mocks/platform.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SPEC_FILE = path.resolve(__dirname, '../../spec/replay-session/cases.yaml');
+const SPEC_FILE = path.resolve(
+  __dirname,
+  '../../spec/replay-session/cases.yaml',
+);
 
 // #region Test Case Interfaces
 interface BaseTestCase {
@@ -69,6 +72,8 @@ interface ReplaySessionTestCase extends BaseTestCase {
         exitCode?: number;
         unidiffPatch?: string;
         originator?: string;
+        attempt?: number;
+        totalAttempts?: number;
       };
       progress: { current: number; total: number };
       nextCursor: string | null;
@@ -99,12 +104,19 @@ function createTestActivityWithArtifacts(input: {
     source?: string;
     gitPatch?: {
       unidiffPatch: string;
+      baseCommitId?: string;
+      suggestedCommitMessage?: string;
     };
   }>;
 }): Activity {
   const artifacts = (input.artifacts || []).map((a) => {
     if (a.type === 'changeSet' && a.gitPatch) {
-      return new ChangeSetArtifact(a.source || 'agent', a.gitPatch);
+      return new ChangeSetArtifact(a.source || 'agent', {
+        unidiffPatch: a.gitPatch.unidiffPatch,
+        baseCommitId: a.gitPatch.baseCommitId || 'test-commit',
+        suggestedCommitMessage:
+          a.gitPatch.suggestedCommitMessage || 'Test commit message',
+      });
     }
     if (a.type === 'bashOutput') {
       return new BashArtifact({
@@ -167,11 +179,35 @@ describe('Replay Session Spec', async () => {
             .mockResolvedValue(
               tc.given.activities.map(createTestActivityWithArtifacts),
             ),
+          hydrate: vi.fn().mockResolvedValue(0),
         } as any,
         info: vi.fn().mockResolvedValue({
           id: tc.given.sessionId,
+          name: `sessions/${tc.given.sessionId}`,
           title: 'Test Session',
-        } as SessionResource),
+          source: {
+            name: 'sources/github/owner/repo',
+            id: 'github/owner/repo',
+            type: 'githubRepo',
+            githubRepo: {
+              owner: 'owner',
+              repo: 'repo',
+              isPrivate: false,
+            },
+          },
+          prompt: '',
+          sourceContext: {
+            source: 'sources/github/owner/repo',
+            githubRepoContext: {
+              startingBranch: 'main',
+            },
+          },
+          createTime: new Date().toISOString(),
+          updateTime: new Date().toISOString(),
+          state: 'completed',
+          url: '',
+          outputs: [],
+        } as unknown as SessionResource),
       };
 
       vi.spyOn(mockJules, 'session').mockReturnValue(
@@ -206,6 +242,10 @@ describe('Replay Session Spec', async () => {
       }
       if (expected.step.command) {
         expect(content.step.command).toBe(expected.step.command);
+        if (expected.step.attempt) {
+          expect(content.step.attempt).toBe(expected.step.attempt);
+          expect(content.step.totalAttempts).toBe(expected.step.totalAttempts);
+        }
       }
       if (expected.step.unidiffPatch) {
         expect(content.step.unidiffPatch).toBe(expected.step.unidiffPatch);

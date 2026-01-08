@@ -17,7 +17,10 @@ import { slack, awaitSlackApproval } from './slack-api'; // Fictional Slack API 
 async function handleProductionAlert(alert) {
   const { serviceName, errorMessage, traceId } = alert;
 
-  await slack.postMessage('#prod-alerts', `🚨 Alert on ${serviceName}: ${errorMessage}`);
+  await slack.postMessage(
+    '#prod-alerts',
+    `🚨 Alert on ${serviceName}: ${errorMessage}`,
+  );
 
   // 1. Start an interactive session to investigate the alert
   const session = await jules.session({
@@ -34,7 +37,10 @@ async function handleProductionAlert(alert) {
     source: { github: `my-org/${serviceName}`, branch: 'main' },
   });
 
-  await slack.postMessage('#prod-alerts', `Jules is investigating... (Session: ${session.id})`);
+  await slack.postMessage(
+    '#prod-alerts',
+    `Jules is investigating... (Session: ${session.id})`,
+  );
 
   // 2. Wait for the agent to generate a plan
   await session.waitFor('awaitingPlanApproval');
@@ -50,13 +56,22 @@ async function handleProductionAlert(alert) {
   if (isApproved) {
     // 4. If approved, tell the agent to proceed
     await session.approve();
-    await slack.postMessage('#prod-alerts', 'Plan approved by engineer. Jules is attempting the fix.');
+    await slack.postMessage(
+      '#prod-alerts',
+      'Plan approved by engineer. Jules is attempting the fix.',
+    );
 
     const result = await session.result();
     if (result.state === 'completed' && result.pullRequest) {
-      await slack.postMessage('#prod-alerts', `✅ Fix complete! PR is ready for review: ${result.pullRequest.url}`);
+      await slack.postMessage(
+        '#prod-alerts',
+        `✅ Fix complete! PR is ready for review: ${result.pullRequest.url}`,
+      );
     } else {
-      await slack.postMessage('#prod-alerts', `❌ Jules failed to fix the issue. Please investigate manually.`);
+      await slack.postMessage(
+        '#prod-alerts',
+        `❌ Jules failed to fix the issue. Please investigate manually.`,
+      );
     }
   } else {
     await slack.postMessage('#prod-alerts', 'Plan rejected. Aborting session.');
@@ -71,16 +86,21 @@ async function handleProductionAlert(alert) {
 The `jules.session()` method returns a `SessionClient` object. This is your main tool for interacting with the agent.
 
 ### `session.id`
+
 - **Type**: `string`
 - The unique identifier for the session.
 
 ---
+
 ### `session.approve()`
+
 - **Signature**: `approve(): Promise<void>`
 - **Description**: Approves a pending plan and allows the agent to begin executing it. This is only needed if the session was created with `requirePlanApproval: true` (the default for `jules.session()`).
 
 ---
+
 ### `session.ask()`
+
 - **Signature**: `ask(message: string): Promise<ActivityAgentMessaged>`
 - **Description**: Sends a message to the session and waits for the agent to send a message back. It returns a promise that resolves with the agent's reply.
 - **Returns**: An `Activity` object of type `agentMessaged`.
@@ -92,23 +112,31 @@ The `jules.session()` method returns a `SessionClient` object. This is your main
   ```
 
 ---
+
 ### `session.send()`
+
 - **Signature**: `send(message: string): Promise<void>`
 - **Description**: Sends a "fire-and-forget" message to the session. Your script will not wait for a reply. This is useful for providing instructions or information without needing a direct response.
 
 ---
+
 ### `session.stream()`
+
 - **Signature**: `stream(): AsyncIterable<Activity>`
 - **Description**: Returns an `AsyncIterator` that yields all activities in the session. It first streams all historical activities from the local cache and then stays open to stream live updates from the network.
 
 ---
+
 ### `session.waitFor()`
+
 - **Signature**: `waitFor(targetState: SessionState): Promise<void>`
 - **Description**: Polls the session until it reaches a specific `SessionState`.
 - **`SessionState` values**: `'unspecified'`, `'creating'`, `'inProgress'`, `'awaitingPlanApproval'`, `'completed'`, `'failed'`.
 
 ---
+
 ### `session.info()`
+
 - **Signature**: `info(): Promise<SessionResource>`
 - **Description**: Fetches the latest snapshot of the session's state, metadata, and outputs from the network.
 - **Returns**: A `SessionResource` object.
@@ -122,7 +150,9 @@ The `jules.session()` method returns a `SessionClient` object. This is your main
   ```
 
 ---
+
 ### `session.result()`
+
 - **Signature**: `result(): Promise<SessionResource>`
 - **Description**: Waits for the session to reach a terminal state (`completed` or `failed`) and returns the final outcome.
 - **Returns**: A `SessionResource` object containing the final state and any outputs, such as a pull request.
@@ -139,7 +169,9 @@ The `jules.session()` method returns a `SessionClient` object. This is your main
   ```
 
 ---
+
 ## Resuming a Session
+
 If you have a session ID, you can get a client to reconnect to it.
 
 ```typescript

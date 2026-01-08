@@ -22,7 +22,8 @@ export async function configAction(options: ConfigOptions) {
       apiKey = await inquirer.password({
         message: 'Enter your Jules API Key:',
         mask: '*',
-        validate: (input) => input.trim().length > 0 || 'API Key cannot be empty',
+        validate: (input) =>
+          input.trim().length > 0 || 'API Key cannot be empty',
       });
     }
 

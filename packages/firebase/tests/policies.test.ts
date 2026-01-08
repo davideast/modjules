@@ -82,13 +82,11 @@ describe('Firebase Policies and Utilities', () => {
       const { resource } = then;
 
       const mockRef = {
-        get: vi
-          .fn()
-          .mockResolvedValue({
-            ...mockSnapshotGet,
-            exists: () => mockSnapshotGet.exists,
-            val: () => mockSnapshotGet.val,
-          }),
+        get: vi.fn().mockResolvedValue({
+          ...mockSnapshotGet,
+          exists: () => mockSnapshotGet.exists,
+          val: () => mockSnapshotGet.val,
+        }),
       };
       const mockDb = { ref: vi.fn().mockReturnValue(mockRef) };
 
@@ -115,13 +113,11 @@ describe('Firebase Policies and Utilities', () => {
       const { result } = then;
 
       const mockRef = {
-        get: vi
-          .fn()
-          .mockResolvedValue({
-            ...mockSnapshotGet,
-            exists: () => mockSnapshotGet.exists,
-            val: () => mockSnapshotGet.val,
-          }),
+        get: vi.fn().mockResolvedValue({
+          ...mockSnapshotGet,
+          exists: () => mockSnapshotGet.exists,
+          val: () => mockSnapshotGet.val,
+        }),
       };
       const mockDb = { ref: vi.fn().mockReturnValue(mockRef) };
 

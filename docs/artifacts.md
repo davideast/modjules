@@ -61,12 +61,12 @@ const parsed = artifact.parsed();
 
 This artifact contains the result of a shell command.
 
--   Use the `.toString()` method to get a nicely formatted summary for logging.
--   Check the `.exitCode` property to see if the command succeeded (`0`) or failed (non-zero).
+- Use the `.toString()` method to get a nicely formatted summary for logging.
+- Check the `.exitCode` property to see if the command succeeded (`0`) or failed (non-zero).
 
 ### Media (`media`)
 
 This artifact represents a file, like a screenshot (`image/png`).
 
--   Use the `.save(filepath)` method to save the file to the filesystem (or IndexedDB in the browser).
--   Use `.toUrl()` to get a `data:` URI for displaying the media in a browser.
+- Use the `.save(filepath)` method to save the file to the filesystem (or IndexedDB in the browser).
+- Use `.toUrl()` to get a `data:` URI for displaying the media in a browser.

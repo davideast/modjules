@@ -6,10 +6,10 @@
   priority: P0
   when: config --key
   given:
-    args: ["--key", "test-api-key-123"]
+    args: ['--key', 'test-api-key-123']
   then:
     configFile:
-      apiKey: "test-api-key-123"
+      apiKey: 'test-api-key-123'
     stdout: contains "Configuration saved successfully"
 
 - id: CONFIG-02
@@ -19,7 +19,7 @@
   priority: P0
   when: config --key
   given:
-    args: ["--key", ""]
+    args: ['--key', '']
   then:
     stderr: contains "API Key cannot be empty"
     exitCode: 1
@@ -33,4 +33,4 @@
   given:
     args: []
   then:
-    behavior: "prompts for API key interactively"
+    behavior: 'prompts for API key interactively'

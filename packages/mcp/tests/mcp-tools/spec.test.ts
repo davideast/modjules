@@ -251,6 +251,8 @@ function createTestActivityWithArtifacts(input: {
     source?: string;
     gitPatch?: {
       unidiffPatch: string;
+      baseCommitId?: string;
+      suggestedCommitMessage?: string;
     };
     command?: string;
     stdout?: string;
@@ -260,7 +262,12 @@ function createTestActivityWithArtifacts(input: {
 }): Activity {
   const artifacts = input.artifacts.map((a) => {
     if (a.type === 'changeSet' && a.gitPatch) {
-      return new ChangeSetArtifact(a.source || 'agent', a.gitPatch);
+      return new ChangeSetArtifact(a.source || 'agent', {
+        unidiffPatch: a.gitPatch.unidiffPatch,
+        baseCommitId: a.gitPatch.baseCommitId || 'test-commit',
+        suggestedCommitMessage:
+          a.gitPatch.suggestedCommitMessage || 'Test commit message',
+      });
     }
     if (a.type === 'bashOutput') {
       return new BashArtifact({
