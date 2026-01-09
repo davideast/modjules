@@ -1,5 +1,5 @@
 import * as fs from 'fs/promises';
-import { createReadStream } from 'fs';
+import { createReadStream, createWriteStream, WriteStream } from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
 import { Activity, SessionResource } from '../types.js';
@@ -19,6 +19,7 @@ export class NodeFileStorage implements ActivityStorage {
   private filePath: string;
   private metadataPath: string;
   private initialized = false;
+  private writeStream: WriteStream | null = null;
 
   constructor(sessionId: string, rootDir: string) {
     const sessionCacheDir = path.resolve(rootDir, '.jules/cache', sessionId);
@@ -37,6 +38,20 @@ export class NodeFileStorage implements ActivityStorage {
     if (this.initialized) return;
     // Ensure the cache directory exists before we ever try to read/write
     await fs.mkdir(path.dirname(this.filePath), { recursive: true });
+
+    // Open a persistent write stream for efficient appending
+    this.writeStream = createWriteStream(this.filePath, {
+      flags: 'a',
+      encoding: 'utf8'
+    });
+
+    // Prevent process crash on stream error
+    this.writeStream.on('error', (err) => {
+        console.error(`[NodeFileStorage] WriteStream error for ${this.filePath}:`, err);
+        // We might want to set initialized = false or nullify stream,
+        // but for now, logging prevents the crash.
+    });
+
     this.initialized = true;
   }
 
@@ -44,7 +59,10 @@ export class NodeFileStorage implements ActivityStorage {
    * Closes the storage.
    */
   async close(): Promise<void> {
-    // No persistent handles to close in this simple V1 implementation.
+    if (this.writeStream) {
+      await new Promise<void>((resolve) => this.writeStream!.end(resolve));
+      this.writeStream = null;
+    }
     this.initialized = false;
   }
 
@@ -86,8 +104,16 @@ export class NodeFileStorage implements ActivityStorage {
 
     // 2. Append the activity
     const line = JSON.stringify(activity) + '\n';
-    // 'utf8' is standard. appendFile handles opening/closing the file handle automatically.
-    await fs.appendFile(this.filePath, line, 'utf8');
+
+    // Write to stream. Handle backpressure if necessary.
+    if (this.writeStream) {
+      const canContinue = this.writeStream.write(line);
+      if (!canContinue) {
+        await new Promise<void>((resolve) => this.writeStream!.once('drain', resolve));
+      }
+    } else {
+        throw new Error('NodeFileStorage: WriteStream is not initialized');
+    }
   }
 
   /**
