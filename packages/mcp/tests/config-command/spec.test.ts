@@ -62,7 +62,7 @@ describe('MCP Config Command Spec', async () => {
 
   let mockConsoleLog: ReturnType<typeof vi.spyOn>;
   let mockConsoleError: ReturnType<typeof vi.spyOn>;
-  let mockProcessExit: ReturnType<typeof vi.spyOn>;
+  let mockProcessExit: any;
 
   beforeEach(() => {
     // Spy on console and process.exit to capture output and prevent test termination
@@ -70,7 +70,7 @@ describe('MCP Config Command Spec', async () => {
     mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     mockProcessExit = vi
       .spyOn(process, 'exit')
-      .mockImplementation((() => {}) as (code?: number) => never);
+      .mockImplementation((() => {}) as any);
     vi.clearAllMocks();
   });
 

@@ -21,6 +21,12 @@ describe('jules.select() Network Isolation Spec', () => {
       updateTime: new Date().toISOString(),
       title: 'Test Session',
       sourceContext: { source: 'github/owner/repo' },
+      source: {
+        name: 'sources/github/owner/repo',
+        id: 'github/owner/repo',
+        type: 'githubRepo',
+        githubRepo: { owner: 'owner', repo: 'repo', isPrivate: false },
+      },
       outputs: [],
       url: 'http://test',
       prompt: 'test',

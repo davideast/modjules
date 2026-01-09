@@ -50,6 +50,12 @@ describe('jules.sessions()', () => {
     name: `sessions/${id}`,
     prompt: 'test',
     sourceContext: { source: 'test' },
+    source: {
+      name: 'sources/github/test/repo',
+      id: 'github/test/repo',
+      type: 'githubRepo',
+      githubRepo: { owner: 'test', repo: 'repo', isPrivate: false },
+    },
     title: 'test',
     createTime: '2023-01-01T00:00:00Z',
     updateTime: '2023-01-01T00:00:00Z',

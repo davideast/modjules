@@ -31,6 +31,12 @@ const createMockSession = (
   url: 'http://test.com',
   outputs: [],
   sourceContext: { source: 'github/owner/repo' },
+  source: {
+    name: 'sources/github/owner/repo',
+    id: 'github/owner/repo',
+    type: 'githubRepo',
+    githubRepo: { owner: 'owner', repo: 'repo', isPrivate: false },
+  },
 });
 
 describe('Reconciliation Engine', () => {
