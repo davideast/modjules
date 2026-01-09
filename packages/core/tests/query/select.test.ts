@@ -42,6 +42,12 @@ describe('Unified Query Engine (select)', () => {
 
   beforeEach(() => {
     // 1. Setup Data
+    const mockSource = {
+      name: 'sources/github/owner/repo',
+      id: 'github/owner/repo',
+      type: 'githubRepo' as const,
+      githubRepo: { owner: 'owner', repo: 'repo', isPrivate: false },
+    };
     sessions = [
       {
         id: 'sess_1',
@@ -54,6 +60,7 @@ describe('Unified Query Engine (select)', () => {
         url: 'http://jules/sess_1',
         outputs: [],
         sourceContext: { source: 'github/owner/repo' },
+        source: mockSource,
         outcome: {
           status: 'SUCCESS',
           summary: 'Fixed the login bug.',
@@ -70,6 +77,7 @@ describe('Unified Query Engine (select)', () => {
         url: 'http://jules/sess_2',
         outputs: [],
         sourceContext: { source: 'github/owner/repo' },
+        source: mockSource,
       },
     ];
 

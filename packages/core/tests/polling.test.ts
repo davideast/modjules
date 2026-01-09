@@ -18,6 +18,12 @@ describe('polling helpers', () => {
     state: 'completed',
     prompt: 'test prompt',
     sourceContext: { source: 'test-source' },
+    source: {
+      name: 'sources/github/test/repo',
+      id: 'github/test/repo',
+      type: 'githubRepo',
+      githubRepo: { owner: 'test', repo: 'repo', isPrivate: false },
+    },
     title: 'test session',
     url: 'http://test.url',
     outputs: [],

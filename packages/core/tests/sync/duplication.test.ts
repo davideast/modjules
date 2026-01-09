@@ -19,6 +19,12 @@ describe('Sync Duplication Regression Tests', () => {
     name: `sessions/${id}`,
     prompt: 'test',
     sourceContext: { source: 'test' },
+    source: {
+      name: 'sources/github/test/repo',
+      id: 'github/test/repo',
+      type: 'githubRepo',
+      githubRepo: { owner: 'test', repo: 'repo', isPrivate: false },
+    },
     title: 'test',
     createTime,
     updateTime: createTime,

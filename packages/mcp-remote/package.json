@@ -1,0 +1,33 @@
+{
+  "name": "@modjules/mcp-remote",
+  "version": "0.2.0-beta.0",
+  "type": "module",
+  "description": "HTTP/SSE adapter for running Modjules MCP servers on remote platforms (Render, Vercel, Hono)",
+  "exports": {
+    "./hono": {
+      "types": "./dist/hono.d.ts",
+      "import": "./dist/hono.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "peerDependencies": {
+    "modjules": "*"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.1",
+    "hono": "^4.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vite": "^5.4.0",
+    "vite-plugin-dts": "^4.5.4"
+  },
+  "scripts": {
+    "build": "vite build",
+    "type-check": "tsc --noEmit"
+  }
+}

@@ -14,11 +14,16 @@
       "types": "./dist/cli.d.ts",
       "import": "./dist/cli.mjs"
     },
+    "./tools": {
+      "types": "./dist/tools.d.ts",
+      "import": "./dist/tools.mjs"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "dist/",
-    "README.md"
+    "README.md",
+    "context/"
   ],
   "bin": {
     "modjules-mcp": "./dist/cli.mjs"

@@ -19,6 +19,13 @@ describe('JulesClient.sync() Repro', () => {
   let mockStorageFactory: any;
   let mockCursor: any;
 
+  const mockSource = {
+    name: 'sources/github/test/repo',
+    id: 'github/test/repo',
+    type: 'githubRepo' as const,
+    githubRepo: { owner: 'test', repo: 'repo', isPrivate: false },
+  };
+
   const session1: SessionResource = {
     id: 'session-1',
     name: 'sessions/session-1',
@@ -28,6 +35,7 @@ describe('JulesClient.sync() Repro', () => {
     prompt: 'test',
     title: 'test session 1',
     sourceContext: { source: 'test' },
+    source: mockSource,
     url: 'http://test.com',
     outputs: [],
   };
@@ -41,6 +49,7 @@ describe('JulesClient.sync() Repro', () => {
     prompt: 'test',
     title: 'test session 2',
     sourceContext: { source: 'test' },
+    source: mockSource,
     url: 'http://test.com',
     outputs: [],
   };

@@ -15,6 +15,12 @@ describe('Iceberg Caching Logic', () => {
     updateTime: createTime,
     prompt: '',
     sourceContext: { source: '' },
+    source: {
+      name: 'sources/github/test/repo',
+      id: 'github/test/repo',
+      type: 'githubRepo',
+      githubRepo: { owner: 'test', repo: 'repo', isPrivate: false },
+    },
     title: '',
     url: '',
     outputs: [],

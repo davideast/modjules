@@ -43,6 +43,12 @@ describe('SessionSnapshot Implementation', () => {
         title: sessionData.title || 'test title',
         url: 'http://test.url',
         sourceContext: {} as any,
+        source: {
+          name: 'sources/github/test/repo',
+          id: 'github/test/repo',
+          type: 'githubRepo',
+          githubRepo: { owner: 'test', repo: 'repo', isPrivate: false },
+        },
         outputs: sessionData.outputs ?? [],
       };
 

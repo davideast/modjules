@@ -71,7 +71,7 @@ This is the orchestrator. It's a specialized agent whose only job is to follow a
 
 **File:** `.claude/agents/pr-triager.md`
 
-````markdown
+`````markdown
 ---
 name: pr-triager
 description: 'An expert at triaging and improving pull requests using a combination of GitHub and Jules tools.'
@@ -107,7 +107,7 @@ You are an autonomous PR triage agent. Your goal is to take a PR from a contribu
     > "Thank you for your contribution! Our automated agent, Jules, has reviewed your PR and created an improved version with additional tests and refactoring. The team will review this new version for merging.
     >
     > **Improved PR:** {INSERT_JULES_PR_URL_HERE}"
-````
+`````
 
 ### 3. The Result
 
