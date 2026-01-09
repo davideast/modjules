@@ -7,7 +7,7 @@ import {
   CallToolRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { JulesClient } from 'modjules';
-import { tools, getAnalysisContent } from '../tools.js';
+import { tools, getAnalysisContext } from '../tools.js';
 
 export class JulesMCPServer {
   private server: Server;
@@ -101,7 +101,7 @@ export class JulesMCPServer {
         throw new Error('sessionId is required for analyze_session prompt');
       }
 
-      const content = await getAnalysisContent(this.julesClient, sessionId);
+      const content = await getAnalysisContext(this.julesClient, sessionId);
 
       return {
         messages: [

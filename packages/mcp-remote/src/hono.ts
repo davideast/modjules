@@ -5,7 +5,10 @@ import { z } from 'zod';
 import type { SessionClient as Session } from 'modjules';
 import { webcrypto } from 'node:crypto';
 
-const uuid = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : webcrypto.randomUUID());
+const uuid = () =>
+  globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID()
+    : webcrypto.randomUUID();
 
 export type McpToolHandler = (args: any) => Promise<any>;
 
@@ -34,22 +37,18 @@ export function createMcpHandler(config: McpRemoteConfig) {
 
   // 2. Register Session as a Tool (if present)
   if (config.session) {
-    server.tool(
-      'interact',
-      { prompt: z.string() },
-      async ({ prompt }) => {
-        const session = await config.session!();
-        const activity = await session.ask(prompt);
-        return { content: [{ type: 'text', text: activity.message }] };
-      },
-    );
+    server.tool('interact', { prompt: z.string() }, async ({ prompt }) => {
+      const session = await config.session!();
+      const activity = await session.ask(prompt);
+      return { content: [{ type: 'text', text: activity.message }] };
+    });
   }
 
   // 3. Register Custom Tools (if present)
   if (config.tools) {
     for (const [name, def] of Object.entries(config.tools)) {
       const handler = typeof def === 'function' ? def : def.handler;
-      const schema = typeof def === 'function' ? {} : (def.schema || {});
+      const schema = typeof def === 'function' ? {} : def.schema || {};
 
       server.tool(name, schema, async (args) => {
         const result = await handler(args);
@@ -71,19 +70,19 @@ export function createMcpHandler(config: McpRemoteConfig) {
 
     // Mock response object for SSEServerTransport
     const resMock = {
-        writeHead: (status: number, headers: any) => {
-            // Headers are set in c.body return
-        },
-        write: (chunk: any) => {
-            const encoder = new TextEncoder();
-            const data = typeof chunk === 'string' ? encoder.encode(chunk) : chunk;
-            writer.write(data);
-            return true;
-        },
-        end: () => {
-            writer.close();
-            transports.delete(sessionId);
-        }
+      writeHead: (status: number, headers: any) => {
+        // Headers are set in c.body return
+      },
+      write: (chunk: any) => {
+        const encoder = new TextEncoder();
+        const data = typeof chunk === 'string' ? encoder.encode(chunk) : chunk;
+        writer.write(data);
+        return true;
+      },
+      end: () => {
+        writer.close();
+        transports.delete(sessionId);
+      },
     };
 
     // The endpoint the client should POST to. We append sessionId to route it back.
@@ -92,17 +91,17 @@ export function createMcpHandler(config: McpRemoteConfig) {
     const transport = new SSEServerTransport(endpointUrl, resMock as any);
     transports.set(sessionId, transport);
 
-    server.connect(transport).catch(e => {
-        console.error("Failed to connect transport", e);
-        writer.close();
-        transports.delete(sessionId);
+    server.connect(transport).catch((e) => {
+      console.error('Failed to connect transport', e);
+      writer.close();
+      transports.delete(sessionId);
     });
 
     return c.body(readable, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        Connection: 'keep-alive',
       },
     });
   });
@@ -110,7 +109,7 @@ export function createMcpHandler(config: McpRemoteConfig) {
   app.post('/messages', async (c) => {
     const sessionId = c.req.query('sessionId');
     if (!sessionId) {
-        return c.text('Missing sessionId query parameter', 400);
+      return c.text('Missing sessionId query parameter', 400);
     }
 
     const transport = transports.get(sessionId);

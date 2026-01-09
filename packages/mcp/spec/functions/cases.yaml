@@ -1,0 +1,442 @@
+# Pure Functions Spec
+# Tests the isolated functions without MCP protocol wrapping
+
+# ============================================================================
+# getSessionState
+# ============================================================================
+
+- id: FN-01
+  description: getSessionState returns basic session info
+  status: implemented
+  when: getSessionState
+  given:
+    sessionId: session-123
+    sessionResource:
+      id: session-123
+      state: inProgress
+      url: http://example.com/session-123
+      title: Test Session
+      outputs: []
+  then:
+    result:
+      id: session-123
+      state: inProgress
+      url: http://example.com/session-123
+      title: Test Session
+
+- id: FN-02
+  description: getSessionState includes PR info when available
+  status: implemented
+  when: getSessionState
+  given:
+    sessionId: session-123
+    sessionResource:
+      id: session-123
+      state: succeeded
+      url: http://example.com/session-123
+      title: Test Session with PR
+      outputs:
+        - type: pullRequest
+          pullRequest:
+            url: http://github.com/pr/1
+            title: 'Feat: New feature'
+  then:
+    result:
+      id: session-123
+      state: succeeded
+      pr:
+        url: http://github.com/pr/1
+        title: 'Feat: New feature'
+
+- id: FN-03
+  description: getSessionState throws on missing sessionId
+  status: implemented
+  when: getSessionState
+  given:
+    sessionId: ''
+  then:
+    error: sessionId is required
+
+# ============================================================================
+# getBashOutputs
+# ============================================================================
+
+- id: FN-10
+  description: getBashOutputs returns empty for session with no bash artifacts
+  status: implemented
+  when: getBashOutputs
+  given:
+    sessionId: session-no-bash
+    activities:
+      - id: act-1
+        type: agentMessaged
+        message: Hello
+        artifacts: []
+  then:
+    result:
+      sessionId: session-no-bash
+      outputs:
+        count: 0
+      summary:
+        totalCommands: 0
+        succeeded: 0
+        failed: 0
+
+- id: FN-11
+  description: getBashOutputs returns successful bash command
+  status: implemented
+  when: getBashOutputs
+  given:
+    sessionId: session-bash-success
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: bashOutput
+            command: 'echo "hello"'
+            stdout: 'hello'
+            stderr: ''
+            exitCode: 0
+  then:
+    result:
+      sessionId: session-bash-success
+      outputs:
+        count: 1
+        items:
+          - command: 'echo "hello"'
+            stdout: 'hello'
+            stderr: ''
+            exitCode: 0
+            activityId: act-1
+      summary:
+        totalCommands: 1
+        succeeded: 1
+        failed: 0
+
+- id: FN-12
+  description: getBashOutputs returns failed bash command
+  status: implemented
+  when: getBashOutputs
+  given:
+    sessionId: session-bash-failed
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: bashOutput
+            command: 'cat nonexistent.txt'
+            stdout: ''
+            stderr: 'No such file or directory'
+            exitCode: 1
+  then:
+    result:
+      sessionId: session-bash-failed
+      outputs:
+        count: 1
+        items:
+          - command: 'cat nonexistent.txt'
+            exitCode: 1
+      summary:
+        totalCommands: 1
+        succeeded: 0
+        failed: 1
+
+# ============================================================================
+# getSessionFiles
+# ============================================================================
+
+- id: FN-20
+  description: getSessionFiles returns flat file list for single file change
+  status: implemented
+  when: getSessionFiles
+  given:
+    sessionId: session-single
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/index.ts b/src/index.ts
+                --- a/src/index.ts
+                +++ b/src/index.ts
+                @@ -1 +1,2 @@
+                 const a = 1;
+                +const b = 2;
+  then:
+    result:
+      sessionId: session-single
+      files:
+        count: 1
+        items:
+          - path: src/index.ts
+            changeType: modified
+            activityIds:
+              - act-1
+            additions: 1
+            deletions: 0
+      summary:
+        totalFiles: 1
+        created: 0
+        modified: 1
+        deleted: 0
+
+- id: FN-21
+  description: getSessionFiles aggregates activityIds when file changed multiple times
+  status: implemented
+  when: getSessionFiles
+  given:
+    sessionId: session-multi-changes
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/client.ts b/src/client.ts
+                --- a/src/client.ts
+                +++ b/src/client.ts
+                @@ -1 +1,2 @@
+                 const x = 1;
+                +const y = 2;
+      - id: act-2
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/client.ts b/src/client.ts
+                --- a/src/client.ts
+                +++ b/src/client.ts
+                @@ -1,2 +1,3 @@
+                 const x = 1;
+                 const y = 2;
+                +const z = 3;
+  then:
+    result:
+      sessionId: session-multi-changes
+      files:
+        count: 1
+        items:
+          - path: src/client.ts
+            changeType: modified
+            activityIds:
+              - act-1
+              - act-2
+            additions: 2
+            deletions: 0
+      summary:
+        totalFiles: 1
+        created: 0
+        modified: 1
+        deleted: 0
+
+- id: FN-22
+  description: getSessionFiles omits file when net change is created then deleted
+  status: implemented
+  when: getSessionFiles
+  given:
+    sessionId: session-created-deleted
+    activities:
+      - id: act-1
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/temp.ts b/src/temp.ts
+                new file mode 100644
+                --- /dev/null
+                +++ b/src/temp.ts
+                @@ -0,0 +1 @@
+                +const temp = 1;
+      - id: act-2
+        type: progressUpdated
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/temp.ts b/src/temp.ts
+                deleted file mode 100644
+                --- a/src/temp.ts
+                +++ /dev/null
+                @@ -1 +0,0 @@
+                -const temp = 1;
+  then:
+    result:
+      sessionId: session-created-deleted
+      files:
+        count: 0
+      summary:
+        totalFiles: 0
+        created: 0
+        modified: 0
+        deleted: 0
+
+# ============================================================================
+# getCodeChanges
+# ============================================================================
+
+- id: FN-30
+  description: getCodeChanges throws when activityId is missing
+  status: implemented
+  when: getCodeChanges
+  given:
+    sessionId: session-123
+    activityId: ''
+    activities: []
+  then:
+    error: activityId is required
+
+- id: FN-31
+  description: getCodeChanges returns full unidiffPatch for activity
+  status: implemented
+  when: getCodeChanges
+  given:
+    sessionId: session-modified
+    activityId: act-1
+    activities:
+      - id: act-1
+        type: progressUpdated
+        createTime: '2026-01-05T20:45:00Z'
+        artifacts:
+          - type: changeSet
+            source: agent
+            gitPatch:
+              unidiffPatch: |
+                diff --git a/src/index.ts b/src/index.ts
+                index abc123..def456 100644
+                --- a/src/index.ts
+                +++ b/src/index.ts
+                @@ -1,2 +1,3 @@
+                 const a = 1;
+                +const b = 2;
+                 export { a };
+  then:
+    result:
+      sessionId: session-modified
+      activityId: act-1
+      unidiffPatch:
+        contains: 'diff --git a/src/index.ts'
+      files:
+        count: 1
+        items:
+          - path: src/index.ts
+            changeType: modified
+            additions: 1
+            deletions: 0
+      summary:
+        totalFiles: 1
+        modified: 1
+
+- id: FN-32
+  description: getCodeChanges throws when activity not found
+  status: implemented
+  when: getCodeChanges
+  given:
+    sessionId: session-123
+    activityId: nonexistent-activity
+    activities:
+      - id: act-1
+        type: agentMessaged
+        artifacts: []
+  then:
+    error: Activity not found
+
+# ============================================================================
+# getSchema
+# ============================================================================
+
+- id: FN-40
+  description: getSchema returns JSON schema by default
+  status: implemented
+  when: getSchema
+  given:
+    domain: all
+    format: json
+  then:
+    result:
+      format: json
+      hasContent: true
+
+- id: FN-41
+  description: getSchema returns markdown when requested
+  status: implemented
+  when: getSchema
+  given:
+    domain: all
+    format: markdown
+  then:
+    result:
+      format: markdown
+      contentContains: '##'
+
+# ============================================================================
+# getQueryHelp
+# ============================================================================
+
+- id: FN-50
+  description: getQueryHelp returns help menu when no topic provided
+  status: implemented
+  when: getQueryHelp
+  given:
+    topic: null
+  then:
+    result:
+      contains: 'Query Help'
+
+- id: FN-51
+  description: getQueryHelp returns where clause help
+  status: implemented
+  when: getQueryHelp
+  given:
+    topic: where
+  then:
+    result:
+      contains: 'WHERE Clause'
+
+- id: FN-52
+  description: getQueryHelp returns operators help
+  status: implemented
+  when: getQueryHelp
+  given:
+    topic: operators
+  then:
+    result:
+      contains: 'Filter Operators'
+
+# ============================================================================
+# validateQuery
+# ============================================================================
+
+- id: FN-60
+  description: validateQuery returns valid for correct query
+  status: implemented
+  when: validateQuery
+  given:
+    query:
+      from: sessions
+      limit: 10
+  then:
+    result:
+      valid: true
+      errorsCount: 0
+
+- id: FN-61
+  description: validateQuery returns errors for invalid domain
+  status: implemented
+  when: validateQuery
+  given:
+    query:
+      from: invalid
+  then:
+    result:
+      valid: false
+      hasErrors: true
