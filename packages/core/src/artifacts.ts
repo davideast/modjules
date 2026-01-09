@@ -11,7 +11,8 @@ import { Platform } from './platform/types.js';
  * Parses a unified diff string and extracts file information.
  * @internal
  */
-function parseUnidiff(patch: string): ParsedFile[] {
+export function parseUnidiff(patch?: string | null): ParsedFile[] {
+  if (!patch) return [];
   const files: ParsedFile[] = [];
   // Split by diff headers (diff --git a/... b/...)
   const diffSections = patch.split(/^diff --git /m).filter(Boolean);
@@ -198,6 +199,12 @@ export class ChangeSetArtifact {
    * @returns Parsed diff with file paths, change types, and line counts.
    */
   parsed(): ParsedChangeSet {
+    if (!this.gitPatch?.unidiffPatch) {
+      return {
+        files: [],
+        summary: { totalFiles: 0, created: 0, modified: 0, deleted: 0 },
+      };
+    }
     const files = parseUnidiff(this.gitPatch.unidiffPatch);
 
     const summary = {
