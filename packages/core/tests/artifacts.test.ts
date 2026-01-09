@@ -142,7 +142,45 @@ describe('Artifacts', () => {
       });
     });
 
+    describe('parseUnidiff edge cases', () => {
+      let parseUnidiff: any;
+
+      beforeEach(async () => {
+        // This is a private function, so we need to access it this way.
+        const artifactsModule = await import('../src/artifacts.js');
+        parseUnidiff = artifactsModule.parseUnidiff;
+      });
+
+      it('should return an empty array for undefined input', () => {
+        // @ts-ignore
+        expect(parseUnidiff(undefined)).toEqual([]);
+      });
+
+      it('should return an empty array for null input', () => {
+        // @ts-ignore
+        expect(parseUnidiff(null)).toEqual([]);
+      });
+
+      it('should return an empty array for an empty string', () => {
+        expect(parseUnidiff('')).toEqual([]);
+      });
+    });
+
     describe('ChangeSetArtifact', () => {
+      it('should return an empty result if the unidiffPatch is undefined', () => {
+        const artifact = new ChangeSetArtifact('agent', {
+          // @ts-ignore
+          unidiffPatch: undefined,
+        });
+        const parsed = artifact.parsed();
+        expect(parsed.files).toEqual([]);
+        expect(parsed.summary).toEqual({
+          totalFiles: 0,
+          created: 0,
+          modified: 0,
+          deleted: 0,
+        });
+      });
       it('should parse a simple file modification', () => {
         const patch = `diff --git a/src/index.ts b/src/index.ts
 index abc123..def456 100644
