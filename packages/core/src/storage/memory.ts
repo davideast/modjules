@@ -12,6 +12,7 @@ import {
  */
 export class MemoryStorage implements ActivityStorage {
   private activities: Activity[] = [];
+  private indices: Map<string, number> = new Map();
 
   /**
    * Initializes the storage. No-op for memory storage.
@@ -25,6 +26,7 @@ export class MemoryStorage implements ActivityStorage {
    */
   async close(): Promise<void> {
     this.activities = []; // Clear memory on close
+    this.indices.clear();
   }
 
   /**
@@ -39,12 +41,13 @@ export class MemoryStorage implements ActivityStorage {
    */
   async append(activity: Activity): Promise<void> {
     // Upsert logic to maintain idempotency contract
-    const index = this.activities.findIndex((a) => a.id === activity.id);
-    if (index >= 0) {
+    if (this.indices.has(activity.id)) {
+      const index = this.indices.get(activity.id)!;
       // Maintain original position
       this.activities[index] = activity;
     } else {
-      this.activities.push(activity);
+      const index = this.activities.push(activity) - 1;
+      this.indices.set(activity.id, index);
     }
   }
 
@@ -52,7 +55,11 @@ export class MemoryStorage implements ActivityStorage {
    * Retrieves an activity by ID.
    */
   async get(activityId: string): Promise<Activity | undefined> {
-    return this.activities.find((a) => a.id === activityId);
+    const index = this.indices.get(activityId);
+    if (index !== undefined) {
+      return this.activities[index];
+    }
+    return undefined;
   }
 
   /**
