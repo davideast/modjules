@@ -42,7 +42,7 @@ const mcpHandler = createMcpHandler({
     // A tool with no arguments
     hello: async () => {
       return { message: 'Hello, world!' };
-    }
+    },
   },
 });
 
@@ -89,14 +89,14 @@ Creates a Hono application instance that handles MCP requests.
 
 An object with the following properties:
 
--   `name` (string, required): The name of your MCP server.
--   `version` (string, required): The version of your server.
--   `session` (() => Promise<Session>, optional): An async function that returns a Modjules `SessionClient` instance. If provided, enables the built-in `interact` tool.
--   `tools` (Record<string, McpToolHandler | McpToolConfig>, optional): An object where keys are tool names and values define the tool's implementation.
+- `name` (string, required): The name of your MCP server.
+- `version` (string, required): The version of your server.
+- `session` (() => Promise<Session>, optional): An async function that returns a Modjules `SessionClient` instance. If provided, enables the built-in `interact` tool.
+- `tools` (Record<string, McpToolHandler | McpToolConfig>, optional): An object where keys are tool names and values define the tool's implementation.
 
 **Tool Configuration**
 
 A tool can be defined as a simple async handler function or as a configuration object:
 
--   `handler` (McpToolHandler, required): The async function that executes the tool's logic. It receives the tool arguments as an object.
--   `schema` (Record<string, z.ZodTypeAny>, optional): A Zod schema definition for validating the tool's input arguments. If not provided, no validation is performed.
+- `handler` (McpToolHandler, required): The async function that executes the tool's logic. It receives the tool arguments as an object.
+- `schema` (Record<string, z.ZodTypeAny>, optional): A Zod schema definition for validating the tool's input arguments. If not provided, no validation is performed.

@@ -1,25 +1,24 @@
-import type {
-  JulesClient,
-  JulesQuery,
-  JulesDomain,
-  SessionConfig,
-  Activity,
-  SyncDepth,
-} from 'modjules';
-import {
-  getAllSchemas,
-  generateMarkdownDocs,
-  validateQuery,
-  formatValidationResult,
-} from 'modjules';
-import { truncateToTokenBudget } from './tokenizer.js';
-import { toLightweight } from './lightweight.js';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import type { JulesClient, JulesQuery, JulesDomain } from 'modjules';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Import pure functions
+import { getSessionState } from './functions/session-state.js';
+import { getSessionTimeline } from './functions/session-timeline.js';
+import { getSessionFiles } from './functions/session-files.js';
+import { getBashOutputs } from './functions/bash-outputs.js';
+import { getCodeChanges } from './functions/code-changes.js';
+import { listSessions } from './functions/list-sessions.js';
+import { createSession } from './functions/create-session.js';
+import { interact } from './functions/interact.js';
+import { select } from './functions/select.js';
+import { sync } from './functions/sync.js';
+import { getSchema } from './functions/schema.js';
+import { getQueryHelp } from './functions/query-help.js';
+import { validateQuery } from './functions/validate-query.js';
+import { getAnalysisContext } from './functions/analysis-context.js';
+import { replaySession } from './functions/replay-session.js';
+
+// Re-export for backward compatibility
+export { getAnalysisContext };
 
 export interface JulesTool {
   name: string;
@@ -28,55 +27,20 @@ export interface JulesTool {
   handler: (client: JulesClient, args: any) => Promise<any>;
 }
 
-export async function getAnalysisContent(
-  client: JulesClient,
-  sessionId: string,
-): Promise<string> {
-  const session = client.session(sessionId);
-  const snapshot = await session.snapshot();
-
-  // Read template from context/session-analysis.md
-  // Resolve path relative to this file: src/tools.ts -> ../context/session-analysis.md
-  const templatePath = path.resolve(
-    __dirname,
-    '../context/session-analysis.md',
-  );
-  let templateContent;
-
-  try {
-    templateContent = await fs.readFile(templatePath, 'utf-8');
-  } catch (error) {
-    throw new Error(
-      `Failed to read prompt template at ${templatePath}. Ensure you are running from the project root.`,
-    );
-  }
-
-  return templateContent.replace(
-    '{INSERT_SNAPSHOT_JSON_HERE}',
-    JSON.stringify(snapshot.toJSON(), null, 2),
-  );
-}
-
-// Helper for extracting file diff
-function extractFileDiff(unidiffPatch: string, filePath: string): string {
-  if (!unidiffPatch) {
-    return '';
-  }
-  // Add a leading newline to handle the first entry correctly
-  const patches = ('\n' + unidiffPatch).split('\ndiff --git ');
-  const targetHeader = `a/${filePath} `;
-  const patch = patches.find((p) => p.startsWith(targetHeader));
-
-  return patch ? `diff --git ${patch}`.trim() : '';
-}
-
-function computeNetChangeType(
-  first: 'created' | 'modified' | 'deleted',
-  latest: 'created' | 'modified' | 'deleted',
-): ('created' | 'modified' | 'deleted') | null {
-  if (first === 'created' && latest === 'deleted') return null; // Omit
-  if (first === 'created') return 'created'; // created -> modified = created
-  return latest; // modified -> deleted = deleted, modified -> modified = modified
+/**
+ * Wrap a result as an MCP text response.
+ */
+function toMcpResponse(data: unknown): {
+  content: Array<{ type: string; text: string }>;
+} {
+  return {
+    content: [
+      {
+        type: 'text',
+        text: typeof data === 'string' ? data : JSON.stringify(data, null, 2),
+      },
+    ],
+  };
 }
 
 export const tools: JulesTool[] = [
@@ -113,20 +77,14 @@ export const tools: JulesTool[] = [
       required: ['prompt', 'repo', 'branch'],
     },
     handler: async (client, args) => {
-      const config: SessionConfig = {
+      const result = await createSession(client, {
         prompt: args.prompt,
-        source: { github: args.repo, branch: args.branch },
-        requireApproval: args.interactive,
-        autoPr: args.autoPr !== undefined ? args.autoPr : true,
-      };
-
-      const result = args.interactive
-        ? await client.session(config)
-        : await client.run(config);
-
-      return {
-        content: [{ type: 'text', text: `Session created. ID: ${result.id}` }],
-      };
+        repo: args.repo,
+        branch: args.branch,
+        interactive: args.interactive,
+        autoPr: args.autoPr,
+      });
+      return toMcpResponse(`Session created. ID: ${result.id}`);
     },
   },
   {
@@ -157,31 +115,8 @@ IMPORTANT:
       required: ['sessionId'],
     },
     handler: async (client, args) => {
-      const sessionId = args.sessionId as string;
-      if (!sessionId) throw new Error('sessionId is required');
-      const session = client.session(sessionId);
-      const info = await session.info();
-      const pr = info.outputs?.find(
-        (o) => o.type === 'pullRequest',
-      )?.pullRequest;
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                id: info.id,
-                state: info.state,
-                url: info.url,
-                title: info.title,
-                ...(pr && { pr: { url: pr.url, title: pr.title } }),
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
+      const result = await getSessionState(client, args.sessionId);
+      return toMcpResponse(result);
     },
   },
   {
@@ -199,57 +134,8 @@ IMPORTANT:
       required: ['sessionId'],
     },
     handler: async (client, args) => {
-      const sessionId = args?.sessionId as string;
-      if (!sessionId) {
-        throw new Error('sessionId is required');
-      }
-
-      const session = client.session(sessionId);
-      await session.activities.hydrate();
-
-      const activities = await session.activities.select({
-        order: 'asc',
-      });
-
-      const outputs: Array<{
-        command: string;
-        stdout: string;
-        stderr: string;
-        exitCode: number | null;
-        activityId: string;
-      }> = [];
-
-      const summary = {
-        totalCommands: 0,
-        succeeded: 0,
-        failed: 0,
-      };
-
-      for (const activity of activities) {
-        for (const artifact of activity.artifacts) {
-          if (artifact.type === 'bashOutput') {
-            outputs.push({
-              command: artifact.command,
-              stdout: artifact.stdout,
-              stderr: artifact.stderr,
-              exitCode: artifact.exitCode,
-              activityId: activity.id,
-            });
-            summary.totalCommands++;
-            if (artifact.exitCode === 0) summary.succeeded++;
-            else summary.failed++;
-          }
-        }
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({ sessionId, outputs, summary }, null, 2),
-          },
-        ],
-      };
+      const result = await getBashOutputs(client, args.sessionId);
+      return toMcpResponse(result);
     },
   },
   {
@@ -285,43 +171,13 @@ IMPORTANT:
       required: ['sessionId'],
     },
     handler: async (client, args) => {
-      const sessionId = args.sessionId as string;
-      if (!sessionId) throw new Error('sessionId is required');
-      const limit = (args.limit as number) || 10;
-      const order = (args.order as 'asc' | 'desc') || 'desc';
-      const startAfter = args.startAfter as string | undefined;
-      const typeFilter = args.type as string | undefined;
-      const session = client.session(sessionId);
-      // Hydrate cache from API before querying
-      await session.activities.hydrate();
-      const activities = await session.activities.select({
-        order,
-        after: startAfter,
-        limit: limit + 1, // Fetch one extra to determine hasMore
-        type: typeFilter,
+      const result = await getSessionTimeline(client, args.sessionId, {
+        limit: args.limit,
+        startAfter: args.startAfter,
+        order: args.order,
+        type: args.type,
       });
-      const hasMore = activities.length > limit;
-      const results = activities.slice(0, limit);
-      const lightweight = results.map((a) => toLightweight(a));
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                activities: lightweight,
-                hasMore,
-                ...(hasMore &&
-                  results.length > 0 && {
-                    nextCursor: results[results.length - 1].id,
-                  }),
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
+      return toMcpResponse(result);
     },
   },
   {
@@ -334,13 +190,10 @@ IMPORTANT:
       },
     },
     handler: async (client, args) => {
-      const cursor = client.sessions({
-        pageSize: args?.pageSize || 10,
+      const result = await listSessions(client, {
+        pageSize: args?.pageSize,
       });
-      const sessions = await cursor; // Gets first page
-      return {
-        content: [{ type: 'text', text: JSON.stringify(sessions, null, 2) }],
-      };
+      return toMcpResponse(result);
     },
   },
   {
@@ -364,31 +217,16 @@ IMPORTANT:
       required: ['sessionId', 'action'],
     },
     handler: async (client, args) => {
-      const { sessionId, action, message } = args;
-      if (!sessionId) throw new Error('sessionId is required');
-
-      const session = client.session(sessionId as string);
-
-      if (action === 'approve') {
-        await session.approve();
-        return { content: [{ type: 'text', text: 'Plan approved.' }] };
+      const result = await interact(
+        client,
+        args.sessionId,
+        args.action,
+        args.message,
+      );
+      if (result.reply) {
+        return toMcpResponse(`Agent reply: ${result.reply}`);
       }
-
-      if (action === 'send') {
-        if (!message) throw new Error("Message is required for 'send' action");
-        await session.send(message);
-        return { content: [{ type: 'text', text: 'Message sent.' }] };
-      }
-
-      if (action === 'ask') {
-        if (!message) throw new Error("Message is required for 'ask' action");
-        const reply = await session.ask(message);
-        return {
-          content: [{ type: 'text', text: `Agent reply: ${reply.message}` }],
-        };
-      }
-
-      throw new Error(`Invalid action: ${action}`);
+      return toMcpResponse(result.message);
     },
   },
   {
@@ -441,54 +279,9 @@ IMPORTANT:
     },
     handler: async (client, args) => {
       const query = args?.query as JulesQuery<JulesDomain>;
-      if (!query) {
-        throw new Error('Query argument is required');
-      }
       const tokenBudget = args?.query?.tokenBudget as number | undefined;
-
-      let results = await client.select(query);
-      let truncated = false;
-      let tokenCount = 0;
-
-      // Lightweight responses by default for activities, UNLESS user explicitly
-      // selected artifact fields - in that case, respect their projection
-      if (query.from === 'activities') {
-        const select = query.select as string[] | undefined;
-        const selectsArtifactFields =
-          select?.some(
-            (field) =>
-              field === 'artifacts' ||
-              field.startsWith('artifacts.') ||
-              field === '*',
-          ) ?? false;
-
-        if (!selectsArtifactFields) {
-          results = (results as Activity[]).map((a) =>
-            toLightweight(a),
-          ) as any[];
-        }
-      }
-
-      if (tokenBudget && Array.isArray(results)) {
-        const shaped = truncateToTokenBudget(results, tokenBudget);
-        results = shaped.items;
-        truncated = shaped.truncated;
-        tokenCount = shaped.tokenCount;
-      }
-
-      const response = {
-        results,
-        _meta: tokenBudget ? { truncated, tokenCount, tokenBudget } : undefined,
-      };
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(response, null, 2),
-          },
-        ],
-      };
+      const result = await select(client, query, { tokenBudget });
+      return toMcpResponse(result);
     },
   },
   {
@@ -506,21 +299,8 @@ IMPORTANT:
       required: ['sessionId'],
     },
     handler: async (client, args) => {
-      const sessionId = args?.sessionId as string;
-      if (!sessionId) {
-        throw new Error('sessionId is required');
-      }
-
-      const content = await getAnalysisContent(client, sessionId);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: content,
-          },
-        ],
-      };
+      const content = await getAnalysisContext(client, args.sessionId);
+      return toMcpResponse(content);
     },
   },
   {
@@ -544,22 +324,11 @@ IMPORTANT:
       },
     },
     handler: async (client, args) => {
-      const sessionId = args?.sessionId as string | undefined;
-      const depth = (args?.depth as SyncDepth) || 'metadata';
-
-      const stats = await client.sync({
-        sessionId,
-        depth,
+      const result = await sync(client, {
+        sessionId: args?.sessionId,
+        depth: args?.depth,
       });
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(stats, null, 2),
-          },
-        ],
-      };
+      return toMcpResponse(result);
     },
   },
   {
@@ -584,48 +353,8 @@ IMPORTANT:
       },
     },
     handler: async (_client, args) => {
-      const domain = (args?.domain as string) || 'all';
-      const format = (args?.format as string) || 'json';
-
-      if (format === 'markdown') {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: generateMarkdownDocs(),
-            },
-          ],
-        };
-      }
-
-      // JSON format
-      const schemas = getAllSchemas();
-      let result: unknown;
-
-      if (domain === 'sessions') {
-        result = {
-          sessions: schemas.sessions,
-          filterOps: schemas.filterOps,
-          projection: schemas.projection,
-        };
-      } else if (domain === 'activities') {
-        result = {
-          activities: schemas.activities,
-          filterOps: schemas.filterOps,
-          projection: schemas.projection,
-        };
-      } else {
-        result = schemas;
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-      };
+      const result = getSchema(args?.domain || 'all', args?.format || 'json');
+      return toMcpResponse(result.content);
     },
   },
   {
@@ -644,180 +373,8 @@ IMPORTANT:
       },
     },
     handler: async (_client, args) => {
-      const topic = (args?.topic as string) || 'examples';
-      let helpContent = '';
-
-      switch (topic) {
-        case 'where':
-          helpContent = `## WHERE Clause
-
-**Rules:**
-1. Multiple conditions are ANDed together
-2. Array paths use existential matching (ANY element matches)
-3. Use dot notation for nested fields (e.g., "artifacts.type")
-4. Cannot filter on computed fields (artifactCount, summary, durationMs)
-
-**Examples:**
-\`\`\`json
-{ "from": "activities", "where": { "type": "agentMessaged" } }
-{ "from": "activities", "where": { "artifacts.type": "bashOutput" } }
-{ "from": "sessions", "where": { "state": { "in": ["running", "waiting"] } } }
-\`\`\`
-
-**Avoid:**
-- Filtering on computed fields (use select instead)
-- OR logic (not supported - use multiple queries)
-- Deeply nested paths without checking schema`;
-          break;
-
-        case 'select':
-          helpContent = `## SELECT Projection
-
-**Rules:**
-1. Omit select for default projection (recommended)
-2. Use ["*"] to get all fields including computed
-3. Prefix with "-" to exclude fields (e.g., ["-artifacts"])
-4. Computed fields: artifactCount, summary, durationMs
-
-**Examples:**
-\`\`\`json
-{ "from": "sessions" }
-{ "from": "sessions", "select": ["id", "title", "state"] }
-{ "from": "activities", "select": ["*", "-artifacts"] }
-{ "from": "activities", "select": ["id", "type", "artifactCount"] }
-\`\`\`
-
-**Avoid:**
-- Selecting non-existent fields (causes warnings)
-- Over-fetching with ["*"] when only a few fields needed`;
-          break;
-
-        case 'operators':
-          helpContent = `## Filter Operators
-
-| Operator | Description | Example |
-|----------|-------------|---------|
-| eq | Equals (default) | { "state": "completed" } or { "state": { "eq": "completed" } } |
-| neq | Not equals | { "state": { "neq": "failed" } } |
-| contains | Case-insensitive substring | { "title": { "contains": "auth" } } |
-| gt, gte | Greater than (or equal) | { "createTime": { "gt": "2024-01-01" } } |
-| lt, lte | Less than (or equal) | { "limit": { "lte": 100 } } |
-| in | Value in array | { "type": { "in": ["agentMessaged", "userMessaged"] } } |
-| exists | Field exists/is non-null | { "pr": { "exists": true } } |
-
-**Type Requirements:**
-- eq/neq/gt/lt/gte/lte: primitive (string, number, boolean, null)
-- contains: string only
-- in: array of values
-- exists: boolean only`;
-          break;
-
-        case 'examples':
-          helpContent = `## Common Query Patterns
-
-**Find recent sessions:**
-\`\`\`json
-{ "from": "sessions", "limit": 10, "order": "desc" }
-\`\`\`
-
-**Find failed sessions:**
-\`\`\`json
-{ "from": "sessions", "where": { "state": "failed" } }
-\`\`\`
-
-**Find activities with bash output:**
-\`\`\`json
-{ "from": "activities", "where": { "artifacts.type": "bashOutput" } }
-\`\`\`
-
-**Search sessions by title:**
-\`\`\`json
-{ "from": "sessions", "where": { "search": "authentication" } }
-\`\`\`
-
-**Get session with activities:**
-\`\`\`json
-{
-  "from": "sessions",
-  "where": { "id": "12345" },
-  "include": { "activities": { "limit": 20 } }
-}
-\`\`\`
-
-**Paginate with cursor:**
-\`\`\`json
-{ "from": "activities", "limit": 10, "startAfter": "last-id-here" }
-\`\`\``;
-          break;
-
-        case 'errors':
-          helpContent = `## Common Mistakes
-
-**1. Invalid domain**
-\`\`\`json
-// Wrong
-{ "from": "session" }
-// Correct
-{ "from": "sessions" }
-\`\`\`
-
-**2. Filtering on computed fields**
-\`\`\`json
-// Wrong - artifactCount is computed
-{ "from": "activities", "where": { "artifactCount": { "gt": 0 } } }
-// Correct - use select instead
-{ "from": "activities", "select": ["id", "artifactCount"] }
-\`\`\`
-
-**3. Invalid operator for type**
-\`\`\`json
-// Wrong - contains requires string
-{ "where": { "state": { "contains": 123 } } }
-// Correct
-{ "where": { "state": { "contains": "run" } } }
-\`\`\`
-
-**4. Missing from field**
-\`\`\`json
-// Wrong
-{ "where": { "state": "completed" } }
-// Correct
-{ "from": "sessions", "where": { "state": "completed" } }
-\`\`\`
-
-**5. Using OR logic (not supported)**
-\`\`\`json
-// Wrong - no OR support
-{ "where": { "$or": [{ "state": "a" }, { "state": "b" }] } }
-// Correct - use "in" operator
-{ "where": { "state": { "in": ["a", "b"] } } }
-\`\`\``;
-          break;
-
-        default:
-          helpContent = `## Query Help
-
-Use topic parameter for specific help:
-- "where" - Filtering with WHERE clause
-- "select" - Projection and field selection
-- "operators" - Available filter operators
-- "examples" - Common query patterns
-- "errors" - Common mistakes to avoid
-
-Quick start:
-\`\`\`json
-{ "from": "sessions", "limit": 10 }
-\`\`\``;
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: helpContent,
-          },
-        ],
-      };
+      const content = getQueryHelp(args?.topic || 'examples');
+      return toMcpResponse(content);
     },
   },
   {
@@ -861,30 +418,8 @@ Quick start:
       required: ['query'],
     },
     handler: async (_client, args) => {
-      const query = args?.query;
-      if (!query) {
-        throw new Error('query is required');
-      }
-
-      const result = validateQuery(query);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                valid: result.valid,
-                errors: result.errors,
-                warnings: result.warnings,
-                message: formatValidationResult(result),
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
+      const result = validateQuery(args?.query);
+      return toMcpResponse(result);
     },
   },
   {
@@ -911,97 +446,13 @@ Quick start:
       required: ['sessionId', 'activityId'],
     },
     handler: async (client, args) => {
-      const sessionId = args?.sessionId as string;
-      const activityId = args?.activityId as string;
-      const filePath = args?.filePath as string | undefined;
-
-      if (!sessionId) {
-        throw new Error('sessionId is required');
-      }
-      if (!activityId) {
-        throw new Error('activityId is required');
-      }
-
-      const session = client.session(sessionId);
-      const activity = await session.activities.get(activityId).catch(() => {
-        // Return undefined if get() throws (e.g., 404 Not Found)
-        return undefined;
-      });
-
-      if (!activity) {
-        throw new Error('Activity not found');
-      }
-
-      const changeSets = activity.artifacts.filter(
-        (a) => a.type === 'changeSet',
+      const result = await getCodeChanges(
+        client,
+        args.sessionId,
+        args.activityId,
+        args.filePath,
       );
-
-      if (changeSets.length === 0) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  sessionId,
-                  activityId,
-                  ...(filePath && { filePath }),
-                  unidiffPatch: '',
-                  files: [],
-                  summary: {
-                    totalFiles: 0,
-                    created: 0,
-                    modified: 0,
-                    deleted: 0,
-                  },
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
-      }
-
-      const changeSet = changeSets[0];
-      let unidiffPatch = changeSet.gitPatch.unidiffPatch || '';
-      const parsed = changeSet.parsed();
-      let files = parsed.files;
-      let summary = parsed.summary;
-
-      if (filePath) {
-        unidiffPatch = extractFileDiff(unidiffPatch, filePath);
-        files = files.filter((f) => f.path === filePath);
-        summary = {
-          totalFiles: files.length,
-          created: files.filter((f) => f.changeType === 'created').length,
-          modified: files.filter((f) => f.changeType === 'modified').length,
-          deleted: files.filter((f) => f.changeType === 'deleted').length,
-        };
-      }
-
-      const response = {
-        sessionId,
-        activityId,
-        ...(filePath && { filePath }),
-        unidiffPatch,
-        files: files.map((f) => ({
-          path: f.path,
-          changeType: f.changeType,
-          additions: f.additions,
-          deletions: f.deletions,
-        })),
-        summary,
-      };
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(response, null, 2),
-          },
-        ],
-      };
+      return toMcpResponse(result);
     },
   },
   {
@@ -1023,94 +474,8 @@ Quick start:
       required: ['sessionId'],
     },
     handler: async (client, args) => {
-      const sessionId = args?.sessionId as string;
-      if (!sessionId) {
-        throw new Error('sessionId is required');
-      }
-
-      const session = client.session(sessionId);
-      await session.activities.hydrate();
-      const activities = await session.activities.select({ order: 'asc' });
-
-      // Map: path -> { firstChangeType, latestChangeType, activityIds, additions, deletions }
-      const fileMap = new Map<
-        string,
-        {
-          firstChangeType: 'created' | 'modified' | 'deleted';
-          latestChangeType: 'created' | 'modified' | 'deleted';
-          activityIds: string[];
-          additions: number;
-          deletions: number;
-        }
-      >();
-
-      for (const activity of activities) {
-        for (const artifact of activity.artifacts) {
-          if (artifact.type === 'changeSet') {
-            const parsed = artifact.parsed();
-            for (const file of parsed.files) {
-              const existing = fileMap.get(file.path);
-              if (existing) {
-                // Aggregate: add activityId, sum additions/deletions, update latestChangeType
-                existing.activityIds.push(activity.id);
-                existing.additions += file.additions;
-                existing.deletions += file.deletions;
-                existing.latestChangeType = file.changeType;
-              } else {
-                // First time seeing this file
-                fileMap.set(file.path, {
-                  firstChangeType: file.changeType,
-                  latestChangeType: file.changeType,
-                  activityIds: [activity.id],
-                  additions: file.additions,
-                  deletions: file.deletions,
-                });
-              }
-            }
-          }
-        }
-      }
-
-      // Compute net changeType and filter out created->deleted
-      const files: Array<{
-        path: string;
-        changeType: 'created' | 'modified' | 'deleted';
-        activityIds: string[];
-        additions: number;
-        deletions: number;
-      }> = [];
-      for (const [path, info] of fileMap.entries()) {
-        const netChangeType = computeNetChangeType(
-          info.firstChangeType,
-          info.latestChangeType,
-        );
-        if (netChangeType === null) continue; // created->deleted, omit
-
-        files.push({
-          path,
-          changeType: netChangeType,
-          activityIds: info.activityIds,
-          additions: info.additions,
-          deletions: info.deletions,
-        });
-      }
-
-      // Build summary
-      const summary = {
-        totalFiles: files.length,
-        created: files.filter((f) => f.changeType === 'created').length,
-        modified: files.filter((f) => f.changeType === 'modified').length,
-        deleted: files.filter((f) => f.changeType === 'deleted').length,
-      };
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({ sessionId, files, summary }, null, 2),
-          },
-        ],
-      };
+      const result = await getSessionFiles(client, args.sessionId);
+      return toMcpResponse(result);
     },
   },
   {
@@ -1140,173 +505,13 @@ Quick start:
       required: ['sessionId'],
     },
     handler: async (client, args) => {
-      const sessionId = args?.sessionId as string;
-      const cursor = args?.cursor as string | undefined;
-      const filter = args?.filter as string | undefined;
-
-      if (!sessionId) {
-        throw new Error('sessionId is required');
-      }
-      if (filter && !['bash', 'code', 'message'].includes(filter)) {
-        throw new Error('Invalid filter. Must be one of: bash, code, message');
-      }
-
-      const session = client.session(sessionId);
-      await session.activities.hydrate();
-      const activities = await session.activities.select({ order: 'asc' });
-
-      // Build step list from activities, where each artifact is a step
-      let stepList: any[] = [];
-      for (const activity of activities) {
-        if (
-          activity.type === 'agentMessaged' ||
-          activity.type === 'userMessaged'
-        ) {
-          stepList.push({ type: 'message', activity });
-        } else if (activity.type === 'planGenerated') {
-          stepList.push({ type: 'plan', activity });
-        } else if (activity.type === 'progressUpdated') {
-          for (const artifact of activity.artifacts) {
-            if (artifact.type === 'bashOutput') {
-              stepList.push({ type: 'bash', artifact });
-            } else if (artifact.type === 'changeSet') {
-              stepList.push({ type: 'code', artifact });
-            }
-          }
-        }
-      }
-
-      // Post-process stepList to add retry detection for bash commands
-      for (let i = 0; i < stepList.length; i++) {
-        const currentStep = stepList[i];
-        if (currentStep.type === 'bash') {
-          // Look ahead for consecutive identical commands
-          const retryChain = [currentStep];
-          let j = i + 1;
-          while (
-            j < stepList.length &&
-            stepList[j].type === 'bash' &&
-            stepList[j].artifact.command === currentStep.artifact.command &&
-            stepList[j].artifact.stderr === currentStep.artifact.stderr
-          ) {
-            retryChain.push(stepList[j]);
-            j++;
-          }
-
-          if (retryChain.length > 1) {
-            for (let k = 0; k < retryChain.length; k++) {
-              retryChain[k].attempt = k + 1;
-              retryChain[k].totalAttempts = retryChain.length;
-            }
-            // Skip the rest of the chain
-            i = j - 1;
-          }
-        }
-      }
-
-      // Filter step list if a filter is provided
-      if (filter) {
-        stepList = stepList.filter((step) => step.type === filter);
-      }
-
-      if (stepList.length === 0) {
-        throw new Error('No replayable steps found in session');
-      }
-
-      // Parse cursor to get the index of the step to retrieve
-      let requestedIndex = 0;
-      if (cursor) {
-        const match = cursor.match(/^step_(\d+)$/);
-        if (match) {
-          requestedIndex = parseInt(match[1], 10);
-        } else {
-          throw new Error('Invalid cursor format');
-        }
-      }
-
-      // Check bounds
-      if (requestedIndex < 0 || requestedIndex >= stepList.length) {
-        throw new Error('Invalid cursor');
-      }
-
-      const currentStepData = stepList[requestedIndex];
-      let step: any;
-
-      // Format the step based on its type
-      switch (currentStepData.type) {
-        case 'message':
-          step = {
-            type: 'message',
-            content: currentStepData.activity.message,
-            originator: currentStepData.activity.originator,
-          };
-          break;
-        case 'plan':
-          step = {
-            type: 'plan',
-            content: currentStepData.activity.plan.steps,
-          };
-          break;
-        case 'bash':
-          step = {
-            type: 'bash',
-            command: currentStepData.artifact.command,
-            stdout: currentStepData.artifact.stdout,
-            stderr: currentStepData.artifact.stderr,
-            exitCode: currentStepData.artifact.exitCode,
-            ...(currentStepData.attempt && {
-              attempt: currentStepData.attempt,
-            }),
-            ...(currentStepData.totalAttempts && {
-              totalAttempts: currentStepData.totalAttempts,
-            }),
-          };
-          break;
-        case 'code':
-          step = {
-            type: 'code',
-            unidiffPatch: currentStepData.artifact.gitPatch.unidiffPatch,
-          };
-          break;
-      }
-
-      // Calculate progress and cursors
-      const total = stepList.length;
-      const current = requestedIndex + 1;
-      const pad = (n: number) => String(n).padStart(3, '0');
-
-      const nextCursor =
-        requestedIndex < total - 1 ? `step_${pad(requestedIndex + 1)}` : null;
-      const prevCursor =
-        requestedIndex > 0 ? `step_${pad(requestedIndex - 1)}` : null;
-
-      // Include context only on the first request
-      let context = null;
-      if (!cursor) {
-        const info = await session.info();
-        context = {
-          sessionId: info.id,
-          title: info.title,
-          source: info.source,
-        };
-      }
-
-      const response = {
-        step,
-        progress: { current, total },
-        nextCursor,
-        prevCursor,
-        context,
-      };
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(response, null, 2),
-          },
-        ],
-      };
+      const result = await replaySession(
+        client,
+        args.sessionId,
+        args.cursor,
+        args.filter,
+      );
+      return toMcpResponse(result);
     },
   },
 ];
