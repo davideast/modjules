@@ -48,7 +48,12 @@ export async function* streamActivities(
 ): AsyncGenerator<Activity> {
   let pageToken: string | undefined = undefined;
   let isFirstCall = true;
-  const yieldedActivityNames = new Set<string>();
+
+  // State to track yielded activities and prevent duplication while managing memory usage.
+  // This logic assumes that activities are returned in chronological order (Oldest -> Newest).
+  // If the API returns activities in reverse order, this will fail to yield correctly.
+  let lastSeenTime = '';
+  const seenIdsAtLastTime = new Set<string>();
 
   while (true) {
     let response: ListActivitiesResponse;
@@ -114,12 +119,28 @@ export async function* streamActivities(
     const activities = response.activities || [];
 
     for (const rawActivity of activities) {
-      // Duplication check
-      if (yieldedActivityNames.has(rawActivity.name)) {
+      const activity = mapRestActivityToSdkActivity(rawActivity, platform);
+
+      // Duplication check using timestamp and ID.
+      // We rely on the implicit behavior that activities are strictly ordered by creation time.
+      if (activity.createTime < lastSeenTime) {
+        // Skip activities older than what we've already yielded
         continue;
       }
 
-      const activity = mapRestActivityToSdkActivity(rawActivity, platform);
+      if (activity.createTime === lastSeenTime) {
+        if (seenIdsAtLastTime.has(activity.id)) {
+          // Skip if we've already seen this activity at this timestamp
+          continue;
+        }
+        // New activity at the same timestamp
+        seenIdsAtLastTime.add(activity.id);
+      } else {
+        // activity.createTime > lastSeenTime
+        lastSeenTime = activity.createTime;
+        seenIdsAtLastTime.clear();
+        seenIdsAtLastTime.add(activity.id);
+      }
 
       if (
         options.exclude?.originator &&
@@ -128,7 +149,6 @@ export async function* streamActivities(
         continue;
       }
 
-      yieldedActivityNames.add(rawActivity.name);
       yield activity;
     }
 
