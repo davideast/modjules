@@ -2,7 +2,7 @@ import * as fs from 'fs/promises';
 import { createReadStream, createWriteStream, WriteStream } from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
-import { Activity } from '../types.js';
+import { Activity, SessionResource } from '../types.js';
 import {
   ActivityStorage,
   SessionStorage,
@@ -139,11 +139,12 @@ export class NodeFileStorage implements ActivityStorage {
       this.currentFileSize += Buffer.byteLength(line);
 
       // Optimistic Index Update:
-      // If the index is already built, we can safely update it.
-      // If `buildIndex` is currently running (`indexBuilt` is false), we skip updating the index here.
-      // This is a trade-off: a concurrent `buildIndex` might miss this new line if it hasn't read it yet,
-      // but preventing race conditions during map population is prioritized.
-      if (this.indexBuilt) {
+      // We safely update the index if it is fully built OR if a build is currently in progress.
+      // If a build is in progress (indexBuildPromise != null), the map might be cleared
+      // at the start of the build, but since Map operations are synchronous in the event loop,
+      // adding it here ensures it exists even if the build scan missed it (e.g. strict append race).
+      // If the build scan *does* see it later, it simply overwrites/re-adds it, which is safe.
+      if (this.indexBuilt || this.indexBuildPromise) {
         if (!this.index.has(activity.id)) {
           this.index.set(activity.id, startOffset);
         }
