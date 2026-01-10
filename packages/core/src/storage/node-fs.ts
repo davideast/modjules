@@ -138,12 +138,10 @@ export class NodeFileStorage implements ActivityStorage {
       const canContinue = this.writeStream.write(line);
       this.currentFileSize += Buffer.byteLength(line);
 
-      // Optimistic Index Update:
-      // We safely update the index if it is fully built OR if a build is currently in progress.
-      // If a build is in progress (indexBuildPromise != null), the map might be cleared
-      // at the start of the build, but since Map operations are synchronous in the event loop,
-      // adding it here ensures it exists even if the build scan missed it (e.g. strict append race).
-      // If the build scan *does* see it later, it simply overwrites/re-adds it, which is safe.
+      // Concurrency Handling:
+      // Update the index if it's already built or if a build is in progress.
+      // This optimistic update ensures the new activity is indexed even if the
+      // background scan (buildIndex) misses it due to race conditions.
       if (this.indexBuilt || this.indexBuildPromise) {
         if (!this.index.has(activity.id)) {
           this.index.set(activity.id, startOffset);
