@@ -2,7 +2,7 @@ import * as fs from 'fs/promises';
 import { createReadStream, createWriteStream, WriteStream } from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
-import { Activity, SessionResource } from '../types.js';
+import { Activity } from '../types.js';
 import {
   ActivityStorage,
   SessionStorage,
@@ -20,6 +20,14 @@ export class NodeFileStorage implements ActivityStorage {
   private metadataPath: string;
   private initialized = false;
   private writeStream: WriteStream | null = null;
+
+  // In-memory index: ActivityID -> Byte Offset
+  private index: Map<string, number> = new Map();
+  private indexBuilt = false;
+  private indexBuildPromise: Promise<void> | null = null;
+
+  // Tracks the current file size to calculate offsets for new appends
+  private currentFileSize = 0;
 
   constructor(sessionId: string, rootDir: string) {
     const sessionCacheDir = path.resolve(rootDir, '.jules/cache', sessionId);
@@ -39,17 +47,32 @@ export class NodeFileStorage implements ActivityStorage {
     // Ensure the cache directory exists before we ever try to read/write
     await fs.mkdir(path.dirname(this.filePath), { recursive: true });
 
+    // Initialize currentFileSize for accurate append offsets
+    try {
+      const stats = await fs.stat(this.filePath);
+      this.currentFileSize = stats.size;
+    } catch (e: any) {
+      if (e.code === 'ENOENT') {
+        this.currentFileSize = 0;
+      } else {
+        throw e;
+      }
+    }
+
     // Open a persistent write stream for efficient appending
     this.writeStream = createWriteStream(this.filePath, {
       flags: 'a',
-      encoding: 'utf8'
+      encoding: 'utf8',
     });
 
     // Prevent process crash on stream error
     this.writeStream.on('error', (err) => {
-        console.error(`[NodeFileStorage] WriteStream error for ${this.filePath}:`, err);
-        // We might want to set initialized = false or nullify stream,
-        // but for now, logging prevents the crash.
+      console.error(
+        `[NodeFileStorage] WriteStream error for ${this.filePath}:`,
+        err,
+      );
+      // We might want to set initialized = false or nullify stream,
+      // but for now, logging prevents the crash.
     });
 
     this.initialized = true;
@@ -64,6 +87,10 @@ export class NodeFileStorage implements ActivityStorage {
       this.writeStream = null;
     }
     this.initialized = false;
+    this.indexBuilt = false;
+    this.index.clear();
+    // We do not await indexBuildPromise as we are closing.
+    this.indexBuildPromise = null;
   }
 
   private async _readMetadata(): Promise<SessionMetadata> {
@@ -104,31 +131,141 @@ export class NodeFileStorage implements ActivityStorage {
 
     // 2. Append the activity
     const line = JSON.stringify(activity) + '\n';
+    const startOffset = this.currentFileSize;
 
     // Write to stream. Handle backpressure if necessary.
     if (this.writeStream) {
       const canContinue = this.writeStream.write(line);
+      this.currentFileSize += Buffer.byteLength(line);
+
+      // Optimistic Index Update:
+      // If the index is already built, we can safely update it.
+      // If `buildIndex` is currently running (`indexBuilt` is false), we skip updating the index here.
+      // This is a trade-off: a concurrent `buildIndex` might miss this new line if it hasn't read it yet,
+      // but preventing race conditions during map population is prioritized.
+      if (this.indexBuilt) {
+        if (!this.index.has(activity.id)) {
+          this.index.set(activity.id, startOffset);
+        }
+      }
+
       if (!canContinue) {
-        await new Promise<void>((resolve) => this.writeStream!.once('drain', resolve));
+        await new Promise<void>((resolve) =>
+          this.writeStream!.once('drain', resolve),
+        );
       }
     } else {
-        throw new Error('NodeFileStorage: WriteStream is not initialized');
+      throw new Error('NodeFileStorage: WriteStream is not initialized');
     }
   }
 
   /**
+   * Builds the in-memory index by scanning the file once.
+   * Handles concurrency by coalescing multiple calls into a single promise.
+   */
+  private async buildIndex(): Promise<void> {
+    if (this.indexBuilt) return;
+    if (this.indexBuildPromise) return this.indexBuildPromise;
+
+    this.indexBuildPromise = (async () => {
+        try {
+            this.index.clear();
+
+            try {
+              await fs.access(this.filePath);
+            } catch (e) {
+              // File doesn't exist, index is empty but built
+              this.indexBuilt = true;
+              return;
+            }
+
+            const fileStream = createReadStream(this.filePath, { encoding: 'utf8' });
+            const rl = readline.createInterface({
+              input: fileStream,
+              crlfDelay: Infinity,
+            });
+
+            let currentOffset = 0;
+            for await (const line of rl) {
+              const byteLen = Buffer.byteLength(line);
+              // readline strips \n or \r\n. We assume \n (1 byte) as we write it.
+              const lineTotalBytes = byteLen + 1;
+
+              if (line.trim().length > 0) {
+                try {
+                  const activity = JSON.parse(line) as Activity;
+                  if (!this.index.has(activity.id)) {
+                    this.index.set(activity.id, currentOffset);
+                  }
+                } catch (e) {
+                  // Ignore corrupt lines
+                }
+              }
+              currentOffset += lineTotalBytes;
+            }
+
+            this.indexBuilt = true;
+        } finally {
+            this.indexBuildPromise = null;
+        }
+    })();
+
+    return this.indexBuildPromise;
+  }
+
+  /**
    * Retrieves an activity by ID.
-   * Uses a linear scan of the file.
+   * Uses an in-memory index (ID -> Offset) to seek directly to the line.
    */
   async get(activityId: string): Promise<Activity | undefined> {
-    // V1 Implementation: Linear Scan.
-    // Acceptable trade-off for simplicity as session logs are rarely massive.
-    for await (const activity of this.scan()) {
-      if (activity.id === activityId) {
-        return activity;
-      }
-    }
-    return undefined;
+    if (!this.initialized) await this.init();
+    if (!this.indexBuilt) await this.buildIndex();
+
+    const offset = this.index.get(activityId);
+    if (offset === undefined) return undefined;
+
+    return new Promise((resolve, reject) => {
+      // Create a stream starting at the exact offset
+      const stream = createReadStream(this.filePath, {
+        start: offset,
+        encoding: 'utf8',
+      });
+      const rl = readline.createInterface({
+        input: stream,
+        crlfDelay: Infinity,
+      });
+
+      let found = false;
+      rl.on('line', (line) => {
+        if (found) return; // Prevent double firing
+        found = true;
+
+        // We only needed the first line
+        rl.close();
+        stream.destroy();
+
+        try {
+          const activity = JSON.parse(line) as Activity;
+          resolve(activity);
+        } catch (e) {
+          // If the indexed line is corrupt (shouldn't happen if buildIndex verified it)
+          resolve(undefined);
+        }
+      });
+
+      rl.on('error', (err) => {
+        reject(err);
+      });
+
+      stream.on('error', (err) => {
+        reject(err);
+      });
+
+      // Handle case where stream ends without yielding a line (e.g., EOF right at offset)
+      rl.on('close', () => {
+        if (!found) resolve(undefined);
+      });
+    });
   }
 
   /**
