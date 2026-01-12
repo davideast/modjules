@@ -133,15 +133,83 @@ export class NodeFileStorage implements ActivityStorage {
 
   /**
    * Retrieves the latest activity.
-   * Scans the entire file to find the last entry.
+   * Efficiently reads the file backwards to find the last valid entry.
    */
   async latest(): Promise<Activity | undefined> {
-    // V1 Implementation: Full Scan to find the end.
-    let last: Activity | undefined;
-    for await (const act of this.scan()) {
-      last = act;
+    if (!this.initialized) await this.init();
+
+    try {
+      await fs.access(this.filePath);
+    } catch (e) {
+      if ((e as any).code === 'ENOENT') {
+        return undefined; // File doesn't exist
+      }
+      throw e;
     }
-    return last;
+
+    // Optimization: Read backward from the end of the file.
+    // This is significantly faster than scanning the entire file for large logs.
+    const stat = await fs.stat(this.filePath);
+    const fileSize = stat.size;
+
+    if (fileSize === 0) return undefined;
+
+    // We'll read in chunks from the end.
+    // 4KB is typically enough for several activity lines.
+    const bufferSize = 4096;
+    const buffer = Buffer.alloc(bufferSize);
+    let fd: fs.FileHandle | undefined;
+
+    try {
+      fd = await fs.open(this.filePath, 'r');
+      let currentPos = fileSize;
+      let trailing = ''; // To hold parts of lines from previous chunks
+
+      while (currentPos > 0) {
+        const readSize = Math.min(bufferSize, currentPos);
+        const position = currentPos - readSize;
+
+        const result = await fd.read(buffer, 0, readSize, position);
+        const chunk = result.buffer.toString('utf8', 0, readSize);
+
+        // Prepend previous trailing content
+        const content = chunk + trailing;
+
+        // Split by newline
+        const lines = content.split('\n');
+
+        // The last part might be an incomplete line (start of a line),
+        // so it becomes the 'trailing' part for the next iteration (reading earlier).
+        // Exception: if currentPos was 0, we read the start of the file, so the first part is a valid start.
+        if (position > 0) {
+          trailing = lines.shift() || ''; // The first element is the partial line at the end of the *previous* chunk (start of this chunk's content)
+        } else {
+          // We are at the start of the file, so the first element is a complete line
+          trailing = '';
+        }
+
+        // Iterate lines from end to start
+        for (let i = lines.length - 1; i >= 0; i--) {
+          const line = lines[i].trim();
+          if (line.length === 0) continue;
+
+          try {
+            return JSON.parse(line) as Activity;
+          } catch (e) {
+            console.warn(
+              `[NodeFileStorage] Corrupt JSON line ignored during latest() check in ${this.filePath}`,
+            );
+            // Continue searching backwards
+          }
+        }
+
+        currentPos -= readSize;
+      }
+    } finally {
+      if (fd) await fd.close();
+    }
+
+    return undefined;
   }
 
   /**
