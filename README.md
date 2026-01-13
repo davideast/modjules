@@ -208,9 +208,12 @@ const session = await jules.run({
 // Access generated code from session outputs
 const info = await session.info();
 for (const output of info.outputs) {
-  if ('changeSet' in output) {
-    const files = parseUnidiff(output.changeSet.gitPatch.unidiffPatch);
-    console.log(`Generated ${files.length} files`);
+  if (output.type === 'changeSet') {
+    const parsed = output.parsed();
+    for (const file of parsed.files) {
+      console.log(`${file.path}: +${file.additions} -${file.deletions}`);
+      console.log(file.content);
+    }
   }
 }
 ```
