@@ -2,7 +2,7 @@
   "name": "modjules-monorepo",
   "private": true,
   "type": "module",
-  "version": "0.1.1",
+  "version": "0.4.0",
   "packageManager": "npm@10.8.2",
   "engines": {
     "node": ">=18"
@@ -32,6 +32,8 @@
     "verify": "tsx scripts/verify.ts",
     "prepare": "husky",
     "changeset": "changeset",
+    "version:sync": "tsx scripts/sync-versions.ts",
+    "prerelease": "npm run version:sync",
     "release": "changeset publish",
     "mcp-server": "bun packages/core/src/mcp/cli.ts",
     "monitor": "bun scripts/monitor.ts",
