@@ -47,7 +47,7 @@ export const tools: JulesTool[] = [
   {
     name: 'jules_create_session',
     description:
-      'Creates a new Jules session or automated run to perform code tasks.',
+      'Creates a new Jules session or automated run to perform code tasks. If repo and branch are omitted, creates a "repoless" session where the user provides their own context in the prompt and Jules will perform code tasks based on that context instead of a GitHub repo.',
     inputSchema: {
       type: 'object',
       properties: {
