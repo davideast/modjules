@@ -4,3 +4,4 @@ export * from './verify-rest.js';
 export * from './firestore.js';
 export * from './rtdb.js';
 export * from './utils.js';
+export * from './factories.js';
