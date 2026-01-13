@@ -473,6 +473,14 @@ export class JulesClientImpl implements JulesClient {
   private async _prepareSessionCreation(
     config: SessionConfig,
   ): Promise<object> {
+    // For repoless sessions, source is not provided
+    if (!config.source) {
+      return {
+        prompt: config.prompt,
+        title: config.title,
+      };
+    }
+
     const source = await this.sources.get({ github: config.source.github });
     if (!source) {
       throw new SourceNotFoundError(config.source.github);

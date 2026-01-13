@@ -12,12 +12,17 @@ export async function createSession(
   client: JulesClient,
   options: CreateSessionOptions,
 ): Promise<CreateSessionResult> {
+  // Build config - source is optional for repoless sessions
   const config: SessionConfig = {
     prompt: options.prompt,
-    source: { github: options.repo, branch: options.branch },
     requireApproval: options.interactive,
     autoPr: options.autoPr !== undefined ? options.autoPr : true,
   };
+
+  // Only add source if both repo and branch are provided
+  if (options.repo && options.branch) {
+    config.source = { github: options.repo, branch: options.branch };
+  }
 
   const result = options.interactive
     ? await client.session(config)

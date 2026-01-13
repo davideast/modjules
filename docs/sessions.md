@@ -66,3 +66,66 @@ console.log(`Session finished with state: ${outcome.state}`);
 | **Building a Chat UI**                | `jules.session()` | You need the `SessionClient` to send and receive messages in real-time.       |
 | **IDE Extension with Plan Approval**  | `jules.session()` | You need to pause the agent and wait for user input (`approve()`).            |
 | **Streaming Progress to a Dashboard** | `jules.session()` | The `session.stream()` method provides real-time activity updates.            |
+
+## Repoless Sessions
+
+Both `jules.run()` and `jules.session()` support **repoless sessions** - sessions created without a GitHub repository. These are useful for general coding tasks, code review, or learning.
+
+```typescript
+import { jules, parseUnidiff } from 'modjules';
+
+// Create a repoless session - no source required
+const session = await jules.run({
+  prompt: `Create a TypeScript user service with:
+  - User interface with id, name, email
+  - fetchUserData async function using fetch API
+  - processUsers batch function using Promise.allSettled
+  
+  Make sure to handle errors gracefully.`,
+  // No source property - this creates a repoless session
+});
+
+// Access the generated code from session outputs
+const info = await session.info();
+for (const output of info.outputs) {
+  // Check for changeSet output (note: 'type' field may be missing from API)
+  if ('changeSet' in output) {
+    const patch = output.changeSet.gitPatch.unidiffPatch;
+
+    // Use parseUnidiff to get file metadata
+    const files = parseUnidiff(patch);
+    console.log(`Generated ${files.length} files:`);
+    for (const file of files) {
+      console.log(`  ${file.path} (+${file.additions}/-${file.deletions})`);
+    }
+
+    // Access the suggested commit message
+    console.log(`Commit: ${output.changeSet.gitPatch.suggestedCommitMessage}`);
+  }
+}
+```
+
+### When to use Repoless Sessions
+
+| Use Case                     | Why Repoless                                           |
+| :--------------------------- | :----------------------------------------------------- |
+| **Learning & Exploration**   | Ask Jules to explain concepts or generate example code |
+| **Code Review Assistance**   | Paste code in your prompt and ask for feedback         |
+| **Quick Prototypes**         | Generate scaffolding or boilerplate without a repo     |
+| **Architecture Discussions** | Discuss design patterns and get code examples          |
+
+### Retrieving Generated Code
+
+Repoless sessions return a `changeSet` in `session.outputs` instead of a `pullRequest`. Use the `parseUnidiff` utility to parse the unified diff:
+
+```typescript
+import { parseUnidiff } from 'modjules';
+
+// Parse generates structured file information
+const files = parseUnidiff(output.changeSet.gitPatch.unidiffPatch);
+
+// Each file has: path, changeType, additions, deletions
+for (const file of files) {
+  console.log(`[${file.changeType}] ${file.path}`);
+}
+```

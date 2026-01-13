@@ -47,7 +47,7 @@ export const tools: JulesTool[] = [
   {
     name: 'jules_create_session',
     description:
-      'Creates a new Jules session or automated run to perform code tasks.',
+      'Creates a new Jules session or automated run to perform code tasks. If repo and branch are omitted, creates a "repoless" session where the user provides their own context in the prompt and Jules will perform code tasks based on that context instead of a GitHub repo.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -57,11 +57,12 @@ export const tools: JulesTool[] = [
         },
         repo: {
           type: 'string',
-          description: 'GitHub repository (owner/repo).',
+          description:
+            'GitHub repository (owner/repo). Optional for repoless sessions.',
         },
         branch: {
           type: 'string',
-          description: 'Target branch.',
+          description: 'Target branch. Optional for repoless sessions.',
         },
         interactive: {
           type: 'boolean',
@@ -74,7 +75,7 @@ export const tools: JulesTool[] = [
             'Automatically create a PR on completion. Defaults to true.',
         },
       },
-      required: ['prompt', 'repo', 'branch'],
+      required: ['prompt'],
     },
     handler: async (client, args) => {
       const result = await createSession(client, {
