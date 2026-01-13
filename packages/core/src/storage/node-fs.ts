@@ -167,46 +167,48 @@ export class NodeFileStorage implements ActivityStorage {
     if (this.indexBuildPromise) return this.indexBuildPromise;
 
     this.indexBuildPromise = (async () => {
+      try {
+        this.index.clear();
+
         try {
-            this.index.clear();
-
-            try {
-              await fs.access(this.filePath);
-            } catch (e) {
-              // File doesn't exist, index is empty but built
-              this.indexBuilt = true;
-              return;
-            }
-
-            const fileStream = createReadStream(this.filePath, { encoding: 'utf8' });
-            const rl = readline.createInterface({
-              input: fileStream,
-              crlfDelay: Infinity,
-            });
-
-            let currentOffset = 0;
-            for await (const line of rl) {
-              const byteLen = Buffer.byteLength(line);
-              // readline strips \n or \r\n. We assume \n (1 byte) as we write it.
-              const lineTotalBytes = byteLen + 1;
-
-              if (line.trim().length > 0) {
-                try {
-                  const activity = JSON.parse(line) as Activity;
-                  if (!this.index.has(activity.id)) {
-                    this.index.set(activity.id, currentOffset);
-                  }
-                } catch (e) {
-                  // Ignore corrupt lines
-                }
-              }
-              currentOffset += lineTotalBytes;
-            }
-
-            this.indexBuilt = true;
-        } finally {
-            this.indexBuildPromise = null;
+          await fs.access(this.filePath);
+        } catch (e) {
+          // File doesn't exist, index is empty but built
+          this.indexBuilt = true;
+          return;
         }
+
+        const fileStream = createReadStream(this.filePath, {
+          encoding: 'utf8',
+        });
+        const rl = readline.createInterface({
+          input: fileStream,
+          crlfDelay: Infinity,
+        });
+
+        let currentOffset = 0;
+        for await (const line of rl) {
+          const byteLen = Buffer.byteLength(line);
+          // readline strips \n or \r\n. We assume \n (1 byte) as we write it.
+          const lineTotalBytes = byteLen + 1;
+
+          if (line.trim().length > 0) {
+            try {
+              const activity = JSON.parse(line) as Activity;
+              if (!this.index.has(activity.id)) {
+                this.index.set(activity.id, currentOffset);
+              }
+            } catch (e) {
+              // Ignore corrupt lines
+            }
+          }
+          currentOffset += lineTotalBytes;
+        }
+
+        this.indexBuilt = true;
+      } finally {
+        this.indexBuildPromise = null;
+      }
     })();
 
     return this.indexBuildPromise;
