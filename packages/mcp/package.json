@@ -1,6 +1,6 @@
 {
   "name": "@modjules/mcp",
-  "version": "0.2.0-beta.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "MCP server and client for Jules",
   "repository": "davideast/modjules",
@@ -49,11 +49,11 @@
     "commander": "^14.0.2"
   },
   "peerDependencies": {
-    "modjules": "0.2.0-beta.0"
+    "modjules": "1.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
-    "modjules": "0.2.0-beta.0",
+    "modjules": "1.0.0",
     "msw": "^2.10.4",
     "typescript": "^5.8.3",
     "vite": "^7.3.0",

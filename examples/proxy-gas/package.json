@@ -1,6 +1,6 @@
 {
   "name": "proxy-gas",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "A Serverless Jules Proxy running on Google Apps Script",
   "scripts": {

@@ -1,6 +1,6 @@
 {
   "name": "@modjules/mcp-remote",
-  "version": "0.2.0-beta.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "HTTP/SSE adapter for running Modjules MCP servers on remote platforms (Render, Vercel, Hono)",
   "exports": {
