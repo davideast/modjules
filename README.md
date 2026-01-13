@@ -192,6 +192,29 @@ for (const artifact of activity.artifacts) {
 }
 ```
 
+### Repoless Sessions
+
+Create sessions without a GitHub repo for general coding tasks, code review, or learning.
+
+```typescript
+// No source required - context comes from your prompt
+const session = await jules.run({
+  prompt: `Create a TypeScript user service with:
+  - User interface with id, name, email
+  - fetchUserData async function
+  - processUsers batch function using Promise.allSettled`,
+});
+
+// Access generated code from session outputs
+const info = await session.info();
+for (const output of info.outputs) {
+  if ('changeSet' in output) {
+    const files = parseUnidiff(output.changeSet.gitPatch.unidiffPatch);
+    console.log(`Generated ${files.length} files`);
+  }
+}
+```
+
 ### Cross-Platform
 
 Works in Node.js (filesystem caching) and browser (IndexedDB).
