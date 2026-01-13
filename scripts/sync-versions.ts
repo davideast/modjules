@@ -17,7 +17,7 @@ const ROOT_DIR = join(import.meta.dirname, '..');
 const PACKAGES_DIR = join(ROOT_DIR, 'packages');
 
 // Packages to sync (publishable packages in the fixed group)
-const SYNC_PACKAGES = ['core', 'mcp', 'server'];
+const SYNC_PACKAGES = ['core', 'mcp', 'server', 'auth', 'firebase'];
 
 // Internal dependencies that should be updated to the synced version
 const INTERNAL_DEPS = ['modjules', '@modjules/mcp', '@modjules/server'];
