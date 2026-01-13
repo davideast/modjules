@@ -11,6 +11,7 @@ export type {
   Scope,
   ServerRequest,
   ServerResponse,
+  ServerConfig,
 } from './server/types.js';
 
 // Core handler for custom integrations

@@ -5,3 +5,6 @@ export * from './firestore.js';
 export * from './rtdb.js';
 export * from './utils.js';
 export * from './factories.js';
+export * from './schemas.js';
+export * from './spec.js';
+export * from './handler.js';

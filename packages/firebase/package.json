@@ -19,11 +19,16 @@
     }
   },
   "dependencies": {
-    "@modjules/auth": "*"
+    "@modjules/auth": "*",
+    "@modjules/server": "^0.4.1",
+    "zod": "^3.23.8"
   },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
     "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "js-yaml": "^4.1.1"
   }
 }
