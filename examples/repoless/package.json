@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "modjules": "*"
+    "modjules": "*",
+    "niftty": "^0.1.3"
   }
 }

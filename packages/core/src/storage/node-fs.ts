@@ -42,14 +42,17 @@ export class NodeFileStorage implements ActivityStorage {
     // Open a persistent write stream for efficient appending
     this.writeStream = createWriteStream(this.filePath, {
       flags: 'a',
-      encoding: 'utf8'
+      encoding: 'utf8',
     });
 
     // Prevent process crash on stream error
     this.writeStream.on('error', (err) => {
-        console.error(`[NodeFileStorage] WriteStream error for ${this.filePath}:`, err);
-        // We might want to set initialized = false or nullify stream,
-        // but for now, logging prevents the crash.
+      console.error(
+        `[NodeFileStorage] WriteStream error for ${this.filePath}:`,
+        err,
+      );
+      // We might want to set initialized = false or nullify stream,
+      // but for now, logging prevents the crash.
     });
 
     this.initialized = true;
@@ -109,10 +112,12 @@ export class NodeFileStorage implements ActivityStorage {
     if (this.writeStream) {
       const canContinue = this.writeStream.write(line);
       if (!canContinue) {
-        await new Promise<void>((resolve) => this.writeStream!.once('drain', resolve));
+        await new Promise<void>((resolve) =>
+          this.writeStream!.once('drain', resolve),
+        );
       }
     } else {
-        throw new Error('NodeFileStorage: WriteStream is not initialized');
+      throw new Error('NodeFileStorage: WriteStream is not initialized');
     }
   }
 

@@ -15,7 +15,69 @@
 
 import { jules, JulesError, ChangeSetArtifact, parseUnidiff } from 'modjules';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, extname } from 'node:path';
+import { niftty } from 'niftty';
+
+/**
+ * Render a unified diff with syntax highlighting using niftty.
+ */
+async function renderDiff(patch: string): Promise<void> {
+  // Parse the diff to extract individual file diffs
+  const fileDiffs = patch.split(/(?=^diff --git )/m).filter(Boolean);
+
+  for (const fileDiff of fileDiffs) {
+    // Extract file path from diff header
+    const pathMatch = fileDiff.match(/^diff --git a\/(.+?) b\/(.+?)$/m);
+    if (!pathMatch) continue;
+
+    const filePath = pathMatch[2];
+    const ext = extname(filePath).slice(1) || 'text';
+
+    // Map common extensions to shiki language ids
+    const langMap: Record<string, string> = {
+      ts: 'typescript',
+      js: 'javascript',
+      tsx: 'tsx',
+      jsx: 'jsx',
+      md: 'markdown',
+      sh: 'bash',
+    };
+    const lang = langMap[ext] || ext;
+
+    // Extract the new file content (lines starting with +, excluding +++ header)
+    const addedLines = fileDiff
+      .split('\n')
+      .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
+      .map((line) => line.slice(1))
+      .join('\n');
+
+    if (!addedLines.trim()) continue;
+
+    try {
+      // Render with niftty - new files have no diffWith (shows as all additions)
+      const rendered = await niftty({
+        code: addedLines,
+        lang: lang as any,
+        theme: 'catppuccin-frappe',
+        lineNumbers: true,
+        streaming: true,
+      });
+
+      console.log(`\n      📄 ${filePath}`);
+      process.stdout.write(rendered);
+      console.log();
+    } catch {
+      // Fallback to plain text if language not supported
+      console.log(`\n      📄 ${filePath}`);
+      console.log(
+        addedLines
+          .split('\n')
+          .map((l) => `         ${l}`)
+          .join('\n'),
+      );
+    }
+  }
+}
 
 // Output directory for saved code
 const OUTPUT_DIR = '.output';
@@ -266,19 +328,10 @@ async function runRepolessAutomated() {
             console.log(
               `      ${parsed.summary.totalFiles} file(s) · 🟢 ${parsed.summary.created} created · 🟡 ${parsed.summary.modified} modified · 🔴 ${parsed.summary.deleted} deleted`,
             );
-            if (parsed.files.length > 0) {
-              console.log(`      ─────────────────────────────────────────`);
-              for (const file of parsed.files) {
-                const icon =
-                  file.changeType === 'created'
-                    ? '🟢'
-                    : file.changeType === 'deleted'
-                      ? '🔴'
-                      : '🟡';
-                console.log(
-                  `      ${icon} ${file.path}  (+${file.additions}/-${file.deletions})`,
-                );
-              }
+
+            // Render syntax-highlighted diffs using niftty
+            if (artifact.gitPatch?.unidiffPatch) {
+              await renderDiff(artifact.gitPatch.unidiffPatch);
             }
 
             // Save the code to .output directory
@@ -439,21 +492,10 @@ async function runRepolessSession() {
             console.log(
               `      ${parsed.summary.totalFiles} file(s) · 🟢 ${parsed.summary.created} created · 🟡 ${parsed.summary.modified} modified · 🔴 ${parsed.summary.deleted} deleted`,
             );
-            if (parsed.files.length > 0) {
-              console.log(
-                `      ─────────────────────────────────────────────`,
-              );
-              for (const file of parsed.files) {
-                const icon =
-                  file.changeType === 'created'
-                    ? '🟢'
-                    : file.changeType === 'deleted'
-                      ? '🔴'
-                      : '🟡';
-                console.log(
-                  `      ${icon} ${file.path}  (+${file.additions}/-${file.deletions})`,
-                );
-              }
+
+            // Render syntax-highlighted diffs using niftty
+            if (artifact.gitPatch?.unidiffPatch) {
+              await renderDiff(artifact.gitPatch.unidiffPatch);
             }
           } else if (artifact.type === 'bashOutput') {
             const exitIcon = artifact.exitCode === 0 ? '✅' : '❌';
@@ -578,21 +620,10 @@ async function resumeSession(sessionId: string) {
             console.log(
               `      ${parsed.summary.totalFiles} file(s) · 🟢 ${parsed.summary.created} created · 🟡 ${parsed.summary.modified} modified · 🔴 ${parsed.summary.deleted} deleted`,
             );
-            if (parsed.files.length > 0) {
-              console.log(
-                `      ─────────────────────────────────────────────`,
-              );
-              for (const file of parsed.files) {
-                const icon =
-                  file.changeType === 'created'
-                    ? '🟢'
-                    : file.changeType === 'deleted'
-                      ? '🔴'
-                      : '🟡';
-                console.log(
-                  `      ${icon} ${file.path}  (+${file.additions}/-${file.deletions})`,
-                );
-              }
+
+            // Render syntax-highlighted diffs using niftty
+            if (artifact.gitPatch?.unidiffPatch) {
+              await renderDiff(artifact.gitPatch.unidiffPatch);
             }
 
             // Save the code to .output directory
