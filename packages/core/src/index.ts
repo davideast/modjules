@@ -112,4 +112,4 @@ export type { Platform } from './platform/types.js';
 export type { StorageFactory } from './types.js';
 
 // Artifact classes with helper methods
-export { ChangeSetArtifact, BashArtifact } from './artifacts.js';
+export { ChangeSetArtifact, BashArtifact, parseUnidiff } from './artifacts.js';

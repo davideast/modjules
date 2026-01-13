@@ -13,7 +13,7 @@
  *   bun run main.ts session  # Creates a repoless interactive session
  */
 
-import { jules, JulesError, ChangeSetArtifact } from 'modjules';
+import { jules, JulesError, ChangeSetArtifact, parseUnidiff } from 'modjules';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
