@@ -5,7 +5,15 @@
     { "repo": "davideast/modjules" }
   ],
   "commit": false,
-  "fixed": [["modjules", "@modjules/server", "@modjules/mcp"]],
+  "fixed": [
+    [
+      "modjules",
+      "@modjules/server",
+      "@modjules/mcp",
+      "@modjules/auth",
+      "@modjules/firebase"
+    ]
+  ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
