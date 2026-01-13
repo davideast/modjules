@@ -33,7 +33,6 @@
     "prepare": "husky",
     "changeset": "changeset",
     "version:sync": "tsx scripts/sync-versions.ts",
-    "prerelease": "npm run version:sync",
     "release": "changeset publish",
     "mcp-server": "bun packages/core/src/mcp/cli.ts",
     "monitor": "bun scripts/monitor.ts",
