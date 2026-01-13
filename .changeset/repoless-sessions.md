@@ -1,7 +1,7 @@
 ---
-'modjules': minor
-'@modjules/mcp': minor
-'@modjules/server': minor
+'modjules': patch
+'@modjules/mcp': patch
+'@modjules/server': patch
 ---
 
 ## Repoless Sessions Support
