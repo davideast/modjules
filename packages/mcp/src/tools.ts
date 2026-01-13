@@ -57,11 +57,12 @@ export const tools: JulesTool[] = [
         },
         repo: {
           type: 'string',
-          description: 'GitHub repository (owner/repo).',
+          description:
+            'GitHub repository (owner/repo). Optional for repoless sessions.',
         },
         branch: {
           type: 'string',
-          description: 'Target branch.',
+          description: 'Target branch. Optional for repoless sessions.',
         },
         interactive: {
           type: 'boolean',
@@ -74,7 +75,7 @@ export const tools: JulesTool[] = [
             'Automatically create a PR on completion. Defaults to true.',
         },
       },
-      required: ['prompt', 'repo', 'branch'],
+      required: ['prompt'],
     },
     handler: async (client, args) => {
       const result = await createSession(client, {

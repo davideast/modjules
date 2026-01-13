@@ -167,9 +167,10 @@ export interface SessionConfig {
   prompt: string;
   /**
    * The source code context for the session.
-   * Required. The SDK constructs the `sourceContext` payload from this input.
+   * Optional. If omitted, creates a "repoless" session not attached to any repository.
+   * The SDK constructs the `sourceContext` payload from this input when provided.
    */
-  source: SourceInput;
+  source?: SourceInput;
   /**
    * Optional title for the session. If not provided, the system will generate one.
    * Maps to `title` in the REST API.
@@ -278,7 +279,7 @@ export interface PullRequest {
 }
 
 /**
- * An output of a session, such as a pull request.
+ * An output of a session, such as a pull request or changeset.
  * This is a discriminated union based on the `type` property.
  * Maps to the `SessionOutput` message in the REST API.
  *
@@ -286,13 +287,20 @@ export interface PullRequest {
  * (output: SessionOutput) => {
  *   if (output.type === 'pullRequest') {
  *     console.log('PR URL:', output.pullRequest.url);
+ *   } else if (output.type === 'changeSet') {
+ *     console.log('Changes:', output.changeSet.gitPatch.unidiffPatch);
  *   }
  * }
  */
-export type SessionOutput = {
-  type: 'pullRequest';
-  pullRequest: PullRequest;
-};
+export type SessionOutput =
+  | {
+      type: 'pullRequest';
+      pullRequest: PullRequest;
+    }
+  | {
+      type: 'changeSet';
+      changeSet: ChangeSet;
+    };
 
 /**
  * Represents the context used when the session was created.

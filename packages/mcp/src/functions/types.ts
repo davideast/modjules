@@ -4,7 +4,7 @@
  * independent of MCP protocol formatting.
  */
 
-import type { Activity, SessionResource } from 'modjules';
+import type { SessionResource } from 'modjules';
 
 // ============================================================================
 // Session State
@@ -144,8 +144,10 @@ export interface ListSessionsResult {
 
 export interface CreateSessionOptions {
   prompt: string;
-  repo: string;
-  branch: string;
+  /** GitHub repository (owner/repo). Optional for repoless sessions. */
+  repo?: string;
+  /** Target branch. Optional for repoless sessions. */
+  branch?: string;
   interactive?: boolean;
   autoPr?: boolean;
 }
