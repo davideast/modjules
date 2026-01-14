@@ -103,6 +103,40 @@ describe('NetworkAdapter', () => {
     });
   });
 
+  it('should pass filter parameter', async () => {
+    mockRequest.mockResolvedValue({});
+    await adapter.listActivities({
+      filter: 'create_time>"2023-01-01T00:00:00Z"',
+    });
+
+    expect(mockRequest).toHaveBeenCalledWith(
+      'sessions/session-123/activities',
+      {
+        query: {
+          filter: 'create_time>"2023-01-01T00:00:00Z"',
+        },
+      },
+    );
+  });
+
+  it('should pass both filter and pageToken', async () => {
+    mockRequest.mockResolvedValue({});
+    await adapter.listActivities({
+      filter: 'create_time>"2023-01-01T00:00:00Z"',
+      pageToken: 'token-123',
+    });
+
+    expect(mockRequest).toHaveBeenCalledWith(
+      'sessions/session-123/activities',
+      {
+        query: {
+          filter: 'create_time>"2023-01-01T00:00:00Z"',
+          pageToken: 'token-123',
+        },
+      },
+    );
+  });
+
   it('should handle empty list response', async () => {
     mockRequest.mockResolvedValue({});
 

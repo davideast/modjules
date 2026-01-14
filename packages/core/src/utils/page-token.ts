@@ -9,6 +9,9 @@
  */
 
 /**
+ * @deprecated Use the `filter=create_time>...` API parameter instead.
+ * This function relies on pageToken format which is not a stable API contract.
+ *
  * Converts an activity's createTime to a Jules API pageToken.
  *
  * The pageToken is the createTime represented as nanoseconds since Unix epoch.
