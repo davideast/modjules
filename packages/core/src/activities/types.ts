@@ -6,6 +6,7 @@ import { Activity } from '../types.js';
 export interface ListOptions {
   pageSize?: number;
   pageToken?: string;
+  filter?: string;
 }
 
 /**

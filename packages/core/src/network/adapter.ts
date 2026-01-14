@@ -41,6 +41,9 @@ export class NetworkAdapter implements NetworkClient {
     if (options?.pageToken) {
       params.pageToken = options.pageToken;
     }
+    if (options?.filter) {
+      params.filter = options.filter;
+    }
 
     const response = await this.apiClient.request<{
       activities?: any[];

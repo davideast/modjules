@@ -57,8 +57,8 @@ interface HydrationTestCase extends BaseTestCase {
     lastActivityAge?: string;
   };
   then: {
-    apiCalledWithPageToken?: boolean;
-    apiCalledWithoutPageToken?: boolean;
+    apiCalledWithFilter?: boolean;
+    apiCalledWithoutFilter?: boolean;
     newActivitiesCached?: number;
     totalApiCalls?: number;
     apiCalls?: number;
@@ -88,7 +88,7 @@ interface StreamIntegrationTestCase extends BaseTestCase {
     apiActivities?: Array<{ id: string; createTime: string }>;
   };
   then: {
-    apiCalledWithPageToken?: boolean;
+    apiCalledWithFilter?: boolean;
     totalYielded?: number;
   };
 }
@@ -142,16 +142,16 @@ function createTestActivity(
 
 function createMockNetwork(
   apiActivities: Activity[] = [],
-): NetworkClient & { calls: Array<{ pageToken?: string }> } {
-  const calls: Array<{ pageToken?: string }> = [];
+): NetworkClient & { calls: Array<{ pageToken?: string; filter?: string }> } {
+  const calls: Array<{ pageToken?: string; filter?: string }> = [];
 
   return {
     calls,
     async *rawStream() {
       // Not used in these tests
     },
-    async listActivities(options?: { pageToken?: string }) {
-      calls.push({ pageToken: options?.pageToken });
+    async listActivities(options?: { pageToken?: string; filter?: string }) {
+      calls.push({ pageToken: options?.pageToken, filter: options?.filter });
       return {
         activities: apiActivities,
         nextPageToken: undefined,
@@ -247,13 +247,13 @@ describe('Incremental Activity Sync Spec', async () => {
 
         // Verify expectations
         const expected = tc.then as HydrationTestCase['then'];
-        if (expected.apiCalledWithPageToken) {
+if (expected.apiCalledWithFilter) {
           expect(mockNetwork.calls.length).toBeGreaterThan(0);
-          expect(mockNetwork.calls[0].pageToken).toBeDefined();
+          expect(mockNetwork.calls[0].filter).toBeDefined();
         }
-        if (expected.apiCalledWithoutPageToken) {
+if (expected.apiCalledWithoutFilter) {
           expect(mockNetwork.calls.length).toBeGreaterThan(0);
-          expect(mockNetwork.calls[0].pageToken).toBeUndefined();
+          expect(mockNetwork.calls[0].filter).toBeUndefined();
         }
         if (expected.newActivitiesCached !== undefined) {
           expect(newCount).toBe(expected.newActivitiesCached);
@@ -403,9 +403,9 @@ describe('Incremental Activity Sync Spec', async () => {
 
         // Verify expectations
         const expected = tc.then as StreamIntegrationTestCase['then'];
-        if (expected.apiCalledWithPageToken) {
+        if (expected.apiCalledWithFilter) {
           expect(mockNetwork.calls.length).toBeGreaterThan(0);
-          expect(mockNetwork.calls[0].pageToken).toBeDefined();
+          expect(mockNetwork.calls[0].filter).toBeDefined();
         }
         if (expected.totalYielded !== undefined) {
           expect(yielded.length).toBe(expected.totalYielded);
