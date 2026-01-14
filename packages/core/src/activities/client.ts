@@ -167,23 +167,12 @@ export class DefaultActivityClient implements ActivityClient {
       });
 
       for (const activity of response.activities) {
-        // With pageToken, the API should only return newer activities.
-        // But we still check for duplicates at the boundary to be safe
-        // (handles edge case of multiple activities with identical timestamps).
-        if (latest?.createTime) {
-          const actTime = new Date(activity.createTime).getTime();
-          const latestTime = new Date(latest.createTime).getTime();
-
-          if (actTime < latestTime) {
-            continue;
-          }
-
-          if (actTime === latestTime) {
-            const existing = await this.storage.get(activity.id);
-            if (existing) {
-              continue;
-            }
-          }
+        // The API filter should prevent us from receiving activities we already
+        // have. This is a defensive check to prevent duplicates in case of
+        // API or clock-skew issues.
+        const existing = await this.storage.get(activity.id);
+        if (existing) {
+          continue;
         }
 
         // It's new - append to storage
