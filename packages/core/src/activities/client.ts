@@ -67,11 +67,11 @@ export class DefaultActivityClient implements ActivityClient {
             rawChangeSet.gitPatch,
           );
         case 'bashOutput':
-          // The raw cached format has artifact.bashOutput...
+          // The raw cached format has artifact.bashOutput
           const rawBashOutput = (artifact as any).bashOutput || artifact;
           return new BashArtifact(rawBashOutput);
         case 'media':
-          // MediaArtifact requires the platform object for some methods.
+          // TODO: MediaArtifact requires the platform object for some methods.
           // However, for local cache re-hydration, we don't have access to it here.
           // For now, we accept this limitation as the primary bug is with ChangeSetArtifact.
           // A future refactor could pass the platform object down.
@@ -109,26 +109,6 @@ export class DefaultActivityClient implements ActivityClient {
     for await (const activity of this.storage.scan()) {
       yield this._hydrateActivityArtifacts(activity);
     }
-  }
-
-  /**
-   * Fetches all activities from the network and caches them.
-   * Used to populate an empty cache.
-   * @internal
-   */
-  private async *fetchAndCacheAll(): AsyncIterable<Activity> {
-    let pageToken: string | undefined;
-
-    do {
-      const response = await this.network.listActivities({ pageToken });
-
-      for (const activity of response.activities) {
-        await this.storage.append(activity);
-        yield activity;
-      }
-
-      pageToken = response.nextPageToken;
-    } while (pageToken);
   }
 
   /**
