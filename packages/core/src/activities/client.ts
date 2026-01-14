@@ -174,6 +174,10 @@ export class DefaultActivityClient implements ActivityClient {
           const actTime = new Date(activity.createTime).getTime();
           const latestTime = new Date(latest.createTime).getTime();
 
+          if (actTime < latestTime) {
+            continue;
+          }
+
           if (actTime === latestTime) {
             const existing = await this.storage.get(activity.id);
             if (existing) {

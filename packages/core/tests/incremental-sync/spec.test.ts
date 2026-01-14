@@ -247,11 +247,11 @@ describe('Incremental Activity Sync Spec', async () => {
 
         // Verify expectations
         const expected = tc.then as HydrationTestCase['then'];
-if (expected.apiCalledWithFilter) {
+        if (expected.apiCalledWithFilter) {
           expect(mockNetwork.calls.length).toBeGreaterThan(0);
           expect(mockNetwork.calls[0].filter).toBeDefined();
         }
-if (expected.apiCalledWithoutFilter) {
+        if (expected.apiCalledWithoutFilter) {
           expect(mockNetwork.calls.length).toBeGreaterThan(0);
           expect(mockNetwork.calls[0].filter).toBeUndefined();
         }

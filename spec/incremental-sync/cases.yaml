@@ -3,7 +3,7 @@
 ## Behavior: "Activities are immutable - once downloaded, never re-download"
 ##
 ## These specs define expected behavior for efficient activity syncing
-## using the Jules API's pageToken (nanosecond timestamp) mechanism.
+## using the Jules API's filter parameter.
 
 # =============================================================================
 # PAGE TOKEN CONSTRUCTION
@@ -41,7 +41,7 @@
 # =============================================================================
 
 - id: SYNC-03
-  description: hydrate() with cached activities uses pageToken to fetch only newer
+  description: hydrate() with cached activities uses filter to fetch only newer
   category: hydration
   status: implemented
   priority: P0
@@ -56,13 +56,13 @@
         createTime: '2024-01-05T10:02:00.000000Z'
   when: hydrate
   then:
-    # API should be called with pageToken based on act-2's createTime
-    apiCalledWithPageToken: true
+    # API should be called with filter based on act-2's createTime
+    apiCalledWithFilter: true
     newActivitiesCached: 1
     totalApiCalls: 1
 
 - id: SYNC-04
-  description: hydrate() with empty cache fetches all activities (no pageToken)
+  description: hydrate() with empty cache fetches all activities (no filter)
   category: hydration
   status: implemented
   priority: P0
@@ -75,7 +75,7 @@
         createTime: '2024-01-05T10:01:00.000000Z'
   when: hydrate
   then:
-    apiCalledWithoutPageToken: true
+    apiCalledWithoutFilter: true
     newActivitiesCached: 2
 
 # =============================================================================
@@ -186,7 +186,7 @@
         createTime: '2024-01-05T10:01:00.000000Z'
   when: stream
   then:
-    # stream() should call history() which calls hydrate() with pageToken
-    apiCalledWithPageToken: true
+    # stream() should call history() which calls hydrate() with a filter
+    apiCalledWithFilter: true
     # Should yield cached + new activities
     totalYielded: 2
