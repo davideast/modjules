@@ -6,7 +6,18 @@ import {
 import { Activity, Artifact } from '../types.js';
 import { ActivityStorage } from '../storage/types.js';
 import { ActivityClient, ListOptions, SelectOptions } from './types.js';
-import { createTimeToPageToken, isSessionFrozen } from '../utils/page-token.js';
+import { isSessionFrozen } from '../utils/page-token.js';
+
+/**
+ * Creates a filter string for the Jules API to fetch activities
+ * after a given timestamp.
+ *
+ * @param createTime - The RFC 3339 timestamp.
+ * @returns A filter string for the API.
+ */
+function createTimeFilter(createTime: string): string {
+  return `create_time>"${createTime}"`;
+}
 
 /**
  * Interface for the network layer used by the activity client.
@@ -67,11 +78,11 @@ export class DefaultActivityClient implements ActivityClient {
             rawChangeSet.gitPatch,
           );
         case 'bashOutput':
-          // The raw cached format has artifact.bashOutput...
+          // The raw cached format has artifact.bashOutput
           const rawBashOutput = (artifact as any).bashOutput || artifact;
           return new BashArtifact(rawBashOutput);
         case 'media':
-          // MediaArtifact requires the platform object for some methods.
+          // TODO: MediaArtifact requires the platform object for some methods.
           // However, for local cache re-hydration, we don't have access to it here.
           // For now, we accept this limitation as the primary bug is with ChangeSetArtifact.
           // A future refactor could pass the platform object down.
@@ -112,26 +123,6 @@ export class DefaultActivityClient implements ActivityClient {
   }
 
   /**
-   * Fetches all activities from the network and caches them.
-   * Used to populate an empty cache.
-   * @internal
-   */
-  private async *fetchAndCacheAll(): AsyncIterable<Activity> {
-    let pageToken: string | undefined;
-
-    do {
-      const response = await this.network.listActivities({ pageToken });
-
-      for (const activity of response.activities) {
-        await this.storage.append(activity);
-        yield activity;
-      }
-
-      pageToken = response.nextPageToken;
-    } while (pageToken);
-  }
-
-  /**
    * Syncs new activities from the network to local cache.
    *
    * **Optimization Strategy:**
@@ -159,35 +150,29 @@ export class DefaultActivityClient implements ActivityClient {
       return 0; // No API call needed
     }
 
-    // 3. Construct pageToken from latest cached activity's createTime.
+    // 3. Construct filter from latest cached activity's createTime.
     // This tells the API to return only activities AFTER this timestamp.
-    // If no cached activities, pageToken is undefined (fetch from beginning).
-    const pageToken = latest?.createTime
-      ? createTimeToPageToken(latest.createTime, true) // exclusive: activities AFTER this time
+    // If no cached activities, filter is undefined (fetch from beginning).
+    const filter = latest?.createTime
+      ? createTimeFilter(latest.createTime)
       : undefined;
 
     let count = 0;
-    let nextPageToken: string | undefined = pageToken;
+    let nextPageToken: string | undefined;
 
     do {
       const response = await this.network.listActivities({
+        filter,
         pageToken: nextPageToken,
       });
 
       for (const activity of response.activities) {
-        // With pageToken, the API should only return newer activities.
-        // But we still check for duplicates at the boundary to be safe
-        // (handles edge case of multiple activities with identical timestamps).
-        if (latest?.createTime) {
-          const actTime = new Date(activity.createTime).getTime();
-          const latestTime = new Date(latest.createTime).getTime();
-
-          if (actTime === latestTime) {
-            const existing = await this.storage.get(activity.id);
-            if (existing) {
-              continue;
-            }
-          }
+        // The API filter should prevent us from receiving activities we already
+        // have. This is a defensive check to prevent duplicates in case of
+        // API or clock-skew issues.
+        const existing = await this.storage.get(activity.id);
+        if (existing) {
+          continue;
         }
 
         // It's new - append to storage
