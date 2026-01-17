@@ -238,6 +238,10 @@ export type Source = {
    * The short identifier of the source (e.g., "github/owner/repo").
    */
   id: string;
+  /**
+   * Whether environment variables configured in the dashboard are enabled for this source.
+   */
+  environmentVariablesEnabled?: boolean;
 } & {
   type: 'githubRepo';
   githubRepo: GitHubRepo;

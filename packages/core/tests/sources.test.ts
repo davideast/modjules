@@ -32,6 +32,27 @@ describe('SourceManager', () => {
       }
     });
 
+    it('should retrieve a source with environmentVariablesEnabled set to true', async () => {
+      // Mock the specific source with environmentVariablesEnabled: true
+      server.use(
+        http.get(`${BASE_URL}/sources/github/owner/env-repo`, () => {
+          return HttpResponse.json({
+            name: 'sources/github/owner/env-repo',
+            id: 'owner/env-repo',
+            githubRepo: { owner: 'owner', repo: 'env-repo', isPrivate: true },
+            environmentVariablesEnabled: true,
+          });
+        }),
+      );
+
+      const source = await jules.sources.get({
+        github: 'owner/env-repo',
+      });
+
+      expect(source).toBeDefined();
+      expect(source?.environmentVariablesEnabled).toBe(true);
+    });
+
     it('should return undefined for a non-existent source (404)', async () => {
       const source = await jules.sources.get({ github: 'non/existent' });
       expect(source).toBeUndefined();
