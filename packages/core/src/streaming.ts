@@ -1,8 +1,8 @@
 // src/streaming.ts
 import { ApiClient } from './api.js';
-import { JulesApiError } from './errors.js';
 import { mapRestActivityToSdkActivity } from './mappers.js';
-import { Activity, Origin, SessionResource } from './types.js';
+import { withFirstRequestRetry } from './retry-utils.js';
+import { Activity, Origin } from './types.js';
 
 // A helper function for delaying execution.
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -30,6 +30,9 @@ export type StreamActivitiesOptions = {
  * An async generator that implements a hybrid pagination/polling strategy
  * to stream activities for a given session.
  *
+ * Includes automatic 404 retry logic for the first request to handle eventual
+ * consistency issues when a session is newly created.
+ *
  * @param sessionId The ID of the session to stream activities for.
  * @param apiClient The API client to use for requests.
  * @param pollingInterval The time in milliseconds to wait before polling for new activities.
@@ -56,9 +59,9 @@ export async function* streamActivities(
   const seenIdsAtLastTime = new Set<string>();
 
   while (true) {
-    let response: ListActivitiesResponse;
-    try {
-      response = await apiClient.request<ListActivitiesResponse>(
+    // Helper to fetch activities
+    const fetchActivities = () =>
+      apiClient.request<ListActivitiesResponse>(
         `sessions/${sessionId}/activities`,
         {
           query: {
@@ -67,54 +70,15 @@ export async function* streamActivities(
           },
         },
       );
-    } catch (error) {
-      if (
-        isFirstCall &&
-        error instanceof JulesApiError &&
-        error.status === 404
-      ) {
-        let lastError: JulesApiError = error;
-        let successfulResponse: ListActivitiesResponse | undefined;
-        let delay = 1000; // Start with a 1-second delay
 
-        for (let i = 0; i < 5; i++) {
-          await sleep(delay);
-          delay *= 2; // Double the delay for the next attempt
-          try {
-            successfulResponse =
-              await apiClient.request<ListActivitiesResponse>(
-                `sessions/${sessionId}/activities`,
-                {
-                  query: {
-                    pageSize: '50',
-                    ...(pageToken ? { pageToken } : {}),
-                  },
-                },
-              );
-            break; // On success, exit the retry loop.
-          } catch (retryError) {
-            if (
-              retryError instanceof JulesApiError &&
-              retryError.status === 404
-            ) {
-              lastError = retryError;
-            } else {
-              throw retryError; // Re-throw non-404 errors immediately.
-            }
-          }
-        }
-
-        if (successfulResponse) {
-          response = successfulResponse;
-        } else {
-          throw lastError; // If all retries fail, throw the last 404 error.
-        }
-      } else {
-        throw error; // Re-throw non-retryable errors.
-      }
+    // Apply 404 retry logic only on first call (eventual consistency)
+    let response: ListActivitiesResponse;
+    if (isFirstCall) {
+      response = await withFirstRequestRetry(fetchActivities);
+      isFirstCall = false;
+    } else {
+      response = await fetchActivities();
     }
-
-    isFirstCall = false; // Mark the first call as done.
 
     const activities = response.activities || [];
 
