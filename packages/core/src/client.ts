@@ -486,15 +486,30 @@ export class JulesClientImpl implements JulesClient {
       throw new SourceNotFoundError(config.source.github);
     }
 
+    // Build sourceContext
+    // Per API discovery doc: environmentVariablesEnabled is at sourceContext level,
+    // NOT inside githubRepoContext
+    const sourceContext: {
+      source: string;
+      githubRepoContext: { startingBranch: string };
+      environmentVariablesEnabled?: boolean;
+    } = {
+      source: source.name,
+      githubRepoContext: {
+        startingBranch: config.source.branch,
+      },
+    };
+
+    // Only include environmentVariablesEnabled if explicitly set
+    if (config.source.environmentVariablesEnabled !== undefined) {
+      sourceContext.environmentVariablesEnabled =
+        config.source.environmentVariablesEnabled;
+    }
+
     return {
       prompt: config.prompt,
       title: config.title,
-      sourceContext: {
-        source: source.name,
-        githubRepoContext: {
-          startingBranch: config.source.branch,
-        },
-      },
+      sourceContext,
     };
   }
 

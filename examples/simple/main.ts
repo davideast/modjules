@@ -31,28 +31,11 @@ async function main() {
     // 2. Start an interactive session.
     console.log('\n🚀 Starting a new session...');
     const session = await jules.session({
-      prompt: `Analyze this library 'modjules', which is a TypeScript SDK client for the Jules REST API.
-
-  Your task is to act as a Product Manager for the 'modjules' SDK and propose a roadmap of new features.
-  
-  IMPORTANT CONSTRAINTS:
-  1. The underlying Jules REST API is FIXED and cannot be changed. DO NOT suggest features that require new backend API endpoints (like new ML models, backend usage tracking, or server-side multi-repo support).
-  2. Focus ONLY on client-side improvements: developer experience (DX), better abstractions, local tooling, integrations, or helper methods that make the existing API easier to use.
-  
-  Consult the 'docs.md' to understand the raw API's limitations, and then review the 'src/' directory to see what the SDK currently currently abstracts.
-  
-  Write your assessment in a file called 'features.md'.
-  
-  Generate 10 feature proposals. Each must include:
-  - Category (e.g., DX, Integration, Tooling, Helper)
-  - Complexity (Low/Medium/High)
-  - Impact (Low/Medium/High)
-  - A high-level TypeScript API code example of how the user would use it.
-  
-  Inlcude at least 2 "Big, Bold, Creative" ideas that push the boundaries of what a client-side SDK can do (e.g., CLIs, local file watchers, CI/CD wrappers, interactive terminal UIs).`,
+      prompt: `Tell me the value of the environment variable 'ENV_TEST'.`,
       source: {
         github: GITHUB_REPO,
-        branch: 'main', // Make sure this branch exists in your repository
+        branch: 'main',
+        environmentVariablesEnabled: true,
       },
     });
     console.log(`✅ Session created with ID: ${session.id}`);
