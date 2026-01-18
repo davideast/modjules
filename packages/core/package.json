@@ -40,15 +40,15 @@
   "dependencies": {
     "idb": "^8.0.3",
     "yaml": "^2.8.2",
-    "zod": "^3.25.76"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^22.15.0",
+    "@types/node": "^22.10.0",
     "fake-indexeddb": "^6.2.5",
     "msw": "^2.10.4",
-    "typescript": "^5.8.3",
-    "vite": "^7.3.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.1",
     "vite-plugin-dts": "^4.5.4",
     "vitest": "^3.2.4"
   }
