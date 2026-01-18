@@ -92,6 +92,131 @@ describe('jules.run()', () => {
     await expect(automatedSession.result()).resolves.toBeDefined();
   });
 
+  // Critical tests for environmentVariablesEnabled feature
+  describe('environmentVariablesEnabled', () => {
+    it('should include environmentVariablesEnabled: true in the API payload when set', async () => {
+      let requestBody: any;
+      server.use(
+        http.post(`${BASE_URL}/sessions`, async ({ request }) => {
+          requestBody = await request.json();
+          return HttpResponse.json({
+            id: MOCK_SESSION_ID,
+            name: `sessions/${MOCK_SESSION_ID}`,
+          });
+        }),
+        http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
+          return HttpResponse.json({
+            activities: [{ name: 'a/1', sessionCompleted: {} }],
+          });
+        }),
+        http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}`, () => {
+          return HttpResponse.json({
+            id: MOCK_SESSION_ID,
+            state: 'completed',
+            outputs: [],
+          });
+        }),
+      );
+
+      const automatedSession = await jules.run({
+        prompt: 'Deploy with env vars',
+        source: {
+          github: 'davideast/dataprompt',
+          branch: 'main',
+          environmentVariablesEnabled: true,
+        },
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      // environmentVariablesEnabled is at sourceContext level, NOT inside githubRepoContext
+      expect(requestBody.sourceContext.environmentVariablesEnabled).toBe(true);
+
+      await expect(automatedSession.result()).resolves.toBeDefined();
+    });
+
+    it('should include environmentVariablesEnabled: false in the API payload when explicitly set to false', async () => {
+      let requestBody: any;
+      server.use(
+        http.post(`${BASE_URL}/sessions`, async ({ request }) => {
+          requestBody = await request.json();
+          return HttpResponse.json({
+            id: MOCK_SESSION_ID,
+            name: `sessions/${MOCK_SESSION_ID}`,
+          });
+        }),
+        http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
+          return HttpResponse.json({
+            activities: [{ name: 'a/1', sessionCompleted: {} }],
+          });
+        }),
+        http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}`, () => {
+          return HttpResponse.json({
+            id: MOCK_SESSION_ID,
+            state: 'completed',
+            outputs: [],
+          });
+        }),
+      );
+
+      const automatedSession = await jules.run({
+        prompt: 'Deploy without env vars',
+        source: {
+          github: 'davideast/dataprompt',
+          branch: 'main',
+          environmentVariablesEnabled: false,
+        },
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      // environmentVariablesEnabled is at sourceContext level, NOT inside githubRepoContext
+      expect(requestBody.sourceContext.environmentVariablesEnabled).toBe(false);
+
+      await expect(automatedSession.result()).resolves.toBeDefined();
+    });
+
+    it('should NOT include environmentVariablesEnabled in the API payload when not set', async () => {
+      let requestBody: any;
+      server.use(
+        http.post(`${BASE_URL}/sessions`, async ({ request }) => {
+          requestBody = await request.json();
+          return HttpResponse.json({
+            id: MOCK_SESSION_ID,
+            name: `sessions/${MOCK_SESSION_ID}`,
+          });
+        }),
+        http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}/activities`, () => {
+          return HttpResponse.json({
+            activities: [{ name: 'a/1', sessionCompleted: {} }],
+          });
+        }),
+        http.get(`${BASE_URL}/sessions/${MOCK_SESSION_ID}`, () => {
+          return HttpResponse.json({
+            id: MOCK_SESSION_ID,
+            state: 'completed',
+            outputs: [],
+          });
+        }),
+      );
+
+      const automatedSession = await jules.run({
+        prompt: 'Deploy with default env var behavior',
+        source: {
+          github: 'davideast/dataprompt',
+          branch: 'main',
+          // environmentVariablesEnabled intentionally NOT set
+        },
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Verify the property is not present in the payload (at sourceContext level)
+      expect(requestBody.sourceContext).not.toHaveProperty(
+        'environmentVariablesEnabled',
+      );
+
+      await expect(automatedSession.result()).resolves.toBeDefined();
+    });
+  });
+
   // Test successful run: stream and final outcome
   it('should stream activities and resolve with the correct Outcome on success', async () => {
     server.use(

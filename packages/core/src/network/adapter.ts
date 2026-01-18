@@ -3,14 +3,21 @@ import { NetworkClient } from '../activities/client.js';
 import { Activity } from '../types.js';
 import { ListOptions } from '../activities/types.js';
 import { mapRestActivityToSdkActivity } from '../mappers.js';
+import { withFirstRequestRetry } from '../retry-utils.js';
 
 import { Platform } from '../platform/types.js';
 
 /**
  * Concrete implementation of NetworkClient that communicates with the Jules API.
  * Handles fetching activities and streaming them via polling.
+ *
+ * Includes automatic 404 retry logic for the first request to handle eventual
+ * consistency issues when a session is newly created.
  */
 export class NetworkAdapter implements NetworkClient {
+  // Track if this is the first request to this session, for 404 retry logic
+  private isFirstRequest = true;
+
   constructor(
     private apiClient: ApiClient,
     private sessionId: string,
@@ -20,16 +27,29 @@ export class NetworkAdapter implements NetworkClient {
 
   /**
    * Fetches a single activity from the API.
+   * Includes 404 retry logic on first request for eventual consistency.
    */
   async fetchActivity(activityId: string): Promise<Activity> {
-    const restActivity = await this.apiClient.request<any>(
-      `sessions/${this.sessionId}/activities/${activityId}`,
-    );
-    return mapRestActivityToSdkActivity(restActivity, this.platform);
+    const endpoint = `sessions/${this.sessionId}/activities/${activityId}`;
+
+    const fetch = async () => {
+      const restActivity = await this.apiClient.request<any>(endpoint);
+      return mapRestActivityToSdkActivity(restActivity, this.platform);
+    };
+
+    // Apply retry logic only on first request
+    if (this.isFirstRequest) {
+      const result = await withFirstRequestRetry(fetch);
+      this.isFirstRequest = false;
+      return result;
+    }
+
+    return fetch();
   }
 
   /**
    * Lists activities from the API with pagination.
+   * Includes 404 retry logic on first request for eventual consistency.
    */
   async listActivities(
     options?: ListOptions,
@@ -45,17 +65,30 @@ export class NetworkAdapter implements NetworkClient {
       params.filter = options.filter;
     }
 
-    const response = await this.apiClient.request<{
-      activities?: any[];
-      nextPageToken?: string;
-    }>(`sessions/${this.sessionId}/activities`, { query: params });
+    const endpoint = `sessions/${this.sessionId}/activities`;
 
-    return {
-      activities: (response.activities || []).map((activity) =>
-        mapRestActivityToSdkActivity(activity, this.platform),
-      ),
-      nextPageToken: response.nextPageToken,
+    const fetch = async () => {
+      const response = await this.apiClient.request<{
+        activities?: any[];
+        nextPageToken?: string;
+      }>(endpoint, { query: params });
+
+      return {
+        activities: (response.activities || []).map((activity) =>
+          mapRestActivityToSdkActivity(activity, this.platform),
+        ),
+        nextPageToken: response.nextPageToken,
+      };
     };
+
+    // Apply retry logic only on first request
+    if (this.isFirstRequest) {
+      const result = await withFirstRequestRetry(fetch);
+      this.isFirstRequest = false;
+      return result;
+    }
+
+    return fetch();
   }
 
   /**

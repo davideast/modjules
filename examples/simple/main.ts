@@ -52,7 +52,8 @@ async function main() {
   Inlcude at least 2 "Big, Bold, Creative" ideas that push the boundaries of what a client-side SDK can do (e.g., CLIs, local file watchers, CI/CD wrappers, interactive terminal UIs).`,
       source: {
         github: GITHUB_REPO,
-        branch: 'main', // Make sure this branch exists in your repository
+        branch: 'main',
+        environmentVariablesEnabled: true,
       },
     });
     console.log(`✅ Session created with ID: ${session.id}`);

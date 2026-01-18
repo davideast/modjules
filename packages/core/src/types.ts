@@ -146,6 +146,14 @@ export interface SourceInput {
    * Maps to `sourceContext.githubRepoContext.startingBranch` in the REST API.
    */
   branch: string;
+  /**
+   * Whether to enable access to environment variables configured in the Jules dashboard.
+   * When true, Jules can access secure environment variables you've set up for this source.
+   * Maps to `sourceContext.githubRepoContext.environmentVariablesEnabled` in the REST API.
+   *
+   * @default undefined (uses source's default configuration)
+   */
+  environmentVariablesEnabled?: boolean;
 }
 
 /**
@@ -238,6 +246,10 @@ export type Source = {
    * The short identifier of the source (e.g., "github/owner/repo").
    */
   id: string;
+  /**
+   * Whether environment variables configured in the dashboard are enabled for this source.
+   */
+  environmentVariablesEnabled?: boolean;
 } & {
   type: 'githubRepo';
   githubRepo: GitHubRepo;

@@ -8,6 +8,7 @@ type RawSource = {
   name: string;
   id: string;
   githubRepo?: GitHubRepo;
+  environmentVariablesEnabled?: boolean;
 };
 
 // Internal type for the paginated list response
@@ -27,6 +28,7 @@ function mapRawSourceToSdkSource(rawSource: RawSource): Source {
       id: rawSource.id,
       type: 'githubRepo',
       githubRepo: rawSource.githubRepo,
+      environmentVariablesEnabled: rawSource.environmentVariablesEnabled,
     };
   }
   // This is a safeguard; based on current API, we only have githubRepo.
