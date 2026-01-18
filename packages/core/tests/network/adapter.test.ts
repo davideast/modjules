@@ -244,7 +244,8 @@ describe('NetworkAdapter', () => {
       }
 
       const resultPromise = adapter.listActivities();
-      const expectPromise = expect(resultPromise).rejects.toThrow(JulesApiError);
+      const expectPromise =
+        expect(resultPromise).rejects.toThrow(JulesApiError);
 
       // Advance past all retries: 1s + 2s + 4s + 8s + 16s = 31s
       await vi.advanceTimersByTimeAsync(32000);

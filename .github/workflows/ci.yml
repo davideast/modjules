@@ -19,34 +19,16 @@ jobs:
         with:
           fetch-depth: 0 # Required to see commit history and changed files
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: '20'
+          bun-version: latest
 
-      - name: Cache node_modules
-        id: cache-deps
-        uses: actions/cache@v4
-        with:
-          path: |
-            node_modules
-            packages/*/node_modules
-          # Key on lockfile hash - cache invalidates when dependencies change
-          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          # Fallback to any recent cache if exact match unavailable
-          restore-keys: |
-            deps-${{ runner.os }}-
+      # Bun install is fast enough that complex caching of node_modules often adds more overhead than it saves.
+      # We'll rely on Bun's speed. If needed, we can cache ~/.bun/install/cache.
 
       - name: Install dependencies
-        # Only run full npm ci if no cache hit; otherwise verify with quick install
-        run: |
-          if [ "${{ steps.cache-deps.outputs.cache-hit }}" == "true" ]; then
-            echo "Cache hit - running quick dependency check"
-            npm ci --prefer-offline --ignore-scripts || npm ci
-          else
-            echo "Cache miss - running full install"
-            npm ci
-          fi
+        run: bun install --frozen-lockfile
 
       # 1. Get Changed Files for Jules context (PR only - base_ref is empty on push)
       - name: Get Changed Files
@@ -61,14 +43,14 @@ jobs:
         id: format
         continue-on-error: true
         run: |
-          npm run format:check || echo "::warning::Formatting issues detected. Run 'npm run format' locally."
+          bun run format:check || echo "::warning::Formatting issues detected. Run 'bun run format' locally."
 
       - name: Type Check
         id: types
         continue-on-error: true
         run: |
           set -o pipefail
-          npm run type-check 2>&1 | tee ts_error.txt || {
+          bun run type-check 2>&1 | tee ts_error.txt || {
             echo "log=$(head -n 50 ts_error.txt | base64 -w 0)" >> $GITHUB_OUTPUT
             exit 1
           }
@@ -78,7 +60,7 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          npm test 2>&1 | tee test_log.txt || {
+          bun test 2>&1 | tee test_log.txt || {
             echo "log=$(tail -n 80 test_log.txt | base64 -w 0)" >> $GITHUB_OUTPUT
             exit 1
           }
@@ -88,7 +70,7 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          npm run build 2>&1 | tee build_log.txt || {
+          bun run build 2>&1 | tee build_log.txt || {
             echo "log=$(tail -n 40 build_log.txt | base64 -w 0)" >> $GITHUB_OUTPUT
             exit 1
           }
@@ -98,7 +80,7 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          npm run test:smoke 2>&1 | tee smoke_log.txt || {
+          bun run test:smoke 2>&1 | tee smoke_log.txt || {
             echo "log=$(tail -n 40 smoke_log.txt | base64 -w 0)" >> $GITHUB_OUTPUT
             exit 1
           }
@@ -116,7 +98,7 @@ jobs:
         run: |
           # Use HEAD SHA to check the actual commit, not the merge commit
           export COMMIT_MSG=$(git show -s --format=%B ${{ github.event.pull_request.head.sha }})
-          npx tsx scripts/verify-attribution.ts
+          bun scripts/verify-attribution.ts
 
       # 4. Report Failures to Jules via modjules
       - name: Report Failure to Jules
@@ -176,7 +158,7 @@ jobs:
           export ERROR_LOG_B64=$(echo -e "$ERROR_LOGS" | base64 -w 0)
 
           # Run the reporting script
-          npx tsx scripts/ci-report.ts
+          bun scripts/ci-report.ts
 
       - name: Fail Job if Errors
         if: always()
