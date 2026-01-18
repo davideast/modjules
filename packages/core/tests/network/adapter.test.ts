@@ -238,17 +238,18 @@ describe('NetworkAdapter', () => {
 
       // All calls return 404 (initial + 5 retries = 6 calls)
       for (let i = 0; i < 6; i++) {
-        mockRequest.mockRejectedValueOnce(
-          new JulesApiError('http://test', 404, 'Not Found'),
-        );
+        mockRequest.mockImplementationOnce(async () => {
+          throw new JulesApiError('http://test', 404, 'Not Found');
+        });
       }
 
       const resultPromise = adapter.listActivities();
+      const expectPromise = expect(resultPromise).rejects.toThrow(JulesApiError);
 
       // Advance past all retries: 1s + 2s + 4s + 8s + 16s = 31s
       await vi.advanceTimersByTimeAsync(32000);
 
-      await expect(resultPromise).rejects.toThrow(JulesApiError);
+      await expectPromise;
       expect(mockRequest).toHaveBeenCalledTimes(6);
     });
 

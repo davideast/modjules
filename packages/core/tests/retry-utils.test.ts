@@ -24,7 +24,9 @@ describe('withFirstRequestRetry', () => {
   it('should retry on 404 and succeed on second attempt', async () => {
     const fn = vi
       .fn()
-      .mockRejectedValueOnce(new JulesApiError('http://test', 404, 'Not Found'))
+      .mockImplementationOnce(async () => {
+        throw new JulesApiError('http://test', 404, 'Not Found');
+      })
       .mockResolvedValueOnce('success after retry');
 
     const resultPromise = withFirstRequestRetry(fn);
@@ -40,9 +42,15 @@ describe('withFirstRequestRetry', () => {
   it('should retry multiple times with exponential backoff', async () => {
     const fn = vi
       .fn()
-      .mockRejectedValueOnce(new JulesApiError('http://test', 404, 'Not Found'))
-      .mockRejectedValueOnce(new JulesApiError('http://test', 404, 'Not Found'))
-      .mockRejectedValueOnce(new JulesApiError('http://test', 404, 'Not Found'))
+      .mockImplementationOnce(async () => {
+        throw new JulesApiError('http://test', 404, 'Not Found');
+      })
+      .mockImplementationOnce(async () => {
+        throw new JulesApiError('http://test', 404, 'Not Found');
+      })
+      .mockImplementationOnce(async () => {
+        throw new JulesApiError('http://test', 404, 'Not Found');
+      })
       .mockResolvedValueOnce('success after 3 retries');
 
     const resultPromise = withFirstRequestRetry(fn);
@@ -56,23 +64,25 @@ describe('withFirstRequestRetry', () => {
   });
 
   it('should throw after exhausting all retries', async () => {
-    const fn = vi
-      .fn()
-      .mockRejectedValue(new JulesApiError('http://test', 404, 'Not Found'));
+    const fn = vi.fn().mockImplementation(async () => {
+      throw new JulesApiError('http://test', 404, 'Not Found');
+    });
 
     const resultPromise = withFirstRequestRetry(fn);
+    // Attach the expectation before advancing timers to avoid unhandled rejection
+    const expectPromise = expect(resultPromise).rejects.toThrow(JulesApiError);
 
     // Advance past all delays: 1s + 2s + 4s + 8s + 16s = 31s
     await vi.advanceTimersByTimeAsync(32000);
 
-    await expect(resultPromise).rejects.toThrow(JulesApiError);
+    await expectPromise;
     expect(fn).toHaveBeenCalledTimes(6); // Initial + 5 retries
   });
 
   it('should throw immediately on non-404 errors', async () => {
-    const fn = vi
-      .fn()
-      .mockRejectedValue(new JulesApiError('http://test', 500, 'Server Error'));
+    const fn = vi.fn().mockImplementation(async () => {
+      throw new JulesApiError('http://test', 500, 'Server Error');
+    });
 
     await expect(withFirstRequestRetry(fn)).rejects.toThrow(JulesApiError);
 
@@ -83,17 +93,20 @@ describe('withFirstRequestRetry', () => {
   it('should throw non-404 error during retry immediately', async () => {
     const fn = vi
       .fn()
-      .mockRejectedValueOnce(new JulesApiError('http://test', 404, 'Not Found'))
-      .mockRejectedValueOnce(
-        new JulesApiError('http://test', 500, 'Server Error'),
-      );
+      .mockImplementationOnce(async () => {
+        throw new JulesApiError('http://test', 404, 'Not Found');
+      })
+      .mockImplementationOnce(async () => {
+        throw new JulesApiError('http://test', 500, 'Server Error');
+      });
 
     const resultPromise = withFirstRequestRetry(fn);
+    const expectPromise = expect(resultPromise).rejects.toThrow(JulesApiError);
 
     // Advance past the first retry delay
     await vi.advanceTimersByTimeAsync(1001);
 
-    await expect(resultPromise).rejects.toThrow(JulesApiError);
+    await expectPromise;
 
     // 2 calls: initial 404, then 500 (stopped retrying)
     expect(fn).toHaveBeenCalledTimes(2);
@@ -102,21 +115,24 @@ describe('withFirstRequestRetry', () => {
   it('should support custom retry options', async () => {
     const fn = vi
       .fn()
-      .mockRejectedValueOnce(new JulesApiError('http://test', 404, 'Not Found'))
-      .mockRejectedValueOnce(
-        new JulesApiError('http://test', 404, 'Not Found'),
-      );
+      .mockImplementationOnce(async () => {
+        throw new JulesApiError('http://test', 404, 'Not Found');
+      })
+      .mockImplementationOnce(async () => {
+        throw new JulesApiError('http://test', 404, 'Not Found');
+      });
 
     // Only allow 1 retry with 100ms initial delay
     const resultPromise = withFirstRequestRetry(fn, {
       maxRetries: 1,
       initialDelayMs: 100,
     });
+    const expectPromise = expect(resultPromise).rejects.toThrow(JulesApiError);
 
     // Advance past both delays
     await vi.advanceTimersByTimeAsync(500);
 
-    await expect(resultPromise).rejects.toThrow(JulesApiError);
+    await expectPromise;
 
     // Initial + 1 retry = 2 calls
     expect(fn).toHaveBeenCalledTimes(2);
