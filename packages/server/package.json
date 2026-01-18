@@ -1,6 +1,6 @@
 {
   "name": "@modjules/server",
-  "version": "0.4.1",
+  "version": "1.0.0",
   "type": "module",
   "description": "Server-side authentication and proxy for modjules",
   "repository": "davideast/modjules",
@@ -51,7 +51,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "modjules": "0.4.1",
+    "modjules": "1.0.0",
     "@modjules/auth": "*"
   },
   "peerDependencies": {
